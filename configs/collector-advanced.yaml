@@ -1,0 +1,74 @@
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+processors:
+  batch: {}
+  transform:
+    error_mode: ignore
+    traces:
+      - set(status.message, "timeout") where duration > 3s
+      - set(attributes["tenant"], resource.attributes["tenant"])
+    logs:
+      - set(body, SHA256(body)) where resource.attributes["env"] == "prod"
+  tail_sampling:
+    decision_wait: 5s
+    policies:
+      - name: errors
+        type: status_code
+        status_code:
+          status_codes: [ERROR]
+      - name: key-endpoints
+        type: span_attributes
+        span_attributes:
+          include:
+            match_type: regexp
+            attributes:
+              - key: http.target
+                value: ^/(checkout|pay|order)
+
+exporters:
+  logging:
+    verbosity: detailed
+  otlp/a:
+    endpoint: backend-a:4317
+    tls:
+      insecure: true
+  otlp/b:
+    endpoint: backend-b:4317
+    tls:
+      insecure: true
+
+connectors:
+  routing:
+    default_pipelines: [traces/default]
+    table:
+      - value: A
+        statement: route() where resource.attributes["tenant"] == "A"
+        pipelines: [traces/a]
+      - value: B
+        statement: route() where resource.attributes["tenant"] == "B"
+        pipelines: [traces/b]
+
+service:
+  pipelines:
+    traces/default:
+      receivers: [otlp]
+      processors: [transform, tail_sampling, batch]
+      exporters: [logging]
+    traces/a:
+      receivers: [otlp]
+      processors: [transform, tail_sampling, batch]
+      exporters: [otlp/a]
+    traces/b:
+      receivers: [otlp]
+      processors: [transform, tail_sampling, batch]
+      exporters: [otlp/b]
+    logs:
+      receivers: [otlp]
+      processors: [transform, batch]
+      exporters: [logging]
