@@ -9,3 +9,4 @@
   - 旁路：后端不可用时本地落盘（Parquet）+ 延迟回传
 - 隔离：租户/环境/区域三维标签；路由至独立管道与存储
 - 自愈：EWMA/Z-score 边缘检测 → 触发限流/重启/调度（通过 OPAMP 下发策略）
+- 参考：`docs/analysis/distributed-model/system-model.md`；联动：OPAMP 热更新 OTTL 规则，语义由 SchemaURL/Validator 保障

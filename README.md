@@ -2,17 +2,57 @@
 
 OTLP golang
 
+## 目录
+
+- [OTLP\_go](#otlp_go)
+  - [目录](#目录)
+  - [文档导航](#文档导航)
+    - [核心文档](#核心文档)
+    - [语言与生态](#语言与生态)
+    - [深度分析论证](#深度分析论证)
+    - [实践指南](#实践指南)
+  - [运行示例](#运行示例)
+  - [本机一键运行](#本机一键运行)
+  - [容器与编排（可选）](#容器与编排可选)
+  - [关停与优雅退出](#关停与优雅退出)
+  - [形式化验证（可选）](#形式化验证可选)
+
 ## 文档导航
 
+### 核心文档
+
 - 文档索引：`docs/00_index.md`
+- **综合技术分析报告**：`docs/analysis/comprehensive-analysis.md`
+- **CSP × OTLP × 分布式（总览）**：`docs/analysis/csp-otlp/overview.md`
+
+### 语言与生态
+
 - Go 1.25.1 语言特性：`docs/language/go-1.25.1.md`
 - OTLP 语义模型：`docs/otlp/semantic-model.md`
 - Golang OTLP 生态映射：`docs/otlp/libraries.md`
-- 技术/分布式/形式化：见 `docs/design/`
+- Golang × OTLP 开源库选型：`docs/otlp/golang-libraries.md`
+
+### 深度分析论证
+
+- **语义模型分析**：`docs/analysis/semantic-analysis/`
+- **技术模型设计**：`docs/analysis/technical-model/`
+- **分布式模型论证**：`docs/analysis/distributed-model/`
+- **形式化证明**：`docs/analysis/formal-proofs/`
+- **生态映射分析**：`docs/analysis/ecosystem-mapping/`
+- **CSP × OTLP 体系化整合**：`docs/analysis/csp-otlp/`
+- 语言与语义映射：`docs/analysis/csp-otlp/language-semantics.md`
+- 技术整合与库选型：`docs/analysis/csp-otlp/technical-integration.md`
+- 分布式设计：`docs/analysis/csp-otlp/distributed-design.md`
+- 形式化与验证：`docs/analysis/csp-otlp/formalization.md`
+
+### 实践指南
 
 - OTTL 示例与最佳实践：`docs/otlp/ottl-examples.md`
 - 高级 Collector 配置（含 OTTL/采样/路由）：`configs/collector-advanced.yaml`
 - OPAMP 样例与流程：`docs/opamp/sample.md`
+- 技术/分布式/形式化：见 `docs/design/`
+- Profiles（eBPF 连续性能分析）：`docs/profiles/overview.md`
+- OPAMP 控制面概览：`docs/opamp/overview.md`
 
 ## 运行示例
 

@@ -9,6 +9,8 @@
   - I2：Collector 批处理在窗口内单调合并，不改变事件时间顺序
   - I3：配置生效需满足 `signature_ok ∧ hash_match ∧ capability_support`
   - I4：at-least-once 交付下，幂等去重规则 `id=(trace_id,span_id,ts)` 保证最终无重复可见
+  - I5（新增）：跨信号拼接一致性——`log.trace_id/span_id` 可唯一映射到其所属 `span`，且 `timestamp ∈ [start,end]`
+  - I6（新增）：Schema 迁移语义不变式——稳定键不变、类型保持、查询等值（见分析文档 3.3）
 - 证明路线：
   - 使用 TLA+/PlusCal 建模 Pipeline 与回退；检查 `deadlock-free` 与 `eventual-delivery`
   - 使用形式化规范验证 OPAMP 配置滚动的 `rollback-on-health-fail` 性质
@@ -20,3 +22,4 @@
 - 可验证性落地：
   - CI 钩子：对 OTTL/配置做 schema 校验 + 单元模型检查
   - 运行时守护：对关键指标设卫兵规则，违例触发自动回滚
+- 参考：`docs/analysis/formal-proofs/mathematical.md`

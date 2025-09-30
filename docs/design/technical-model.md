@@ -9,3 +9,4 @@
 - 可编程性：OTTL + WASM 作为通用算子层，热更新无重启
 - 安全性：mTLS、证书热轮转、签名校验；多租户隔离标签与路由
 - 运维性：OPAMP 下发配置/插件；灰度 + 回滚窗口；健康探针/自愈脚本集成
+- 参考：`docs/analysis/technical-model/architecture.md`、`docs/language/go-1.25.1.md`、`docs/analysis/technical-model/collector-sdk-mapping.md`

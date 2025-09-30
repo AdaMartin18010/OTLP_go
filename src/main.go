@@ -77,6 +77,9 @@ func main() {
 
 	tr := otel.Tracer("demo/handler")
 
+	// CSP × OTLP pipeline demo
+	p := newPipeline(64, 4)
+
 	http.HandleFunc("/hello", func(w http.ResponseWriter, r *http.Request) {
 		ctx, span := tr.Start(r.Context(), "GET /hello")
 		defer span.End()
@@ -85,6 +88,9 @@ func main() {
 		_, _ = w.Write([]byte("hello otlp"))
 		_ = ctx
 	})
+
+	// enqueue endpoint
+	http.Handle("/enqueue", p.httpEnqueueHandler())
 
 	// health check
 	http.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
