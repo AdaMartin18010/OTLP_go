@@ -10,6 +10,8 @@ OTLP golang
     - [核心文档](#核心文档)
     - [语言与生态](#语言与生态)
     - [深度分析论证](#深度分析论证)
+      - [⭐ Golang 1.25.1 × OTLP × CSP 体系化整合（2025-10 最新）](#-golang-1251--otlp--csp-体系化整合2025-10-最新)
+      - [历史文档（参考）](#历史文档参考)
     - [实践指南](#实践指南)
   - [运行示例](#运行示例)
   - [本机一键运行](#本机一键运行)
@@ -33,6 +35,21 @@ OTLP golang
 - Golang × OTLP 开源库选型：`docs/otlp/golang-libraries.md`
 
 ### 深度分析论证
+
+#### ⭐ Golang 1.25.1 × OTLP × CSP 体系化整合（2025-10 最新）
+
+- **总览与导航**：`docs/analysis/golang-1.25.1-otlp-integration/README.md`
+- **语义模型分析**：
+  - CSP ↔ OTLP 同构映射：`docs/analysis/golang-1.25.1-otlp-integration/semantic-model/01-csp-otlp-semantic-mapping.md`
+  - Resource 语义约定：`docs/analysis/golang-1.25.1-otlp-integration/semantic-model/02-resource-semantic-conventions.md`
+- **技术模型设计**：
+  - OpenTelemetry-Go 架构：`docs/analysis/golang-1.25.1-otlp-integration/technical-model/01-opentelemetry-go-architecture.md`
+- **分布式模型论证**：
+  - 分布式追踪理论：`docs/analysis/golang-1.25.1-otlp-integration/distributed-model/01-distributed-tracing-theory.md`
+- **形式化验证**：
+  - TLA+ 规约验证：`docs/analysis/golang-1.25.1-otlp-integration/formal-verification/02-tla-plus-specifications.md`
+
+#### 历史文档（参考）
 
 - **语义模型分析**：`docs/analysis/semantic-analysis/`
 - **技术模型设计**：`docs/analysis/technical-model/`
