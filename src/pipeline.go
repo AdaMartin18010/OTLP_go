@@ -60,7 +60,7 @@ func (p *pipeline) worker(id int) {
 	for t := range p.in {
 		start := time.Now()
 		ctx, span := tr.Start(context.Background(), "pipeline.process")
-		span.SetAttributes(attribute.String("worker.id", time.Now().Format("150405")))
+		span.SetAttributes(attribute.Int("worker.id", id))
 
 		// simulate processing
 		time.Sleep(50 * time.Millisecond)
@@ -98,4 +98,9 @@ func (p *pipeline) httpEnqueueHandler() http.HandlerFunc {
 		w.WriteHeader(http.StatusAccepted)
 		_, _ = w.Write([]byte("enqueued"))
 	}
+}
+
+// close gracefully closes the pipeline channel
+func (p *pipeline) close() {
+	close(p.in)
 }

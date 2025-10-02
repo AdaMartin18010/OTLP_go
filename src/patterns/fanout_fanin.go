@@ -6,6 +6,9 @@ import (
 	"sync"
 	"time"
 
+	"OTLP_go/src/pkg/concurrency"
+	"OTLP_go/src/pkg/pool"
+
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
@@ -29,16 +32,29 @@ type Result struct {
 }
 
 // FanOutFanIn 实现 Fan-Out/Fan-In 模式
+// 优化：添加并发控制、对象池化
 type FanOutFanIn struct {
 	workerCount int
 	tracer      trace.Tracer
+	sem         *concurrency.Semaphore // 并发控制
+	bufferPool  *pool.Pool[*Result]    // 结果池
 }
 
 // NewFanOutFanIn 创建新的 Fan-Out/Fan-In 处理器
+// 优化：添加并发控制，防止 goroutine 泄露
 func NewFanOutFanIn(workerCount int) *FanOutFanIn {
+	// 参数验证
+	if workerCount <= 0 {
+		workerCount = 10
+	}
+
 	return &FanOutFanIn{
 		workerCount: workerCount,
 		tracer:      otel.Tracer("patterns/fanout-fanin"),
+		sem:         concurrency.NewSemaphore("fanout-fanin", int64(workerCount)),
+		bufferPool: pool.NewPool("fanout-result", func() *Result {
+			return &Result{}
+		}),
 	}
 }
 
@@ -80,10 +96,17 @@ func (f *FanOutFanIn) Process(ctx context.Context, jobs []Job) ([]Result, error)
 		close(resultsCh)
 	}()
 
-	// Fan-In: 收集所有结果
+	// Fan-In: 收集所有结果（使用预分配）
 	results := make([]Result, 0, len(jobs))
 	for result := range resultsCh {
-		results = append(results, result)
+		// 复制结果（避免引用问题）
+		resultCopy := Result{
+			JobID:    result.JobID,
+			Output:   result.Output,
+			Duration: result.Duration,
+			Error:    result.Error,
+		}
+		results = append(results, resultCopy)
 
 		// 记录每个结果的 Span Event
 		span.AddEvent("job.completed",

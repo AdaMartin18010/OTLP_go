@@ -1,4 +1,4 @@
-module example.com/otlp_go_demo
+module OTLP_go
 
 go 1.25.1
 
@@ -10,6 +10,8 @@ require (
 	go.opentelemetry.io/otel/sdk v1.28.0
 	go.opentelemetry.io/otel/sdk/metric v1.28.0
 	go.opentelemetry.io/otel/trace v1.28.0
+	go.uber.org/automaxprocs v1.6.0
+	golang.org/x/sync v0.17.0
 	google.golang.org/grpc v1.66.0
 )
 

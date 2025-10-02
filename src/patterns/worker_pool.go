@@ -48,8 +48,22 @@ type WorkerPool struct {
 }
 
 // NewWorkerPool 创建新的 Worker Pool
+// 优化：支持自定义 context，增加配置验证
 func NewWorkerPool(name string, workerCount, queueSize int) *WorkerPool {
-	ctx, cancel := context.WithCancel(context.Background())
+	return NewWorkerPoolWithContext(context.Background(), name, workerCount, queueSize)
+}
+
+// NewWorkerPoolWithContext 使用自定义 context 创建 Worker Pool
+func NewWorkerPoolWithContext(parentCtx context.Context, name string, workerCount, queueSize int) *WorkerPool {
+	// 参数验证
+	if workerCount <= 0 {
+		workerCount = 10 // 默认值
+	}
+	if queueSize <= 0 {
+		queueSize = 100 // 默认值
+	}
+
+	ctx, cancel := context.WithCancel(parentCtx)
 	tracer := otel.Tracer(fmt.Sprintf("worker-pool/%s", name))
 	meter := otel.Meter(fmt.Sprintf("worker-pool/%s", name))
 
@@ -226,6 +240,7 @@ func (wp *WorkerPool) processTask(ctx context.Context, workerID int, task Task) 
 }
 
 // Submit 提交任务到 Worker Pool
+// 优化：使用 context 的 deadline，避免硬编码超时
 func (wp *WorkerPool) Submit(ctx context.Context, task Task) error {
 	ctx, span := wp.tracer.Start(ctx, "worker_pool.submit",
 		trace.WithAttributes(
@@ -238,18 +253,27 @@ func (wp *WorkerPool) Submit(ctx context.Context, task Task) error {
 	wp.incrementQueue()
 	defer wp.decrementQueue()
 
+	// 检查 context 是否已设置 deadline
+	_, hasDeadline := ctx.Deadline()
+	if !hasDeadline {
+		// 如果没有设置 deadline，使用默认超时
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, 5*time.Second)
+		defer cancel()
+	}
+
 	select {
 	case wp.tasks <- task:
 		span.SetStatus(codes.Ok, "task submitted")
 		return nil
 	case <-ctx.Done():
-		span.RecordError(ctx.Err())
-		span.SetStatus(codes.Error, "context cancelled")
-		return ctx.Err()
-	case <-time.After(5 * time.Second):
-		err := fmt.Errorf("submit timeout: queue full")
+		err := ctx.Err()
 		span.RecordError(err)
-		span.SetStatus(codes.Error, "submit timeout")
+		if err == context.DeadlineExceeded {
+			span.SetStatus(codes.Error, "submit timeout: queue full")
+		} else {
+			span.SetStatus(codes.Error, "context cancelled")
+		}
 		return err
 	}
 }

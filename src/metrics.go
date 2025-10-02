@@ -11,14 +11,12 @@ import (
 	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/resource"
 	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
-	"google.golang.org/grpc"
 )
 
 func initMetricProvider(ctx context.Context, endpoint string) (*sdkmetric.MeterProvider, error) {
 	exp, err := otlpmetricgrpc.New(ctx,
 		otlpmetricgrpc.WithEndpoint(endpoint),
 		otlpmetricgrpc.WithInsecure(),
-		otlpmetricgrpc.WithDialOption(grpc.WithBlock()),
 	)
 	if err != nil {
 		return nil, err

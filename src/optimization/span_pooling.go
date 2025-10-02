@@ -4,22 +4,44 @@ import (
 	"context"
 	"sync"
 
+	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/metric"
 	"go.opentelemetry.io/otel/trace"
 )
 
 // SpanPool Span 对象池
 // 减少 Span 相关对象的内存分配
+// 优化：集成统一的对象池系统和 OTLP 监控
 type SpanPool struct {
 	attributePool *AttributePool
 	eventPool     *EventPool
+	meter         metric.Meter
+	wrapperCount  metric.Int64Counter
+	flushCount    metric.Int64Counter
 }
 
 // NewSpanPool 创建 Span 池
+// 优化：添加监控指标
 func NewSpanPool() *SpanPool {
+	meter := otel.Meter("optimization/span-pool")
+
+	wrapperCount, _ := meter.Int64Counter(
+		"span_pool.wrappers",
+		metric.WithDescription("Number of span wrappers created"),
+	)
+
+	flushCount, _ := meter.Int64Counter(
+		"span_pool.flushes",
+		metric.WithDescription("Number of span flushes"),
+	)
+
 	return &SpanPool{
 		attributePool: NewAttributePool(16),
 		eventPool:     NewEventPool(8),
+		meter:         meter,
+		wrapperCount:  wrapperCount,
+		flushCount:    flushCount,
 	}
 }
 
@@ -109,7 +131,10 @@ type SpanWrapper struct {
 }
 
 // NewSpanWrapper 创建 Span 包装器
+// 优化：添加指标记录
 func NewSpanWrapper(span trace.Span, pool *SpanPool) *SpanWrapper {
+	pool.wrapperCount.Add(context.Background(), 1)
+
 	return &SpanWrapper{
 		span:       span,
 		attributes: pool.attributePool.Get(),
@@ -132,15 +157,23 @@ func (sw *SpanWrapper) AddEvent(name string, attrs ...attribute.KeyValue) {
 }
 
 // Flush 刷新到实际 Span
+// 优化：批量操作，添加指标记录
 func (sw *SpanWrapper) Flush() {
+	sw.pool.flushCount.Add(context.Background(), 1)
+
+	// 批量设置属性（减少函数调用）
 	if len(sw.attributes) > 0 {
 		sw.span.SetAttributes(sw.attributes...)
 	}
 
+	// 批量添加事件
 	for _, event := range sw.events {
 		sw.span.AddEvent(event.Name, trace.WithAttributes(event.Attributes...))
 		sw.pool.eventPool.Put(event)
 	}
+
+	// 清空事件列表
+	sw.events = sw.events[:0]
 }
 
 // End 结束 Span 并清理资源
