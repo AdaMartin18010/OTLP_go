@@ -7,7 +7,7 @@
 
 ## 📂 完整项目结构
 
-```
+```text
 OTLP_go/
 │
 ├── 📚 docs/                                     # 文档目录
@@ -66,21 +66,31 @@ OTLP_go/
 │
 ├── 💻 src/                                      # 源代码目录
 │   │
+│   ├── pkg/                                     # 核心包 ⭐
+│   │   ├── runtime/                            # 运行时管理 (104 行)
+│   │   ├── shutdown/                           # 优雅关闭 (217 行)
+│   │   ├── options/                            # Options 模式 (227 行)
+│   │   ├── errors/                             # 错误处理 (255 行)
+│   │   ├── context/                            # 上下文管理 (217 行)
+│   │   ├── pool/                               # 对象池化 (259 行)
+│   │   ├── concurrency/                        # 并发控制 (257 行)
+│   │   └── profiling/                          # 性能分析 (392 行)
+│   │
 │   ├── patterns/                                # CSP 并发模式 ⭐
-│   │   ├── fanout_fanin.go                     # Fan-Out/Fan-In 模式 (370 行)
-│   │   ├── pipeline_advanced.go                # 高级 Pipeline (泛型) (390 行)
-│   │   └── worker_pool.go                      # Worker Pool (监控) (444 行)
+│   │   ├── fanout_fanin.go                     # Fan-Out/Fan-In 模式 (227 行)
+│   │   ├── pipeline_advanced.go                # 高级 Pipeline (泛型) (389 行)
+│   │   └── worker_pool.go                      # Worker Pool (监控) (468 行)
 │   │
 │   ├── microservices/                           # 微服务架构 ⭐
 │   │   ├── api_gateway.go                      # API 网关 (289 行)
-│   │   ├── order_service.go                    # 订单服务 (367 行)
-│   │   ├── payment_service.go                  # 支付服务 (401 行)
-│   │   ├── user_service.go                     # 用户服务 (304 行)
-│   │   ├── clients.go                          # 服务客户端 (378 行)
-│   │   └── main_demo.go                        # 演示程序 (420 行)
+│   │   ├── order_service.go                    # 订单服务 (520 行)
+│   │   ├── payment_service.go                  # 支付服务 (367 行)
+│   │   ├── user_service.go                     # 用户服务 (450 行)
+│   │   ├── clients.go                          # 服务客户端 (400 行)
+│   │   └── main_demo.go                        # 演示程序 (354 行)
 │   │
 │   ├── optimization/                            # 性能优化 ⭐
-│   │   ├── sampling_strategies.go              # 采样策略 (406 行)
+│   │   ├── sampling_strategies.go              # 采样策略 (532 行)
 │   │   └── span_pooling.go                     # Span 池化 (319 行)
 │   │
 │   ├── resilience/                              # 弹性模式 ⭐
@@ -90,13 +100,15 @@ OTLP_go/
 │   │   └── custom_processor.go                 # 4 种处理器 (373 行)
 │   │
 │   ├── benchmarks/                              # 基准测试 ⭐
-│   │   └── performance_test.go                 # 性能测试套件 (337 行)
+│   │   └── performance_test.go                 # 性能测试套件 (320 行)
 │   │
 │   ├── examples/                                # 示例代码 ⭐
 │   │   └── context_baggage.go                  # Context & Baggage (287 行)
 │   │
-│   ├── main.go                                  # 主程序 (350 行)
-│   └── pipeline.go                              # 原有 Pipeline (200 行)
+│   ├── main.go                                  # 主程序 (250 行)
+│   ├── metrics.go                               # 指标初始化 (59 行)
+│   ├── logs.go                                  # 日志管理 (20 行)
+│   └── pipeline.go                              # Pipeline 实现 (107 行)
 │
 ├── 📦 configs/                                  # 配置文件
 │   ├── collector.yaml                           # OTLP Collector 配置
@@ -169,15 +181,16 @@ OTLP_go/
 
 | 子目录 | 文件数 | 代码行数 | 说明 |
 |--------|--------|---------|------|
-| `patterns/` | 3 | 1,204 | CSP 并发模式 |
-| `microservices/` | 6 | 2,159 | 微服务架构 |
-| `optimization/` | 2 | 725 | 性能优化 |
+| `pkg/` | 8 | 2,172 | 核心包 ⭐ |
+| `patterns/` | 3 | 1,084 | CSP 并发模式 |
+| `microservices/` | 6 | 2,380 | 微服务架构 |
+| `optimization/` | 2 | 851 | 性能优化 |
 | `resilience/` | 1 | 395 | 弹性模式 |
 | `processor/` | 1 | 373 | 自定义处理器 |
-| `benchmarks/` | 1 | 337 | 基准测试 |
+| `benchmarks/` | 1 | 320 | 基准测试 |
 | `examples/` | 1 | 287 | 示例代码 |
-| `root` | 2 | 550 | 主程序 |
-| **总计** | **17** | **6,030** | - |
+| `root` | 4 | 436 | 主程序 |
+| **总计** | **27** | **8,298** | - |
 
 ### 项目级文档 (根目录)
 
@@ -195,16 +208,26 @@ OTLP_go/
 
 ## 🗂️ 文件分类
 
-### 📚 理论文档 (23 篇)
+### 📚 理论文档 (28 篇)
 
 #### 深度分析 (5 篇, 42,700 字)
+
 - `01-golang-csp-fundamentals.md`
 - `02-csp-otlp-semantic-isomorphism.md`
 - `01-csp-distributed-systems-mapping.md`
 - `01-opentelemetry-go-sdk-deep-dive.md`
 - `01-csp-otlp-performance-benchmarks.md`
 
+#### 实现文档 (5 篇, 12,000 字)
+
+- `CODE_IMPLEMENTATION_OVERVIEW.md`
+- `CODE_OPTIMIZATION_PLAN.md`
+- `CODE_REFACTORING_SUMMARY.md`
+- `PHASE2_OPTIMIZATION_SUMMARY.md`
+- `PHASE3_OPTIMIZATION_SUMMARY.md`
+
 #### 形式化验证 (6 篇, 53,000 字)
+
 - `01-csp-formal-semantics.md`
 - `02-otlp-trace-formal-model.md`
 - `03-context-propagation-correctness.md`
@@ -213,12 +236,14 @@ OTLP_go/
 - `05-batch-processor-tla-spec.cfg`
 
 #### 语义模型 (4 篇, 45,000 字)
+
 - `01-otlp-semantic-conventions.md`
 - `02-golang-type-system-mapping.md`
 - `03-context-propagation-semantic.md`
 - `04-resource-semantic-model.md`
 
 #### 技术模型 (5 篇, 58,000 字)
+
 - `01-golang-runtime-analysis.md`
 - `02-otlp-protocol-details.md`
 - `03-sdk-architecture.md`
@@ -226,49 +251,70 @@ OTLP_go/
 - `05-instrumentation-strategy.md`
 
 #### 分布式模型 (5 篇, 62,000 字)
+
 - `01-distributed-tracing-theory.md`
 - `02-microservices-observability.md`
 - `03-service-mesh-integration.md`
 - `04-multi-cluster-observability.md`
 - `05-edge-cloud-synergy.md`
 
-### 💻 代码文件 (17 个)
+### 💻 代码文件 (27 个)
+
+#### 核心包 (8 个) ⭐
+
+```text
+src/pkg/
+├── runtime/runtime.go          (104 行)
+├── shutdown/manager.go         (217 行)
+├── options/options.go          (227 行)
+├── errors/errors.go            (255 行)
+├── context/context.go          (217 行)
+├── pool/pool.go                (259 行)
+├── concurrency/semaphore.go    (257 行)
+└── profiling/profiling.go      (392 行)
+```
 
 #### CSP 并发模式 (3 个)
-```
+
+```text
 src/patterns/
-├── fanout_fanin.go         (370 行)
-├── pipeline_advanced.go    (390 行)
-└── worker_pool.go          (444 行)
+├── fanout_fanin.go         (227 行)
+├── pipeline_advanced.go    (389 行)
+└── worker_pool.go          (468 行)
 ```
 
 #### 微服务架构 (6 个)
-```
+
+```text
 src/microservices/
 ├── api_gateway.go          (289 行)
-├── order_service.go        (367 行)
-├── payment_service.go      (401 行)
-├── user_service.go         (304 行)
-├── clients.go              (378 行)
-└── main_demo.go            (420 行)
+├── order_service.go        (520 行)
+├── payment_service.go      (367 行)
+├── user_service.go         (450 行)
+├── clients.go              (400 行)
+└── main_demo.go            (354 行)
 ```
 
 #### 性能优化 (2 个)
-```
+
+```text
 src/optimization/
-├── sampling_strategies.go  (406 行)
+├── sampling_strategies.go  (532 行)
 └── span_pooling.go         (319 行)
 ```
 
-#### 其他模块 (6 个)
-```
+#### 其他模块 (8 个)
+
+```text
 src/
 ├── resilience/circuit_breaker.go     (395 行)
 ├── processor/custom_processor.go     (373 行)
-├── benchmarks/performance_test.go    (337 行)
+├── benchmarks/performance_test.go    (320 行)
 ├── examples/context_baggage.go       (287 行)
-├── main.go                           (350 行)
-└── pipeline.go                       (200 行)
+├── main.go                           (250 行)
+├── metrics.go                        (59 行)
+├── logs.go                           (20 行)
+└── pipeline.go                       (107 行)
 ```
 
 ### 📋 导航文档 (3 篇)
@@ -325,6 +371,7 @@ src/
 **职责**: 存放所有理论分析文档
 
 **内容**:
+
 - CSP 语义模型
 - OTLP 协议分析
 - 分布式系统理论
@@ -332,6 +379,7 @@ src/
 - 性能分析
 
 **特点**:
+
 - 学术严谨
 - 形式化证明
 - 完整的理论体系
@@ -341,12 +389,14 @@ src/
 **职责**: 代码实现的详细说明
 
 **内容**:
+
 - 代码架构
 - 使用示例
 - 最佳实践
 - API 文档
 
 **特点**:
+
 - 实践导向
 - 代码示例丰富
 - 详细的使用说明
@@ -356,6 +406,8 @@ src/
 **职责**: 所有 Go 源代码
 
 **结构**:
+
+- `pkg/`: 核心工具包（8 个）⭐
 - `patterns/`: CSP 并发模式
 - `microservices/`: 微服务架构
 - `optimization/`: 性能优化
@@ -365,6 +417,7 @@ src/
 - `examples/`: 示例代码
 
 **特点**:
+
 - 模块化设计
 - 清晰的职责划分
 - 生产级质量
@@ -374,6 +427,7 @@ src/
 **职责**: 各种配置文件
 
 **内容**:
+
 - OTLP Collector 配置
 - Prometheus 配置
 - Jaeger 配置
@@ -384,6 +438,7 @@ src/
 **职责**: 容器化和部署相关
 
 **内容**:
+
 - Docker 配置
 - Kubernetes 清单
 - Helm Charts
@@ -393,6 +448,7 @@ src/
 **职责**: 项目整体说明
 
 **内容**:
+
 - README (主入口)
 - 项目总结
 - 架构详解
@@ -408,6 +464,7 @@ src/
 **格式**: `序号-主题-子主题.md`
 
 **示例**:
+
 - `01-golang-csp-fundamentals.md`
 - `02-csp-otlp-semantic-isomorphism.md`
 - `03-sdk-architecture.md`
@@ -417,6 +474,7 @@ src/
 **格式**: `功能_描述.go`
 
 **示例**:
+
 - `fanout_fanin.go`
 - `pipeline_advanced.go`
 - `worker_pool.go`
@@ -436,29 +494,39 @@ src/
 
 ### 大型文件 (> 400 行)
 
-- `worker_pool.go` (444 行)
-- `main_demo.go` (420 行)
-- `sampling_strategies.go` (406 行)
-- `payment_service.go` (401 行)
+- `sampling_strategies.go` (532 行)
+- `order_service.go` (520 行)
+- `worker_pool.go` (468 行)
+- `user_service.go` (450 行)
+- `clients.go` (400 行)
 
-### 中型文件 (300-400 行)
+### 中型文件 (200-400 行)
 
 - `circuit_breaker.go` (395 行)
-- `pipeline_advanced.go` (390 行)
-- `clients.go` (378 行)
+- `profiling.go` (392 行)
+- `pipeline_advanced.go` (389 行)
 - `custom_processor.go` (373 行)
-- `fanout_fanin.go` (370 行)
-- `order_service.go` (367 行)
-- `main.go` (350 行)
-- `performance_test.go` (337 行)
+- `payment_service.go` (367 行)
+- `main_demo.go` (354 行)
+- `performance_test.go` (320 行)
 - `span_pooling.go` (319 行)
-- `user_service.go` (304 行)
-
-### 小型文件 (< 300 行)
-
 - `api_gateway.go` (289 行)
 - `context_baggage.go` (287 行)
-- `pipeline.go` (200 行)
+- `pool.go` (259 行)
+- `concurrency/semaphore.go` (257 行)
+- `errors.go` (255 行)
+- `main.go` (250 行)
+- `options.go` (227 行)
+- `fanout_fanin.go` (227 行)
+- `shutdown/manager.go` (217 行)
+- `context/context.go` (217 行)
+
+### 小型文件 (< 200 行)
+
+- `pipeline.go` (107 行)
+- `runtime.go` (104 行)
+- `metrics.go` (59 行)
+- `logs.go` (20 行)
 
 ---
 
@@ -466,7 +534,7 @@ src/
 
 ### 1. 分层清晰 ✅
 
-```
+```text
 理论层 (docs/analysis/)
     ↓
 实现层 (docs/implementation/)
@@ -499,7 +567,7 @@ src/
 
 ### Phase 1: 基础搭建 (2025-09-15)
 
-```
+```text
 OTLP_go/
 ├── src/
 │   ├── main.go
@@ -523,8 +591,8 @@ OTLP_go/
 
 ### Phase 4: 代码实现 (2025-10-01 至 2025-10-02)
 
-**新增**: 15 个代码文件  
-**代码行数**: 5,480
+**新增**: 27 个代码文件（含 8 个核心 pkg 包）  
+**代码行数**: 8,298
 
 ### Phase 5: 文档整合 (2025-10-02)
 
@@ -533,11 +601,12 @@ OTLP_go/
 
 ### 最终状态 (2025-10-02)
 
-```
-总文件数: 50+
-总代码行数: 6,030
-总文档字数: 307,400+
-总图表数: 110+
+```text
+总文件数: 90+
+总代码行数: 8,298
+总核心包: 8 个 (2,172 行)
+总文档字数: 285,000+
+总图表数: 120+
 ```
 
 ---
@@ -612,4 +681,3 @@ OTLP_go/
 ---
 
 🎉 **清晰的结构是成功的一半！** 🎉
-
