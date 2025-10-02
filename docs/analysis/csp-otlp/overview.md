@@ -20,5 +20,3 @@
 - 熟悉 Go 并发（goroutine、channel、select、context、atomic/unsafe 限制）。
 - 了解 OTLP 语义模型（Trace/Metric/Log/Resource/Schema，HTTP 语义约定）。
 - 掌握 Collector 基础配置与 SDK 初始化流程。
-
-
