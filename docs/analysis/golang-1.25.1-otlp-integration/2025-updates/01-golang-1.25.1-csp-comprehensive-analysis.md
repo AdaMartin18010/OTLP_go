@@ -14,7 +14,7 @@
   - [1. 概述](#1-概述)
   - [2. Golang 1.25.1 CSP 语言机制](#2-golang-1251-csp-语言机制)
     - [2.1 Goroutine 运行时模型](#21-goroutine-运行时模型)
-      - [2.1.1 M:N 调度模型](#211-mn-调度模型)
+      - [2.1.1 M-N 调度模型](#211-m-n-调度模型)
       - [2.1.2 Goroutine 生命周期](#212-goroutine-生命周期)
     - [2.2 Channel 类型系统](#22-channel-类型系统)
       - [2.2.1 Channel 语义](#221-channel-语义)
@@ -74,7 +74,7 @@ Golang 自诞生以来就将 **CSP (Communicating Sequential Processes)** 作为
 
 ### 2.1 Goroutine 运行时模型
 
-#### 2.1.1 M:N 调度模型
+#### 2.1.1 M-N 调度模型
 
 Golang 运行时采用 **GMP 模型** (G: Goroutine, M: Machine/OS Thread, P: Processor):
 
