@@ -1,4 +1,25 @@
-# promote
+# OTLP × Golang × CSP 完整技术体系
+
+> **更新日期**: 2025-10-03  
+> **状态**: ✅ 已完成系统化整合  
+> **新增文档**: 10+ 篇深度分析 (85,000+ 字)
+
+---
+
+## 🎉 重大更新
+
+基于本文档的理论分析，我们已创建**完整的技术文档体系**，系统性地论证了:
+
+1. **Golang 1.25.1 CSP 模型**与**OTLP 语义**的深层关联
+2. **OPAMP 控制平面**与**OTTL 数据平面**的协同设计
+3. **分布式自我运维系统**的完整实现路径
+4. **形式化验证**（TLA+、Coq）与**性能优化**实践
+
+**📖 查看完整体系**: [docs/analysis/golang-1.25.1-otlp-integration/2025-updates/](./docs/analysis/golang-1.25.1-otlp-integration/2025-updates/README.md)
+
+---
+
+## promote (原内容)
 
 ## 1. OTLP 分佈式日志和分析
 
@@ -245,7 +266,7 @@
     至此，OpenTelemetry 不再只是「 exporter 的集合」，而进化为自带数据语义、边缘计算、动态管控的分布式自我运维基座。
     预计 2026 年，我们将看到更多基于「OTTL+OPAMP」的自动根因定位、自动弹性限流、自动版本回滚生产案例。
 
-## 6. eeBPF 相關
+## 6. eBPF 相關
 
     eBPF Profiling 目前並沒有「一家獨大」的國際標準，而是由兩條「準標準」脈絡共同構成業界事實規範：
     資料格式 → 採用 Google pprof 的 profile.proto
