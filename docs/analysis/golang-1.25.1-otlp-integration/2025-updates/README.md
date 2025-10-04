@@ -1,9 +1,9 @@
 # 2025 Golang × OTLP × CSP 完整技术体系
 
-> **版本**: v2.0  
-> **更新时间**: 2025-10-03  
-> **文档数量**: 10+ 篇  
-> **总字数**: 85,000+ 字
+> **版本**: v2.7  
+> **更新时间**: 2025-10-04  
+> **文档数量**: 15 篇  
+> **总字数**: 160,000+ 字
 
 ---
 
@@ -44,12 +44,15 @@
 
 本文档集系统性地论证了 **Golang 1.25.1 CSP 并发模型** 与 **OTLP (OpenTelemetry Protocol)** 之间的深层关联，并提供了从理论到实践的完整技术体系。
 
+**🎉 最新更新 (2025-10-04)**: 新增 6 篇深度文档 (104,000+ 字)，详见 [最新更新总结](./LATEST_UPDATES_2025-10-04.md)
+
 ### 核心贡献
 
 1. **形式化证明**: 首次证明 CSP Trace 语义与 OTLP Span 树同构
 2. **系统化整合**: 将 Golang CSP、OTLP、OPAMP、OTTL、eBPF 等技术整合为统一体系
-3. **生产实践**: 提供完整的架构设计、性能优化、部署运维指南
-4. **工具链**: 包含 TLA+ 规约、Coq 证明、性能基准测试等工具
+3. **2025 技术栈**: 完整覆盖 Golang 1.25.1、OTLP 四支柱、OPAMP v1.0
+4. **生产实践**: 提供完整的架构设计、性能优化、部署运维指南
+5. **工具链**: 包含 TLA+ 规约、Coq 证明、性能基准测试等工具
 
 ---
 
@@ -58,23 +61,74 @@
 ### 🎯 入门指南
 
 - **[00-综合索引](./00-COMPREHENSIVE-INDEX.md)** - 完整导航与学习路径 ⭐ 推荐起点
+- **[最新更新总结 2025-10-04](./LATEST_UPDATES_2025-10-04.md)** - 3 篇新文档概览 ⭐ 最新
+- **[12-实战实现指南](./12-practical-implementation-guide-2025.md)** - 15 分钟快速上手
 
 ### 🧠 核心理论
 
-1. **[Golang 1.25.1 CSP 综合分析](./01-golang-1.25.1-csp-comprehensive-analysis.md)**  
+1. **[13-Golang 1.25.1 运行时架构 2025](./13-golang-1.25.1-runtime-architecture-2025.md)** ⭐ NEW 2025-10-04  
+   - 容器感知的 GOMAXPROCS (cgroup CPU 限制自动检测)
+   - GMP 调度模型详解 (Work-Stealing、抢占式调度)
+   - Channel 底层实现 (hchan 数据结构、发送/接收操作)
+   - CSP 形式化语义 (进程代数、Trace 语义、精化关系)
+   - Golang CSP 与 OTLP 的语义映射
+   - 性能特征与基准测试
+   - 生产环境最佳实践
+
+2. **[11-完整技术整合 2025](./11-golang-otlp-csp-comprehensive-integration-2025.md)**  
+   - Golang 1.25.1 CSP 设计机制深度剖析 (GMP、Channel、Select、Context)
+   - OTLP 语义模型与 CSP 的本质关联 (Φ映射、同构证明)
+   - 分布式系统设计模型映射 (微服务、容错、弹性)
+   - OPAMP × OTTL × eBPF 协同体系 (控制平面 + 数据平面)
+   - 形式化证明与验证 (TLA+、Coq)
+   - 成熟开源库技术栈完整清单
+   - 架构设计影响与最佳实践
+   - 生产部署指南
+
+3. **[16-OTTL v1.0 深度解析 2025](./16-ottl-v1.0-deep-dive-2025.md)** ⭐ NEW 2025-10-04  
+   - SIMD 向量化优化 (AVX-512，3-8× 性能提升)
+   - 语法冻结与稳定性保证 (v1.0 向后兼容承诺)
+   - 交互式 Playground (WebAssembly + Monaco Editor)
+   - JIT 编译与热路径检测
+   - 并行执行策略 (数据并行 + 流水线并行)
+   - 生产环境调优 (批量大小、内存池、CPU 亲和性)
+   - 与 Golang CSP 的深度集成
+
+4. **[17-eBPF 持续性能剖析 2025](./17-ebpf-profiling-integration-2025.md)** ⭐ NEW 2025-10-04  
+   - OTLP Profile 信号 (第四支柱)
+   - pprof 格式深度解析 (Protobuf 定义、字符串去重)
+   - eBPF 采集原理 (On-CPU vs Off-CPU Profiling)
+   - Golang 特殊处理 (Goroutine 堆栈遍历、符号表解析)
+   - Pyroscope + Parca 集成
+   - 火焰图可视化 (Differential Flame Graph)
+   - OPAMP 动态控制 (自适应采样率、故障降级)
+   - 实战案例 (性能优化、内存泄漏、Goroutine 泄漏)
+
+5. **[14-OTLP 语义约定 2025](./14-otlp-semantic-conventions-2025.md)** ⭐ NEW 2025-10-04  
+   - 四支柱信号模型 (Trace/Metric/Log/Profile)
+   - Resource 语义约定 v1.0 (70+ 属性)
+   - Trace 信号与 Span 模型 (5 种 SpanKind)
+   - Metric 类型系统 (6 种类型，含 ExponentialHistogram)
+   - Log 信号与结构化日志
+   - Profile 信号（第四支柱）pprof 格式
+   - 2025 语义约定更新 (HTTP v1.0、Gen-AI、CI/CD)
+   - Golang SDK 集成完整示例
+   - 性能优化最佳实践
+
+6. **[Golang 1.25.1 CSP 综合分析](./01-golang-1.25.1-csp-comprehensive-analysis.md)**  
    - Goroutine 运行时模型 (GMP 调度)
    - Channel 类型系统与底层实现
    - Select 多路复用机制
    - Context 传播机制
    - CSP 形式化语义 (进程代数、Trace 语义、精化关系)
 
-2. **[OTLP 语义约定与资源模型](./02-otlp-semantic-conventions.md)**  
+7. **[OTLP 语义约定与资源模型](./02-otlp-semantic-conventions.md)**  
    - Resource 语义约定
    - Span 结构与字段
    - Metric 类型系统 (Gauge, Sum, Histogram, ExponentialHistogram)
    - Log 结构与关联
 
-3. **[CSP Trace ≅ OTLP Span 树同构证明](./03-csp-otlp-isomorphism-proof.md)** ⭐ 核心  
+8. **[CSP Trace ≅ OTLP Span 树同构证明](./03-csp-otlp-isomorphism-proof.md)** ⭐ 核心  
    - 问题陈述与形式化定义
    - 同构映射构造 (Φ: CSP → OTLP, Ψ: OTLP → CSP)
    - 双射性与保结构性证明
@@ -83,7 +137,19 @@
 
 ### 🌐 分布式架构
 
-1. **[OPAMP 控制平面协议规范](./04-opamp-control-plane-design.md)**  
+1. **[15-OPAMP 控制平面 v1.0](./15-opamp-protocol-specification-2025.md)** ⭐ NEW 2025-10-04  
+   - 协议概览与架构模型
+   - 消息模型 (Agent↔Server Protobuf)
+   - 远程配置管理 (下发、验证、回滚)
+   - mTLS 证书管理 (轮换、热更新)
+   - 包管理与二进制升级 (原子升级、零停机)
+   - 灰度发布与金丝雀 (5 阶段发布、自动回滚)
+   - 安全模型 (mTLS、RBAC、审计日志)
+   - Golang 完整实现示例
+   - 生产部署 (高可用、性能优化)
+   - 实战案例 (腾讯 1.8 万节点、eBay 证书轮换)
+
+2. **[OPAMP 控制平面协议规范](./04-opamp-control-plane-design.md)**  
    - 协议架构与消息模型
    - 远程配置管理
    - mTLS 证书轮换
@@ -91,13 +157,13 @@
    - 灰度发布与金丝雀
    - 安全模型与审计日志
 
-2. **[CSP 与分布式系统架构映射](./05-distributed-architecture-mapping.md)**  
+3. **[CSP 与分布式系统架构映射](./05-distributed-architecture-mapping.md)**  
    - 微服务通信模式
    - Context 跨进程传播 (W3C Trace Context)
    - 分布式追踪拓扑
    - 容错模式 (熔断、重试、超时)
 
-3. **[OTTL 转换语言深度解析](./06-ottl-transformation-language.md)**  
+4. **[OTTL 转换语言深度解析](./06-ottl-transformation-language.md)**  
    - 语法规范 (EBNF)
    - 数据类型系统
    - Path 表达式与零拷贝优化

@@ -2,17 +2,20 @@
 
 ## 目录
 
-- [1. 总览](#1-总览)
-- [2. 资源语义模型 Resource](#2-资源语义模型-resource)
-- [3. 信号语义模型 Signals](#3-信号语义模型-signals)
-  - [3.1 Trace](#31-trace)
-  - [3.2 Metrics](#32-metrics)
-  - [3.3 Logs](#33-logs)
-  - [3.4 Profiles（扩展）](#34-profiles扩展)
-- [4. 语义约定与 Schema](#4-语义约定与-schema)
-- [5. 语义一致性与跨信号关联](#5-语义一致性与跨信号关联)
-- [6. Go 1.25.1 语言特性映射](#6-go-1251-语言特性映射)
-- [7. 与技术/分布式/形式化模型的关系](#7-与技术分布式形式化模型的关系)
+- [OTLP 语义模型（Go 1.25.1 视角全梳理）](#otlp-语义模型go-1251-视角全梳理)
+  - [目录](#目录)
+  - [1. 总览](#1-总览)
+  - [2. 资源语义模型 Resource](#2-资源语义模型-resource)
+  - [3. 信号语义模型 Signals](#3-信号语义模型-signals)
+    - [3.1 Trace](#31-trace)
+    - [3.2 Metrics](#32-metrics)
+    - [3.3 Logs](#33-logs)
+    - [3.4 Profiles（扩展）](#34-profiles扩展)
+  - [4. 语义约定与 Schema](#4-语义约定与-schema)
+  - [5. 语义一致性与跨信号关联](#5-语义一致性与跨信号关联)
+  - [6. Go 1.25.1 语言特性映射](#6-go-1251-语言特性映射)
+  - [7. 与技术/分布式/形式化模型的关系](#7-与技术分布式形式化模型的关系)
+  - [OTLP 语义模型梳理（Trace/Metric/Log/Profile/Resource）](#otlp-语义模型梳理tracemetriclogprofileresource)
 
 ## 1. 总览
 
@@ -106,7 +109,7 @@ Resource 为所有信号提供统一的上下文（如 `service.name`, `service.
 - 分布式模型：在 Agent/Gateway/Backend 层次维持语义一致与弹性伸缩，见 `docs/analysis/distributed-model/`。
 - 形式化证明：对唯一性/因果/时间一致性与最终一致性给出证明，见 `docs/analysis/formal-proofs/`。
 
-# OTLP 语义模型梳理（Trace/Metric/Log/Profile/Resource）
+## OTLP 语义模型梳理（Trace/Metric/Log/Profile/Resource）
 
 - 统一三元组：因果（Trace/SpanId）、度量（Metrics）、事件（Logs）在同一 `Resource` 语义下对齐。
 - Trace：Span 树/有向无环图，支持 Links；关键字段：`trace_id`、`span_id`、`parent_span_id`、`status`、`attributes`、`events`、`links`。

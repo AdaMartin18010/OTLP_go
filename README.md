@@ -3,12 +3,12 @@
 **Golang 1.25.1 × OTLP × CSP × 分布式系统 - 完整知识体系**:
 
 > 从理论到实践的完整参考实现  
-> 📚 275,000+ 字文档 | 💻 9,200+ 行代码 | ⚡ 极致性能 | 🛡️ 企业级架构 | 🔍 可观测性
+> 📚 422,000+ 字文档 | 💻 9,200+ 行代码 | ⚡ 极致性能 | 🛡️ 企业级架构 | 🔍 可观测性
 
-**项目状态**: ✅ 生产就绪 (v2.4.0 - 完整技术体系发布)  
-**最后更新**: 2025-10-03  
-**优化进度**: 🟢 Phase 1 完成 | 🟢 Phase 2 完成 | 🟢 Phase 3 完成 | 🟢 文档整合完成  
-**🎉 NEW**: [2025 完整技术体系](./LATEST_UPDATES_2025-10-03.md) - CSP×OTLP×分布式全面梳理
+**项目状态**: ✅ 生产就绪 (v2.7.0 - 2025 完整技术栈更新)  
+**最后更新**: 2025-10-04  
+**优化进度**: 🟢 Phase 1 完成 | 🟢 Phase 2 完成 | 🟢 Phase 3 完成 | 🟢 文档整合完成 | 🟢 2025 技术栈更新完成  
+**🎉 NEW**: 6 篇深度文档 - Golang 1.25.1 运行时 + OTLP 语义约定 + OPAMP v1.0 + OTTL v1.0 + eBPF Profiling (新增 104,000+ 字)
 
 ---
 
@@ -47,10 +47,10 @@
 
 | 类别 | 数量 | 特点 |
 |------|------|------|
-| **理论文档** | 26 篇 (298,200 字) | CSP 语义、形式化验证、分布式模型、2025 最新整合 |
+| **理论文档** | 34 篇 (422,000+ 字) | CSP 语义、形式化验证、分布式模型、2025 完整整合、OPAMP/OTTL/eBPF |
 | **代码实现** | 15 文件 (6,050 行) | 生产级代码、完整示例 |
-| **代码示例** | 591+ 个 | 分布在文档中 |
-| **架构图表** | 135+ 个 | Mermaid 图、流程图、UML |
+| **代码示例** | 750+ 个 | 分布在文档中 |
+| **架构图表** | 160+ 个 | Mermaid 图、流程图、UML、协议序列图 |
 
 ### 核心贡献
 
@@ -136,18 +136,23 @@
 - **🆕 完整导航与总结**：`docs/analysis/golang-1.25.1-otlp-integration/NEW_COMPREHENSIVE_INDEX.md`
 - **🆕 综合技术总结**：`docs/analysis/golang-1.25.1-otlp-integration/COMPREHENSIVE_SUMMARY.md`
 
-**🆕 2025 完整技术体系（2025-10-03）** ⭐ 最新:
+**🆕 2025 完整技术体系（2025-10-04）** ⭐ 最新:
 
 - **📚 综合索引**: `docs/analysis/golang-1.25.1-otlp-integration/2025-updates/00-COMPREHENSIVE-INDEX.md` - 完整学习路径与导航
+- **🎯 完整技术整合**: `docs/analysis/golang-1.25.1-otlp-integration/2025-updates/11-golang-otlp-csp-comprehensive-integration-2025.md` - CSP×OTLP×分布式系统化论证
+- **💻 实战实现指南**: `docs/analysis/golang-1.25.1-otlp-integration/2025-updates/12-practical-implementation-guide-2025.md` - 15 分钟快速上手
 - **🧠 CSP 核心理论**:
+  - **⭐ Golang 1.25.1 运行时架构 2025**: `docs/analysis/golang-1.25.1-otlp-integration/2025-updates/13-golang-1.25.1-runtime-architecture-2025.md` - 容器感知 GOMAXPROCS、GMP 调度、Channel 底层实现
   - Golang 1.25.1 CSP 综合分析：`docs/analysis/golang-1.25.1-otlp-integration/2025-updates/01-golang-1.25.1-csp-comprehensive-analysis.md`
   - CSP Trace ≅ OTLP Span 树同构证明：`docs/analysis/golang-1.25.1-otlp-integration/2025-updates/03-csp-otlp-isomorphism-proof.md`
 - **🌐 分布式架构**:
+  - **⭐ OTLP 语义约定 2025**: `docs/analysis/golang-1.25.1-otlp-integration/2025-updates/14-otlp-semantic-conventions-2025.md` - 四支柱模型、HTTP v1.0、Gen-AI、CI/CD 约定
+  - **⭐ OPAMP 控制平面 v1.0**: `docs/analysis/golang-1.25.1-otlp-integration/2025-updates/15-opamp-protocol-specification-2025.md` - 远程配置、证书轮换、灰度发布
   - OPAMP 控制平面设计：`docs/analysis/golang-1.25.1-otlp-integration/2025-updates/04-opamp-control-plane-design.md`
   - OTTL 转换语言深度解析：`docs/analysis/golang-1.25.1-otlp-integration/2025-updates/06-ottl-transformation-language.md`
 - **⚡ 性能与验证**:
   - 性能优化策略（Span 池化、采样、零拷贝）
-  - eBPF Profiling 集成分析
+  - eBPF Profiling 集成分析（pprof 格式、第四支柱）
   - TLA+ 形式化规约与验证
 
 **历史文档（2025-10-02）**：

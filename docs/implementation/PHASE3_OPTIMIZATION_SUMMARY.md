@@ -6,6 +6,51 @@
 
 ---
 
+## 目录
+
+- [Phase 3: 性能深度优化总结](#phase-3-性能深度优化总结)
+  - [目录](#目录)
+  - [🎯 Phase 3 目标](#-phase-3-目标)
+  - [📦 新增工具包](#-新增工具包)
+    - [1. `pkg/profiling` - 性能分析](#1-pkgprofiling---性能分析)
+    - [2. Span 池化增强](#2-span-池化增强)
+      - [2.1 集成 OTLP 监控](#21-集成-otlp-监控)
+      - [2.2 批量操作优化](#22-批量操作优化)
+      - [2.3 指标监控](#23-指标监控)
+  - [📊 性能分析方法](#-性能分析方法)
+    - [1. CPU Profiling](#1-cpu-profiling)
+    - [2. Heap Profiling](#2-heap-profiling)
+    - [3. Goroutine Profiling](#3-goroutine-profiling)
+    - [4. Block/Mutex Profiling](#4-blockmutex-profiling)
+  - [🛠️ 性能优化技巧](#️-性能优化技巧)
+    - [1. Span 批量操作](#1-span-批量操作)
+    - [2. 对象池化策略](#2-对象池化策略)
+    - [3. 零拷贝技术](#3-零拷贝技术)
+    - [4. 内存对齐](#4-内存对齐)
+  - [📈 性能基线](#-性能基线)
+    - [建立方法](#建立方法)
+  - [🔍 性能问题排查流程](#-性能问题排查流程)
+    - [1. 确定问题类型](#1-确定问题类型)
+    - [2. 收集数据](#2-收集数据)
+    - [3. 分析热点](#3-分析热点)
+    - [4. 优化验证](#4-优化验证)
+  - [📊 Phase 3 性能提升](#-phase-3-性能提升)
+    - [Span 操作优化](#span-操作优化)
+    - [整体性能](#整体性能)
+    - [累计提升（Phase 0 → 3）](#累计提升phase-0--3)
+  - [🎓 最佳实践总结](#-最佳实践总结)
+    - [1. 性能优化原则](#1-性能优化原则)
+    - [2. 监控指标](#2-监控指标)
+    - [3. 生产环境建议](#3-生产环境建议)
+  - [🚀 下一步计划 (Phase 4)](#-下一步计划-phase-4)
+    - [生产优化](#生产优化)
+    - [可观测性](#可观测性)
+    - [架构演进](#架构演进)
+  - [✅ Phase 3 完成清单](#-phase-3-完成清单)
+    - [核心包](#核心包)
+    - [性能优化](#性能优化)
+    - [文档和测试](#文档和测试)
+
 ## 🎯 Phase 3 目标
 
 在 Phase 2 基础上，深入优化：
@@ -292,18 +337,18 @@ type Counter struct {
 
 2. **编写基准测试**
 
-```go
-func BenchmarkSpanCreation(b *testing.B) {
-    tracer := otel.Tracer("bench")
-    ctx := context.Background()
-    
-    b.ResetTimer()
-    for i := 0; i < b.N; i++ {
-        _, span := tracer.Start(ctx, "operation")
-        span.End()
-    }
-}
-```
+   ```go
+   func BenchmarkSpanCreation(b *testing.B) {
+      tracer := otel.Tracer("bench")
+      ctx := context.Background()
+      
+      b.ResetTimer()
+      for i := 0; i < b.N; i++ {
+         _, span := tracer.Start(ctx, "operation")
+         span.End()
+      }
+   }
+   ```
 
 3. **持续监控**
    - 每次提交运行基准测试
@@ -489,4 +534,3 @@ P99 延迟:  8ms → 2.8ms    (↓65%)
 **文档版本**: v2.3.0  
 **最后更新**: 2025-10-02  
 **维护者**: OTLP_go 项目组
-

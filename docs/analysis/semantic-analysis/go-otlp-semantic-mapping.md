@@ -2,6 +2,21 @@
 
 本文将 OTLP 四支柱（Trace/Metrics/Logs/Profile）及 Resource/Semantic Conventions 与 Go 生态的具体实现逐项对齐，给出工程落地清单与注意事项。
 
+## 目录
+
+- [OTLP 语义模型 ↔ Go 实现映射（Go 1.25.1）](#otlp-语义模型--go-实现映射go-1251)
+  - [目录](#目录)
+  - [1. Resource（资源身份）](#1-resource资源身份)
+  - [2. Trace（因果链）](#2-trace因果链)
+  - [3. Metrics（度量）](#3-metrics度量)
+  - [4. Logs（结构化日志）](#4-logs结构化日志)
+  - [5. Profile（连续剖析）](#5-profile连续剖析)
+  - [6. Exporter 与网络](#6-exporter-与网络)
+  - [7. OTTL 与 Collector 协同](#7-ottl-与-collector-协同)
+  - [8. Go × CSP 的指标与 Span 建议](#8-go--csp-的指标与-span-建议)
+  - [9. 最佳实践清单](#9-最佳实践清单)
+  - [10. 与本仓示例的对接](#10-与本仓示例的对接)
+
 ## 1. Resource（资源身份）
 
 - 语义：`service.name`、`service.namespace`、`service.version`、`deployment.environment`、`host.*`、`k8s.*`。
