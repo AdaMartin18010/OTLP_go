@@ -1,9 +1,9 @@
 # 2025 Golang × OTLP × CSP 完整技术体系
 
-> **版本**: v2.7  
+> **版本**: v2.9  
 > **更新时间**: 2025-10-04  
-> **文档数量**: 15 篇  
-> **总字数**: 160,000+ 字
+> **文档数量**: 17 篇  
+> **总字数**: 197,000+ 字
 
 ---
 
@@ -85,7 +85,19 @@
    - 架构设计影响与最佳实践
    - 生产部署指南
 
-3. **[16-OTTL v1.0 深度解析 2025](./16-ottl-v1.0-deep-dive-2025.md)** ⭐ NEW 2025-10-04  
+3. **[19-生产环境最佳实践 2025](./19-production-best-practices-2025.md)** ⭐ NEW 2025-10-04  
+   - 案例 1: 大规模微服务集群部署（1000+ 服务，智能采样，成本节省 92%）
+   - 案例 2: 金融行业合规要求（PCI-DSS，审计日志，数据脱敏）
+   - 案例 3: 高性能场景优化（RTB 竞价，P99 < 5ms，零分配）
+   - 案例 4: 故障排查与根因分析（四支柱联动，15 分钟定位）
+   - 案例 5: 混合云/多云部署（AWS+Azure+阿里云，数据主权）
+   - 架构决策树（部署模式、采样策略、后端选择）
+   - 性能调优 Checklist（应用层、Collector、后端、网络）
+   - 故障排查手册（数据丢失、高延迟、内存泄漏、Goroutine 泄漏）
+   - 监控指标体系（黄金信号、RED 指标、资源指标）
+   - 安全加固指南（mTLS、认证授权、数据脱敏、审计日志）
+
+4. **[16-OTTL v1.0 深度解析 2025](./16-ottl-v1.0-deep-dive-2025.md)** ⭐ NEW 2025-10-04  
    - SIMD 向量化优化 (AVX-512，3-8× 性能提升)
    - 语法冻结与稳定性保证 (v1.0 向后兼容承诺)
    - 交互式 Playground (WebAssembly + Monaco Editor)
@@ -94,7 +106,7 @@
    - 生产环境调优 (批量大小、内存池、CPU 亲和性)
    - 与 Golang CSP 的深度集成
 
-4. **[17-eBPF 持续性能剖析 2025](./17-ebpf-profiling-integration-2025.md)** ⭐ NEW 2025-10-04  
+5. **[17-eBPF 持续性能剖析 2025](./17-ebpf-profiling-integration-2025.md)** ⭐ NEW 2025-10-04  
    - OTLP Profile 信号 (第四支柱)
    - pprof 格式深度解析 (Protobuf 定义、字符串去重)
    - eBPF 采集原理 (On-CPU vs Off-CPU Profiling)
@@ -104,7 +116,7 @@
    - OPAMP 动态控制 (自适应采样率、故障降级)
    - 实战案例 (性能优化、内存泄漏、Goroutine 泄漏)
 
-5. **[14-OTLP 语义约定 2025](./14-otlp-semantic-conventions-2025.md)** ⭐ NEW 2025-10-04  
+6. **[14-OTLP 语义约定 2025](./14-otlp-semantic-conventions-2025.md)** ⭐ NEW 2025-10-04  
    - 四支柱信号模型 (Trace/Metric/Log/Profile)
    - Resource 语义约定 v1.0 (70+ 属性)
    - Trace 信号与 Span 模型 (5 种 SpanKind)
@@ -115,20 +127,20 @@
    - Golang SDK 集成完整示例
    - 性能优化最佳实践
 
-6. **[Golang 1.25.1 CSP 综合分析](./01-golang-1.25.1-csp-comprehensive-analysis.md)**  
+7. **[Golang 1.25.1 CSP 综合分析](./01-golang-1.25.1-csp-comprehensive-analysis.md)**  
    - Goroutine 运行时模型 (GMP 调度)
    - Channel 类型系统与底层实现
    - Select 多路复用机制
    - Context 传播机制
    - CSP 形式化语义 (进程代数、Trace 语义、精化关系)
 
-7. **[OTLP 语义约定与资源模型](./02-otlp-semantic-conventions.md)**  
+8. **[OTLP 语义约定与资源模型](./02-otlp-semantic-conventions.md)**  
    - Resource 语义约定
    - Span 结构与字段
    - Metric 类型系统 (Gauge, Sum, Histogram, ExponentialHistogram)
    - Log 结构与关联
 
-8. **[CSP Trace ≅ OTLP Span 树同构证明](./03-csp-otlp-isomorphism-proof.md)** ⭐ 核心  
+9. **[CSP Trace ≅ OTLP Span 树同构证明](./03-csp-otlp-isomorphism-proof.md)** ⭐ 核心  
    - 问题陈述与形式化定义
    - 同构映射构造 (Φ: CSP → OTLP, Ψ: OTLP → CSP)
    - 双射性与保结构性证明
@@ -174,14 +186,29 @@
 
 ### ⚡ 性能优化
 
-1. **[性能优化策略](./07-performance-optimization.md)**  
+1. **[19-生产环境最佳实践 2025](./19-production-best-practices-2025.md)** ⭐ NEW 2025-10-04  
+   - 5 大真实案例（大规模集群、金融合规、高性能、故障排查、混合云）
+   - 架构决策树、性能调优 Checklist、故障排查手册
+   - 监控指标体系、安全加固指南
+
+2. **[20-监控告警完整方案 2025](./20-monitoring-alerting-guide-2025.md)** ⭐ NEW 2025-10-04  
+   - 四层监控模型（业务、应用、可观测性系统、基础设施）
+   - 100+ 条 Prometheus 告警规则（应用、Collector、后端、SLO）
+   - Alertmanager 配置（路由、抑制、静默、高可用）
+   - 通知渠道集成（PagerDuty、Slack、企业微信、Email）
+   - Grafana Dashboard（Overview、Application、Collector、Backend）
+   - SLO/SLI 定义（可用性、数据完整性、查询延迟、Error Budget）
+   - 自动化响应（HPA、KEDA、动态采样、熔断降级、自动修复）
+   - 最佳实践（SMART 原则、告警疲劳预防、值班轮换、事后复盘）
+
+3. **[性能优化策略](./07-performance-optimization.md)**  
    - Span 池化技术
    - 采样策略 (头采样、尾采样、自适应采样)
    - 批量处理优化
    - 零拷贝技术
    - 性能基准测试
 
-2. **[eBPF Profiling 集成分析](./08-ebpf-profiling-integration.md)**  
+4. **[eBPF Profiling 集成分析](./08-ebpf-profiling-integration.md)**  
    - 连续性能分析原理
    - pprof 格式规范
    - OTLP Profile 信号
