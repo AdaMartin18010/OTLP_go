@@ -1,6 +1,7 @@
 package optimization
 
 import (
+	"fmt"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -89,7 +90,7 @@ func (s *AdaptiveSampler) ShouldSample(params sdktrace.SamplingParameters) sdktr
 func (s *AdaptiveSampler) Description() string {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	return "AdaptiveSampler{rate=" + string(rune(s.currentRate*100)) + "%}"
+	return fmt.Sprintf("AdaptiveSampler{rate=%.1f%%}", s.currentRate*100)
 }
 
 // updateStats 定期更新统计信息
@@ -230,7 +231,7 @@ func (s *PathBasedSampler) ShouldSample(params sdktrace.SamplingParameters) sdkt
 func (s *PathBasedSampler) Description() string {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	return "PathBasedSampler{rules=" + string(rune(len(s.rules))) + "}"
+	return fmt.Sprintf("PathBasedSampler{rules=%d}", len(s.rules))
 }
 
 // ComposableSampler 可组合采样器
@@ -265,7 +266,7 @@ func (s *ComposableSampler) ShouldSample(params sdktrace.SamplingParameters) sdk
 
 // Description 实现 Sampler 接口
 func (s *ComposableSampler) Description() string {
-	return "ComposableSampler{count=" + string(rune(len(s.samplers))) + "}"
+	return fmt.Sprintf("ComposableSampler{count=%d}", len(s.samplers))
 }
 
 // TailSamplingSampler 尾部采样器（简化版本）
@@ -359,7 +360,7 @@ func (s *TailSamplingSampler) cleanup() {
 func (s *TailSamplingSampler) Description() string {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	return "TailSamplingSampler{buffered=" + string(rune(len(s.buffer))) + "}"
+	return fmt.Sprintf("TailSamplingSampler{buffered=%d}", len(s.buffer))
 }
 
 // Example: 使用示例

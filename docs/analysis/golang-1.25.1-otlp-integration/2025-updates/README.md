@@ -1,9 +1,9 @@
 # 2025 Golang × OTLP × CSP 完整技术体系
 
-> **版本**: v2.9  
+> **版本**: v3.0  
 > **更新时间**: 2025-10-04  
-> **文档数量**: 17 篇  
-> **总字数**: 197,000+ 字
+> **文档数量**: 18 篇  
+> **总字数**: 210,000+ 字
 
 ---
 
@@ -11,6 +11,7 @@
 
 - [2025 Golang × OTLP × CSP 完整技术体系](#2025-golang--otlp--csp-完整技术体系)
   - [📋 目录](#-目录)
+  - [🚀 快速开始](#-快速开始)
   - [📖 简介](#-简介)
     - [核心贡献](#核心贡献)
   - [📚 文档目录](#-文档目录)
@@ -40,11 +41,26 @@
   - [📜 许可证](#-许可证)
   - [🤝 贡献](#-贡献)
 
+## 🚀 快速开始
+
+**新手入门**:
+
+1. 📖 阅读 [快速入门指南](./QUICK_START_GUIDE.md) - 5 分钟上手
+2. 📚 查看 [综合索引](./00-COMPREHENSIVE-INDEX.md) - 了解完整体系
+3. 🎯 选择 [学习路径](./QUICK_START_GUIDE.md#学习路径) - 按需学习
+
+**重要文档**:
+
+- 🎊 [项目完成总结](./PROJECT_COMPLETION_SUMMARY_2025-10-04.md) - 全面了解项目
+- 🆕 [最新更新](./LATEST_UPDATES_2025-10-04.md) - 2025 技术栈更新
+
+---
+
 ## 📖 简介
 
 本文档集系统性地论证了 **Golang 1.25.1 CSP 并发模型** 与 **OTLP (OpenTelemetry Protocol)** 之间的深层关联，并提供了从理论到实践的完整技术体系。
 
-**🎉 最新更新 (2025-10-04)**: 新增 6 篇深度文档 (104,000+ 字)，详见 [最新更新总结](./LATEST_UPDATES_2025-10-04.md)
+**🎉 最新更新 (2025-10-04)**: 新增 9 篇深度文档 (154,000+ 字)，详见 [最新更新总结](./LATEST_UPDATES_2025-10-04.md)
 
 ### 核心贡献
 
@@ -201,14 +217,25 @@
    - 自动化响应（HPA、KEDA、动态采样、熔断降级、自动修复）
    - 最佳实践（SMART 原则、告警疲劳预防、值班轮换、事后复盘）
 
-3. **[性能优化策略](./07-performance-optimization.md)**  
+3. **[21-Kubernetes Operator 开发指南 2025](./21-kubernetes-operator-development-2025.md)** ⭐ NEW 2025-10-04  
+   - 完整 CRD 设计（OpenTelemetryCollector、Instrumentation、OpAMPBridge）
+   - Controller 实现（Reconcile 循环、资源管理、状态更新）
+   - Webhook 实现（Validating、Mutating、Auto-Instrumentation）
+   - 4 种部署模式（Sidecar、DaemonSet、Deployment、StatefulSet）
+   - 自动化配置管理（ConfigMap 动态生成、Secret 管理、OPAMP 集成）
+   - 完整代码实现（3,200+ 行，50+ 代码示例）
+   - 测试套件（Unit、Integration、E2E）
+   - Helm Chart 部署与运维
+   - 生产最佳实践（性能优化、安全加固、监控告警）
+
+4. **[性能优化策略](./07-performance-optimization.md)**  
    - Span 池化技术
    - 采样策略 (头采样、尾采样、自适应采样)
    - 批量处理优化
    - 零拷贝技术
    - 性能基准测试
 
-4. **[eBPF Profiling 集成分析](./08-ebpf-profiling-integration.md)**  
+5. **[eBPF Profiling 集成分析](./08-ebpf-profiling-integration.md)**  
    - 连续性能分析原理
    - pprof 格式规范
    - OTLP Profile 信号
