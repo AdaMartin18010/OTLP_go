@@ -32,7 +32,14 @@
   - [8. 最佳实践](#8-最佳实践)
     - [8.1 生产环境配置](#81-生产环境配置)
     - [8.2 性能调优](#82-性能调优)
-  - [9. 参考资料](#9-参考资料)
+  - [9. Go 语言性能分析实战](#9-go-语言性能分析实战)
+    - [9.1 完整的 Go 应用 Profiling 集成](#91-完整的-go-应用-profiling-集成)
+    - [9.2 使用 eBPF 进行持续 Profiling](#92-使用-ebpf-进行持续-profiling)
+    - [9.3 性能分析最佳实践](#93-性能分析最佳实践)
+    - [9.4 与 Trace 关联](#94-与-trace-关联)
+    - [9.5 Grafana 可视化](#95-grafana-可视化)
+    - [9.6 生产环境 Checklist](#96-生产环境-checklist)
+  - [10. 参考资料](#10-参考资料)
 
 ## 1. Profiles 概述
 
@@ -733,7 +740,651 @@ storage:
     max_size_gb: 1000
 ```
 
-## 9. 参考资料
+## 9. Go 语言性能分析实战
+
+### 9.1 完整的 Go 应用 Profiling 集成
+
+**生产级 Go 应用集成**：
+
+```go
+package main
+
+import (
+    "context"
+    "fmt"
+    "log"
+    "net/http"
+    "net/http/pprof"
+    "os"
+    "runtime"
+    "time"
+
+    "go.opentelemetry.io/contrib/instrumentation/runtime"
+    "go.opentelemetry.io/otel"
+    "go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc"
+    "go.opentelemetry.io/otel/sdk/metric"
+    "go.opentelemetry.io/otel/sdk/resource"
+    semconv "go.opentelemetry.io/otel/semconv/v1.24.0"
+)
+
+type ProfileCollector struct {
+    meterProvider *metric.MeterProvider
+    stopChan      chan struct{}
+}
+
+func NewProfileCollector(endpoint string) (*ProfileCollector, error) {
+    ctx := context.Background()
+    
+    // 创建资源
+    res, err := resource.New(ctx,
+        resource.WithAttributes(
+            semconv.ServiceName("my-go-app"),
+            semconv.ServiceVersion("1.0.0"),
+            semconv.DeploymentEnvironment(os.Getenv("ENV")),
+        ),
+    )
+    if err != nil {
+        return nil, fmt.Errorf("failed to create resource: %w", err)
+    }
+    
+    // 创建 OTLP 导出器
+    exporter, err := otlpmetricgrpc.New(ctx,
+        otlpmetricgrpc.WithEndpoint(endpoint),
+        otlpmetricgrpc.WithInsecure(),
+    )
+    if err != nil {
+        return nil, fmt.Errorf("failed to create exporter: %w", err)
+    }
+    
+    // 创建 MeterProvider
+    meterProvider := metric.NewMeterProvider(
+        metric.WithResource(res),
+        metric.WithReader(metric.NewPeriodicReader(exporter,
+            metric.WithInterval(10*time.Second),
+        )),
+    )
+    
+    otel.SetMeterProvider(meterProvider)
+    
+    // 启动 runtime metrics 收集
+    if err := runtime.Start(runtime.WithMinimumReadMemStatsInterval(time.Second)); err != nil {
+        return nil, fmt.Errorf("failed to start runtime metrics: %w", err)
+    }
+    
+    pc := &ProfileCollector{
+        meterProvider: meterProvider,
+        stopChan:      make(chan struct{}),
+    }
+    
+    // 启动自定义 profiling
+    go pc.collectProfiles()
+    
+    return pc, nil
+}
+
+func (pc *ProfileCollector) collectProfiles() {
+    ticker := time.NewTicker(30 * time.Second)
+    defer ticker.Stop()
+    
+    for {
+        select {
+        case <-ticker.C:
+            pc.captureProfile()
+        case <-pc.stopChan:
+            return
+        }
+    }
+}
+
+func (pc *ProfileCollector) captureProfile() {
+    // CPU Profile
+    cpuProfile := captureC CPUProfile(5 * time.Second)
+    if cpuProfile != nil {
+        pc.sendProfile("cpu", cpuProfile)
+    }
+    
+    // Heap Profile
+    heapProfile := captureHeapProfile()
+    if heapProfile != nil {
+        pc.sendProfile("heap", heapProfile)
+    }
+    
+    // Goroutine Profile
+    goroutineProfile := captureGoroutineProfile()
+    if goroutineProfile != nil {
+        pc.sendProfile("goroutine", goroutineProfile)
+    }
+}
+
+func captureCPUProfile(duration time.Duration) []byte {
+    // 实现 CPU profiling 捕获
+    // 返回 pprof 格式数据
+    return nil
+}
+
+func captureHeapProfile() []byte {
+    // 实现 Heap profiling 捕获
+    return nil
+}
+
+func captureGoroutineProfile() []byte {
+    // 实现 Goroutine profiling 捕获
+    return nil
+}
+
+func (pc *ProfileCollector) sendProfile(profileType string, data []byte) {
+    // 发送 profile 数据到 OTLP Collector
+    log.Printf("Sending %s profile (%d bytes)", profileType, len(data))
+}
+
+func (pc *ProfileCollector) Shutdown(ctx context.Context) error {
+    close(pc.stopChan)
+    return pc.meterProvider.Shutdown(ctx)
+}
+
+// HTTP pprof 端点
+func setupPprofEndpoints() {
+    mux := http.NewServeMux()
+    
+    // 标准 pprof 端点
+    mux.HandleFunc("/debug/pprof/", pprof.Index)
+    mux.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
+    mux.HandleFunc("/debug/pprof/profile", pprof.Profile)
+    mux.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
+    mux.HandleFunc("/debug/pprof/trace", pprof.Trace)
+    
+    // 自定义端点：获取当前内存统计
+    mux.HandleFunc("/debug/pprof/memstats", func(w http.ResponseWriter, r *http.Request) {
+        var m runtime.MemStats
+        runtime.ReadMemStats(&m)
+        
+        fmt.Fprintf(w, "Alloc = %v MB\n", m.Alloc/1024/1024)
+        fmt.Fprintf(w, "TotalAlloc = %v MB\n", m.TotalAlloc/1024/1024)
+        fmt.Fprintf(w, "Sys = %v MB\n", m.Sys/1024/1024)
+        fmt.Fprintf(w, "NumGC = %v\n", m.NumGC)
+        fmt.Fprintf(w, "NumGoroutine = %v\n", runtime.NumGoroutine())
+    })
+    
+    go func() {
+        log.Println("Starting pprof server on :6060")
+        if err := http.ListenAndServe(":6060", mux); err != nil {
+            log.Printf("pprof server error: %v", err)
+        }
+    }()
+}
+
+func main() {
+    // 设置 GOMAXPROCS
+    runtime.GOMAXPROCS(runtime.NumCPU())
+    
+    // 启动 pprof HTTP 端点
+    setupPprofEndpoints()
+    
+    // 创建 Profile Collector
+    collector, err := NewProfileCollector("collector:4317")
+    if err != nil {
+        log.Fatalf("Failed to create profile collector: %v", err)
+    }
+    defer collector.Shutdown(context.Background())
+    
+    // 启动应用
+    log.Println("Application started")
+    
+    // 模拟工作负载
+    for {
+        doWork()
+        time.Sleep(100 * time.Millisecond)
+    }
+}
+
+func doWork() {
+    // 模拟 CPU 密集型工作
+    for i := 0; i < 1000000; i++ {
+        _ = i * i
+    }
+    
+    // 模拟内存分配
+    data := make([]byte, 1024*1024)
+    _ = data
+}
+```
+
+### 9.2 使用 eBPF 进行持续 Profiling
+
+**eBPF Profiler 集成**：
+
+```go
+package main
+
+import (
+    "context"
+    "fmt"
+    "log"
+    "time"
+
+    "github.com/cilium/ebpf"
+    "github.com/cilium/ebpf/link"
+    "github.com/cilium/ebpf/perf"
+)
+
+type EBPFProfiler struct {
+    collection *ebpf.Collection
+    reader     *perf.Reader
+    stopChan   chan struct{}
+}
+
+func NewEBPFProfiler() (*EBPFProfiler, error) {
+    // 加载 eBPF 程序
+    spec, err := ebpf.LoadCollectionSpec("profiler.o")
+    if err != nil {
+        return nil, fmt.Errorf("failed to load eBPF spec: %w", err)
+    }
+    
+    coll, err := ebpf.NewCollection(spec)
+    if err != nil {
+        return nil, fmt.Errorf("failed to create collection: %w", err)
+    }
+    
+    // 附加到 perf 事件
+    prog := coll.Programs["profile_cpu"]
+    link, err := link.AttachPerfEvent(link.PerfEventOptions{
+        Program:   prog,
+        SampleFrequency: 99, // 99 Hz
+    })
+    if err != nil {
+        coll.Close()
+        return nil, fmt.Errorf("failed to attach perf event: %w", err)
+    }
+    defer link.Close()
+    
+    // 创建 perf reader
+    reader, err := perf.NewReader(coll.Maps["events"], 4096)
+    if err != nil {
+        coll.Close()
+        return nil, fmt.Errorf("failed to create perf reader: %w", err)
+    }
+    
+    profiler := &EBPFProfiler{
+        collection: coll,
+        reader:     reader,
+        stopChan:   make(chan struct{}),
+    }
+    
+    go profiler.readEvents()
+    
+    return profiler, nil
+}
+
+func (p *EBPFProfiler) readEvents() {
+    for {
+        select {
+        case <-p.stopChan:
+            return
+        default:
+            record, err := p.reader.Read()
+            if err != nil {
+                if perf.IsClosed(err) {
+                    return
+                }
+                log.Printf("Error reading perf event: %v", err)
+                continue
+            }
+            
+            // 处理 profiling 事件
+            p.processEvent(record.RawSample)
+        }
+    }
+}
+
+func (p *EBPFProfiler) processEvent(data []byte) {
+    // 解析堆栈跟踪
+    // 聚合样本
+    // 发送到 OTLP Collector
+}
+
+func (p *EBPFProfiler) Close() error {
+    close(p.stopChan)
+    p.reader.Close()
+    return p.collection.Close()
+}
+```
+
+### 9.3 性能分析最佳实践
+
+**1. 内存泄漏检测**：
+
+```go
+package main
+
+import (
+    "log"
+    "runtime"
+    "time"
+)
+
+type MemoryLeakDetector struct {
+    baseline  runtime.MemStats
+    threshold float64 // 增长阈值（百分比）
+}
+
+func NewMemoryLeakDetector(threshold float64) *MemoryLeakDetector {
+    var baseline runtime.MemStats
+    runtime.ReadMemStats(&baseline)
+    
+    return &MemoryLeakDetector{
+        baseline:  baseline,
+        threshold: threshold,
+    }
+}
+
+func (d *MemoryLeakDetector) Check() bool {
+    var current runtime.MemStats
+    runtime.ReadMemStats(&current)
+    
+    // 计算内存增长
+    growth := float64(current.Alloc-d.baseline.Alloc) / float64(d.baseline.Alloc) * 100
+    
+    if growth > d.threshold {
+        log.Printf("WARNING: Memory leak detected! Growth: %.2f%%", growth)
+        log.Printf("  Baseline Alloc: %d MB", d.baseline.Alloc/1024/1024)
+        log.Printf("  Current Alloc: %d MB", current.Alloc/1024/1024)
+        log.Printf("  NumGC: %d", current.NumGC)
+        
+        // 触发 heap dump
+        d.captureHeapDump()
+        return true
+    }
+    
+    return false
+}
+
+func (d *MemoryLeakDetector) captureHeapDump() {
+    filename := fmt.Sprintf("heap-%d.prof", time.Now().Unix())
+    f, err := os.Create(filename)
+    if err != nil {
+        log.Printf("Failed to create heap dump: %v", err)
+        return
+    }
+    defer f.Close()
+    
+    runtime.GC() // 强制 GC
+    if err := pprof.WriteHeapProfile(f); err != nil {
+        log.Printf("Failed to write heap profile: %v", err)
+    } else {
+        log.Printf("Heap dump saved to %s", filename)
+    }
+}
+
+func (d *MemoryLeakDetector) Start(interval time.Duration) {
+    ticker := time.NewTicker(interval)
+    defer ticker.Stop()
+    
+    for range ticker.C {
+        d.Check()
+    }
+}
+```
+
+**2. Goroutine 泄漏检测**：
+
+```go
+package main
+
+import (
+    "log"
+    "runtime"
+    "time"
+)
+
+type GoroutineLeakDetector struct {
+    baseline  int
+    threshold int
+}
+
+func NewGoroutineLeakDetector(threshold int) *GoroutineLeakDetector {
+    return &GoroutineLeakDetector{
+        baseline:  runtime.NumGoroutine(),
+        threshold: threshold,
+    }
+}
+
+func (d *GoroutineLeakDetector) Check() bool {
+    current := runtime.NumGoroutine()
+    increase := current - d.baseline
+    
+    if increase > d.threshold {
+        log.Printf("WARNING: Goroutine leak detected!")
+        log.Printf("  Baseline: %d", d.baseline)
+        log.Printf("  Current: %d", current)
+        log.Printf("  Increase: %d", increase)
+        
+        // 捕获 goroutine profile
+        d.captureGoroutineProfile()
+        return true
+    }
+    
+    return false
+}
+
+func (d *GoroutineLeakDetector) captureGoroutineProfile() {
+    filename := fmt.Sprintf("goroutine-%d.prof", time.Now().Unix())
+    f, err := os.Create(filename)
+    if err != nil {
+        log.Printf("Failed to create goroutine profile: %v", err)
+        return
+    }
+    defer f.Close()
+    
+    if err := pprof.Lookup("goroutine").WriteTo(f, 2); err != nil {
+        log.Printf("Failed to write goroutine profile: %v", err)
+    } else {
+        log.Printf("Goroutine profile saved to %s", filename)
+    }
+}
+```
+
+**3. CPU 热点分析**：
+
+```go
+package main
+
+import (
+    "fmt"
+    "log"
+    "os"
+    "runtime/pprof"
+    "time"
+)
+
+type CPUProfiler struct {
+    duration time.Duration
+}
+
+func NewCPUProfiler(duration time.Duration) *CPUProfiler {
+    return &CPUProfiler{duration: duration}
+}
+
+func (p *CPUProfiler) Profile() error {
+    filename := fmt.Sprintf("cpu-%d.prof", time.Now().Unix())
+    f, err := os.Create(filename)
+    if err != nil {
+        return fmt.Errorf("failed to create CPU profile: %w", err)
+    }
+    defer f.Close()
+    
+    log.Printf("Starting CPU profiling for %v...", p.duration)
+    
+    if err := pprof.StartCPUProfile(f); err != nil {
+        return fmt.Errorf("failed to start CPU profile: %w", err)
+    }
+    
+    time.Sleep(p.duration)
+    
+    pprof.StopCPUProfile()
+    
+    log.Printf("CPU profile saved to %s", filename)
+    log.Println("Analyze with: go tool pprof -http=:8080 " + filename)
+    
+    return nil
+}
+
+// 自动分析 CPU 热点
+func (p *CPUProfiler) AnalyzeHotspots() {
+    // 使用 pprof 包分析
+    // 识别 CPU 占用最高的函数
+}
+```
+
+### 9.4 与 Trace 关联
+
+**Profile-Trace 关联示例**：
+
+```go
+package main
+
+import (
+    "context"
+    "fmt"
+    "runtime/pprof"
+    
+    "go.opentelemetry.io/otel"
+    "go.opentelemetry.io/otel/attribute"
+    "go.opentelemetry.io/otel/trace"
+)
+
+func processRequest(ctx context.Context, requestID string) error {
+    tracer := otel.Tracer("my-service")
+    ctx, span := tracer.Start(ctx, "processRequest",
+        trace.WithAttributes(
+            attribute.String("request.id", requestID),
+        ),
+    )
+    defer span.End()
+    
+    // 在 Span 中添加 profile 标签
+    labels := pprof.Labels(
+        "trace_id", span.SpanContext().TraceID().String(),
+        "span_id", span.SpanContext().SpanID().String(),
+        "request_id", requestID,
+    )
+    
+    // 在 profile 上下文中执行
+    pprof.Do(ctx, labels, func(ctx context.Context) {
+        // 执行实际工作
+        doWork(ctx)
+    })
+    
+    return nil
+}
+
+func doWork(ctx context.Context) {
+    // CPU 密集型操作
+    // Profile 会自动关联到 Trace
+}
+```
+
+### 9.5 Grafana 可视化
+
+**查询 Profile 数据**：
+
+```promql
+# 查看 CPU 使用率趋势
+rate(process_cpu_seconds_total{service="my-go-app"}[5m])
+
+# 查看内存使用
+process_resident_memory_bytes{service="my-go-app"}
+
+# 查看 Goroutine 数量
+go_goroutines{service="my-go-app"}
+
+# 查看 GC 暂停时间
+rate(go_gc_duration_seconds_sum[5m]) / rate(go_gc_duration_seconds_count[5m])
+```
+
+**Grafana Dashboard JSON**：
+
+```json
+{
+  "dashboard": {
+    "title": "Go Application Profiling",
+    "panels": [
+      {
+        "title": "CPU Usage",
+        "targets": [
+          {
+            "expr": "rate(process_cpu_seconds_total{service=\"$service\"}[5m])"
+          }
+        ],
+        "type": "graph"
+      },
+      {
+        "title": "Memory Usage",
+        "targets": [
+          {
+            "expr": "process_resident_memory_bytes{service=\"$service\"}"
+          }
+        ],
+        "type": "graph"
+      },
+      {
+        "title": "Goroutines",
+        "targets": [
+          {
+            "expr": "go_goroutines{service=\"$service\"}"
+          }
+        ],
+        "type": "graph"
+      },
+      {
+        "title": "GC Pause",
+        "targets": [
+          {
+            "expr": "rate(go_gc_duration_seconds_sum{service=\"$service\"}[5m]) / rate(go_gc_duration_seconds_count{service=\"$service\"}[5m])"
+          }
+        ],
+        "type": "graph"
+      },
+      {
+        "title": "Flame Graph",
+        "type": "flamegraph",
+        "datasource": "Phlare",
+        "targets": [
+          {
+            "profileTypeId": "process_cpu:cpu:nanoseconds:cpu:nanoseconds",
+            "labelSelector": "{service=\"$service\"}"
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+### 9.6 生产环境 Checklist
+
+**部署前检查清单**：
+
+- [ ] 启用 pprof HTTP 端点（仅内部访问）
+- [ ] 配置合理的采样频率（49-99 Hz）
+- [ ] 设置 profile 数据保留时间（30 天）
+- [ ] 配置内存/Goroutine 泄漏检测
+- [ ] 设置告警规则（CPU/内存/Goroutine 阈值）
+- [ ] 验证 Profile-Trace 关联
+- [ ] 测试 profile 数据导出
+- [ ] 配置 Grafana Dashboard
+- [ ] 文档化分析流程
+
+**性能基准**：
+
+| 指标 | 目标值 | 告警阈值 |
+|------|--------|---------|
+| CPU 使用率 | < 70% | > 85% |
+| 内存使用 | < 80% | > 90% |
+| Goroutine 数量 | < 10000 | > 50000 |
+| GC 暂停时间 | < 10ms | > 50ms |
+| Profile 开销 | < 5% CPU | > 10% CPU |
+
+## 10. 参考资料
 
 - **OTLP Profiles 规范**：[opentelemetry-proto/profiles](https://github.com/open-telemetry/opentelemetry-proto/tree/main/opentelemetry/proto/profiles)
 - **Grafana Phlare**：<https://grafana.com/oss/phlare/>

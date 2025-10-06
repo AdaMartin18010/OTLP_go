@@ -22,7 +22,18 @@
     - [5.2 Collector 动态配置](#52-collector-动态配置)
     - [5.3 自愈机制](#53-自愈机制)
   - [6. 实现参考](#6-实现参考)
-  - [7. 参考资料](#7-参考资料)
+  - [7. 生产环境部署架构](#7-生产环境部署架构)
+    - [7.1 高可用架构](#71-高可用架构)
+    - [7.2 Kubernetes 完整部署](#72-kubernetes-完整部署)
+    - [7.3 容量规划](#73-容量规划)
+  - [8. 故障排查指南](#8-故障排查指南)
+    - [8.1 常见问题诊断](#81-常见问题诊断)
+    - [8.2 监控指标](#82-监控指标)
+    - [8.3 日志分析](#83-日志分析)
+  - [9. 安全最佳实践](#9-安全最佳实践)
+    - [9.1 认证与授权](#91-认证与授权)
+    - [9.2 审计日志](#92-审计日志)
+  - [10. 参考资料](#10-参考资料)
 
 ## 1. 什么是 OPAMP
 
@@ -330,7 +341,699 @@ spec:
         - containerPort: 8080  # 管理 UI
 ```
 
-## 7. 参考资料
+## 7. 生产环境部署架构
+
+### 7.1 高可用架构
+
+**三层架构设计**：
+
+```text
+┌─────────────────────────────────────────────────────────────┐
+│                    Load Balancer (L7)                       │
+│                   (AWS ALB / GCP LB)                        │
+└────────────────────────┬────────────────────────────────────┘
+                         │
+         ┌───────────────┼───────────────┐
+         │               │               │
+         ▼               ▼               ▼
+┌─────────────┐  ┌─────────────┐  ┌─────────────┐
+│ OPAMP       │  │ OPAMP       │  │ OPAMP       │
+│ Server-1    │  │ Server-2    │  │ Server-3    │
+│ (AZ-1)      │  │ (AZ-2)      │  │ (AZ-3)      │
+└──────┬──────┘  └──────┬──────┘  └──────┬──────┘
+       │                │                │
+       └────────────────┼────────────────┘
+                        │
+                        ▼
+         ┌──────────────────────────────┐
+         │   PostgreSQL (RDS/Cloud SQL) │
+         │   - Agent 状态                │
+         │   - 配置历史                  │
+         │   - 审计日志                  │
+         └──────────────────────────────┘
+                        │
+         ┌──────────────┼──────────────┐
+         │              │              │
+         ▼              ▼              ▼
+┌─────────────┐  ┌─────────────┐  ┌─────────────┐
+│   Redis     │  │   S3/GCS    │  │   Git Repo  │
+│   (缓存)    │  │  (包存储)   │  │  (配置源)   │
+└─────────────┘  └─────────────┘  └─────────────┘
+                        │
+         ┌──────────────┼──────────────┐
+         │              │              │
+         ▼              ▼              ▼
+┌─────────────┐  ┌─────────────┐  ┌─────────────┐
+│  Agent-1    │  │  Agent-2    │  │  Agent-N    │
+│  (10k连接)  │  │  (10k连接)  │  │  (10k连接)  │
+└─────────────┘  └─────────────┘  └─────────────┘
+```
+
+### 7.2 Kubernetes 完整部署
+
+**Server 端部署**：
+
+```yaml
+---
+# ConfigMap
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: opamp-server-config
+  namespace: observability
+data:
+  config.yaml: |
+    server:
+      listen:
+        grpc: 0.0.0.0:4320
+        http: 0.0.0.0:8080
+      tls:
+        enabled: true
+        cert_file: /etc/certs/tls.crt
+        key_file: /etc/certs/tls.key
+        client_ca_file: /etc/certs/ca.crt
+        client_auth: require_and_verify
+    
+    database:
+      type: postgresql
+      dsn: ${DATABASE_URL}
+      max_connections: 100
+      max_idle_connections: 10
+    
+    redis:
+      addr: redis:6379
+      password: ${REDIS_PASSWORD}
+      db: 0
+    
+    storage:
+      type: s3
+      s3:
+        bucket: opamp-packages
+        region: us-west-2
+        endpoint: ${S3_ENDPOINT}
+    
+    config_source:
+      type: git
+      git:
+        repository: https://github.com/example/opamp-configs.git
+        branch: main
+        sync_interval: 1m
+        ssh_key_file: /etc/ssh/deploy_key
+
+---
+# Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: opamp-server
+  namespace: observability
+spec:
+  replicas: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+      maxSurge: 1
+  selector:
+    matchLabels:
+      app: opamp-server
+  template:
+    metadata:
+      labels:
+        app: opamp-server
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
+        prometheus.io/path: "/metrics"
+    spec:
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchLabels:
+                app: opamp-server
+            topologyKey: topology.kubernetes.io/zone
+      
+      containers:
+      - name: opamp-server
+        image: opamp-server:v1.0.0
+        ports:
+        - name: grpc
+          containerPort: 4320
+        - name: http
+          containerPort: 8080
+        
+        env:
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: opamp-secrets
+              key: database-url
+        - name: REDIS_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: opamp-secrets
+              key: redis-password
+        - name: S3_ENDPOINT
+          value: "https://s3.us-west-2.amazonaws.com"
+        
+        volumeMounts:
+        - name: config
+          mountPath: /etc/opamp
+        - name: certs
+          mountPath: /etc/certs
+        - name: ssh-key
+          mountPath: /etc/ssh
+        
+        resources:
+          requests:
+            cpu: 500m
+            memory: 512Mi
+          limits:
+            cpu: 2000m
+            memory: 2Gi
+        
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: 8080
+          initialDelaySeconds: 10
+          periodSeconds: 5
+      
+      volumes:
+      - name: config
+        configMap:
+          name: opamp-server-config
+      - name: certs
+        secret:
+          secretName: opamp-tls
+      - name: ssh-key
+        secret:
+          secretName: git-deploy-key
+
+---
+# Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: opamp-server
+  namespace: observability
+spec:
+  type: LoadBalancer
+  selector:
+    app: opamp-server
+  ports:
+  - name: grpc
+    port: 4320
+    targetPort: 4320
+  - name: http
+    port: 8080
+    targetPort: 8080
+
+---
+# HorizontalPodAutoscaler
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: opamp-server
+  namespace: observability
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: opamp-server
+  minReplicas: 3
+  maxReplicas: 10
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80
+```
+
+**Agent 端部署（DaemonSet）**：
+
+```yaml
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: otel-agent-opamp-config
+  namespace: observability
+data:
+  opamp.yaml: |
+    opamp:
+      server:
+        endpoint: wss://opamp.example.com:4320/v1/opamp
+        tls:
+          insecure: false
+          cert_file: /etc/certs/agent.crt
+          key_file: /etc/certs/agent.key
+          ca_file: /etc/certs/ca.crt
+        headers:
+          authorization: "Bearer ${OPAMP_TOKEN}"
+      
+      agent:
+        instance_id: "${HOSTNAME}"
+        labels:
+          env: "${ENV}"
+          region: "${REGION}"
+          cluster: "${CLUSTER_NAME}"
+      
+      capabilities:
+        accepts_remote_config: true
+        reports_health: true
+        accepts_packages: true
+        accepts_restart_command: true
+      
+      health:
+        report_interval: 30s
+
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: otel-agent
+  namespace: observability
+spec:
+  selector:
+    matchLabels:
+      app: otel-agent
+  template:
+    metadata:
+      labels:
+        app: otel-agent
+    spec:
+      serviceAccountName: otel-agent
+      containers:
+      - name: otel-agent
+        image: otel/opentelemetry-collector-contrib:0.95.0
+        env:
+        - name: HOSTNAME
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName
+        - name: ENV
+          value: "production"
+        - name: REGION
+          value: "us-west-2"
+        - name: CLUSTER_NAME
+          value: "prod-cluster-1"
+        - name: OPAMP_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: opamp-agent-token
+              key: token
+        
+        volumeMounts:
+        - name: opamp-config
+          mountPath: /etc/opamp
+        - name: certs
+          mountPath: /etc/certs
+        - name: local-config
+          mountPath: /etc/otelcol
+        
+        resources:
+          requests:
+            cpu: 200m
+            memory: 256Mi
+          limits:
+            cpu: 500m
+            memory: 512Mi
+      
+      volumes:
+      - name: opamp-config
+        configMap:
+          name: otel-agent-opamp-config
+      - name: certs
+        secret:
+          secretName: otel-agent-certs
+      - name: local-config
+        emptyDir: {}
+```
+
+### 7.3 容量规划
+
+**Server 端容量**：
+
+| 指标 | 推荐值 | 说明 |
+|------|--------|------|
+| CPU | 2 核 | 每 10k Agent 连接 |
+| 内存 | 2 GB | 每 10k Agent 连接 |
+| 网络带宽 | 100 Mbps | 配置下发和心跳 |
+| 数据库连接 | 100 | 连接池大小 |
+| Redis 内存 | 4 GB | 缓存 Agent 状态 |
+
+**Agent 端容量**：
+
+| 指标 | 推荐值 | 说明 |
+|------|--------|------|
+| CPU | 200m | DaemonSet per node |
+| 内存 | 256 MB | 基础配置 |
+| 心跳间隔 | 30s | 平衡实时性和负载 |
+| 重连间隔 | 5s → 60s | 指数退避 |
+
+## 8. 故障排查指南
+
+### 8.1 常见问题诊断
+
+**问题 1：Agent 无法连接到 Server**:
+
+**症状**：
+
+```log
+ERROR Failed to connect to OPAMP server: connection refused
+```
+
+**排查步骤**：
+
+```bash
+# 1. 检查网络连通性
+curl -v https://opamp.example.com:4320/health
+
+# 2. 检查 DNS 解析
+nslookup opamp.example.com
+
+# 3. 检查证书
+openssl s_client -connect opamp.example.com:4320 -showcerts
+
+# 4. 检查 Agent 日志
+kubectl logs -n observability daemonset/otel-agent --tail=100
+
+# 5. 检查 Server 日志
+kubectl logs -n observability deployment/opamp-server --tail=100
+```
+
+**解决方案**：
+
+```yaml
+# 确保 Service 正确配置
+apiVersion: v1
+kind: Service
+metadata:
+  name: opamp-server
+spec:
+  type: LoadBalancer
+  ports:
+  - name: grpc
+    port: 4320
+    targetPort: 4320
+    protocol: TCP
+```
+
+---
+
+**问题 2：配置未生效**:
+
+**症状**：
+
+```log
+INFO Received remote config, hash: abc123
+INFO Applied config successfully
+# 但 Collector 行为未改变
+```
+
+**排查步骤**：
+
+```bash
+# 1. 检查配置哈希
+kubectl exec -n observability otel-agent-xxx -- \
+  cat /etc/otelcol/config.yaml | sha256sum
+
+# 2. 检查配置内容
+kubectl exec -n observability otel-agent-xxx -- \
+  cat /etc/otelcol/config.yaml
+
+# 3. 验证配置语法
+otelcol validate --config=/etc/otelcol/config.yaml
+
+# 4. 检查 Collector 重载
+kubectl logs -n observability otel-agent-xxx | grep "reload"
+```
+
+**解决方案**：
+
+```go
+// 确保配置应用后重载 Collector
+func applyConfig(config *Config) error {
+    // 1. 写入配置文件
+    if err := writeConfigFile(config); err != nil {
+        return err
+    }
+    
+    // 2. 验证配置
+    if err := validateConfig(config); err != nil {
+        return err
+    }
+    
+    // 3. 重载 Collector
+    if err := reloadCollector(); err != nil {
+        // 回滚配置
+        rollbackConfig()
+        return err
+    }
+    
+    return nil
+}
+```
+
+---
+
+**问题 3：Server 性能瓶颈**:
+
+**症状**：
+
+```log
+WARN High CPU usage: 95%
+WARN Database connection pool exhausted
+ERROR Failed to handle agent connection: too many open files
+```
+
+**排查步骤**：
+
+```bash
+# 1. 检查 Server 指标
+curl http://opamp-server:8080/metrics | grep opamp_
+
+# 2. 检查数据库连接
+psql -h postgres -U opamp -c "SELECT count(*) FROM pg_stat_activity;"
+
+# 3. 检查文件描述符
+kubectl exec -n observability opamp-server-xxx -- \
+  cat /proc/1/limits | grep "open files"
+
+# 4. 检查内存使用
+kubectl top pod -n observability opamp-server-xxx
+```
+
+**解决方案**：
+
+```yaml
+# 1. 增加资源限制
+resources:
+  limits:
+    cpu: 4000m
+    memory: 4Gi
+
+# 2. 调整数据库连接池
+database:
+  max_connections: 200
+  max_idle_connections: 50
+
+# 3. 增加文件描述符限制
+securityContext:
+  capabilities:
+    add:
+    - SYS_RESOURCE
+```
+
+### 8.2 监控指标
+
+**关键指标**：
+
+```yaml
+# Prometheus 抓取配置
+scrape_configs:
+  - job_name: 'opamp-server'
+    static_configs:
+      - targets: ['opamp-server:8080']
+    metrics_path: '/metrics'
+```
+
+**核心指标**：
+
+```promql
+# Agent 连接数
+opamp_server_connected_agents
+
+# 配置下发成功率
+rate(opamp_server_config_applied_total[5m]) /
+rate(opamp_server_config_sent_total[5m])
+
+# 平均响应时间
+histogram_quantile(0.95, 
+  rate(opamp_server_request_duration_seconds_bucket[5m]))
+
+# 错误率
+rate(opamp_server_errors_total[5m])
+
+# 数据库连接池使用率
+opamp_server_db_connections_in_use / 
+opamp_server_db_connections_max
+```
+
+**告警规则**：
+
+```yaml
+groups:
+  - name: opamp_alerts
+    rules:
+      - alert: OPAMPServerDown
+        expr: up{job="opamp-server"} == 0
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "OPAMP Server is down"
+      
+      - alert: HighConfigFailureRate
+        expr: |
+          rate(opamp_server_config_failed_total[5m]) /
+          rate(opamp_server_config_sent_total[5m]) > 0.1
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High config failure rate: {{ $value }}"
+      
+      - alert: AgentConnectionDrop
+        expr: |
+          rate(opamp_server_agent_disconnected_total[5m]) > 10
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High agent disconnection rate"
+```
+
+### 8.3 日志分析
+
+**结构化日志示例**：
+
+```json
+{
+  "timestamp": "2025-10-06T10:30:00Z",
+  "level": "INFO",
+  "component": "opamp-server",
+  "event": "config_applied",
+  "agent_id": "agent-001",
+  "config_hash": "abc123",
+  "duration_ms": 150,
+  "success": true
+}
+```
+
+**日志查询（使用 Loki）**：
+
+```logql
+# 查找配置失败
+{job="opamp-server"} |= "config_failed"
+
+# 查找特定 Agent 的日志
+{job="opamp-server"} | json | agent_id="agent-001"
+
+# 统计错误率
+sum(rate({job="opamp-server"} |= "ERROR" [5m]))
+```
+
+## 9. 安全最佳实践
+
+### 9.1 认证与授权
+
+**mTLS 配置**：
+
+```yaml
+tls:
+  enabled: true
+  cert_file: /etc/certs/server.crt
+  key_file: /etc/certs/server.key
+  client_ca_file: /etc/certs/ca.crt
+  client_auth: require_and_verify
+  min_version: "1.3"
+  cipher_suites:
+    - TLS_AES_128_GCM_SHA256
+    - TLS_AES_256_GCM_SHA384
+    - TLS_CHACHA20_POLY1305_SHA256
+```
+
+**JWT Token 认证**：
+
+```go
+func validateToken(token string) (*AgentClaims, error) {
+    parsedToken, err := jwt.ParseWithClaims(token, &AgentClaims{}, func(token *jwt.Token) (interface{}, error) {
+        return jwtSigningKey, nil
+    })
+    
+    if err != nil {
+        return nil, err
+    }
+    
+    if claims, ok := parsedToken.Claims.(*AgentClaims); ok && parsedToken.Valid {
+        return claims, nil
+    }
+    
+    return nil, errors.New("invalid token")
+}
+```
+
+### 9.2 审计日志
+
+**审计事件记录**：
+
+```go
+type AuditLog struct {
+    Timestamp   time.Time
+    EventType   string  // config_change, agent_connect, etc.
+    AgentID     string
+    UserID      string
+    Action      string
+    Resource    string
+    OldValue    string
+    NewValue    string
+    Success     bool
+    ErrorMsg    string
+}
+
+func logAuditEvent(event *AuditLog) {
+    log.WithFields(logrus.Fields{
+        "event_type": event.EventType,
+        "agent_id":   event.AgentID,
+        "user_id":    event.UserID,
+        "action":     event.Action,
+        "success":    event.Success,
+    }).Info("Audit event")
+    
+    // 写入审计数据库
+    db.Create(event)
+}
+```
+
+## 10. 参考资料
 
 - **官方规范**：[OPAMP Specification](https://github.com/open-telemetry/opamp-spec)
 - **实现库**：[opamp-go](https://github.com/open-telemetry/opamp-go)

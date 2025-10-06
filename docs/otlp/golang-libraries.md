@@ -31,6 +31,18 @@
     - [稳定性要求](#稳定性要求)
     - [功能特性](#功能特性)
     - [集成能力](#集成能力)
+  - [7. 实战代码示例](#7-实战代码示例)
+    - [7.1 完整的微服务追踪](#71-完整的微服务追踪)
+    - [7.2 数据库追踪集成](#72-数据库追踪集成)
+    - [7.3 Metrics 采集](#73-metrics-采集)
+  - [8. 性能优化技巧](#8-性能优化技巧)
+    - [8.1 批处理优化](#81-批处理优化)
+    - [8.2 采样策略](#82-采样策略)
+    - [8.3 资源限制](#83-资源限制)
+  - [9. 故障排查](#9-故障排查)
+    - [9.1 常见问题](#91-常见问题)
+    - [9.2 调试技巧](#92-调试技巧)
+  - [10. 参考资料](#10-参考资料)
 
 ## 1. 应用侧 SDK
 
@@ -160,3 +172,366 @@
 - **中间件支持**：HTTP、gRPC、数据库自动追踪
 - **容器化**：Kubernetes、Docker支持
 - **云原生**：Service Mesh、微服务架构支持
+
+## 7. 实战代码示例
+
+### 7.1 完整的微服务追踪
+
+```go
+package main
+
+import (
+    "context"
+    "log"
+    "net/http"
+    "time"
+    
+    "go.opentelemetry.io/otel"
+    "go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
+    "go.opentelemetry.io/otel/propagation"
+    "go.opentelemetry.io/otel/sdk/resource"
+    sdktrace "go.opentelemetry.io/otel/sdk/trace"
+    semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
+    "go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+)
+
+func initTracer(serviceName string) (*sdktrace.TracerProvider, error) {
+    ctx := context.Background()
+    
+    // 创建 OTLP 导出器
+    exporter, err := otlptracegrpc.New(ctx,
+        otlptracegrpc.WithEndpoint("localhost:4317"),
+        otlptracegrpc.WithInsecure(),
+    )
+    if err != nil {
+        return nil, err
+    }
+    
+    // 创建 Resource
+    res, err := resource.New(ctx,
+        resource.WithAttributes(
+            semconv.ServiceName(serviceName),
+            semconv.ServiceVersion("v1.0.0"),
+            semconv.DeploymentEnvironment("production"),
+        ),
+    )
+    if err != nil {
+        return nil, err
+    }
+    
+    // 创建 TracerProvider
+    tp := sdktrace.NewTracerProvider(
+        sdktrace.WithBatcher(exporter,
+            sdktrace.WithBatchTimeout(5*time.Second),
+            sdktrace.WithMaxExportBatchSize(512),
+        ),
+        sdktrace.WithResource(res),
+        sdktrace.WithSampler(sdktrace.ParentBased(
+            sdktrace.TraceIDRatioBased(0.5), // 50% 采样
+        )),
+    )
+    
+    otel.SetTracerProvider(tp)
+    otel.SetTextMapPropagator(propagation.NewCompositeTextMapPropagator(
+        propagation.TraceContext{},
+        propagation.Baggage{},
+    ))
+    
+    return tp, nil
+}
+
+func main() {
+    tp, err := initTracer("api-gateway")
+    if err != nil {
+        log.Fatal(err)
+    }
+    defer tp.Shutdown(context.Background())
+    
+    // HTTP 服务器
+    mux := http.NewServeMux()
+    mux.HandleFunc("/api/users", handleUsers)
+    
+    handler := otelhttp.NewHandler(mux, "api-gateway")
+    
+    log.Println("API Gateway listening on :8080")
+    http.ListenAndServe(":8080", handler)
+}
+
+func handleUsers(w http.ResponseWriter, r *http.Request) {
+    ctx := r.Context()
+    tracer := otel.Tracer("api-gateway")
+    
+    ctx, span := tracer.Start(ctx, "handle-users")
+    defer span.End()
+    
+    // 添加属性
+    span.SetAttributes(
+        semconv.HTTPMethod(r.Method),
+        semconv.HTTPRoute(r.URL.Path),
+    )
+    
+    // 业务逻辑
+    time.Sleep(50 * time.Millisecond)
+    
+    w.Header().Set("Content-Type", "application/json")
+    w.Write([]byte(`[{"id": 1, "name": "Alice"}]`))
+}
+```
+
+### 7.2 数据库追踪集成
+
+```go
+package main
+
+import (
+    "context"
+    "database/sql"
+    "log"
+    
+    _ "github.com/lib/pq"
+    "go.opentelemetry.io/contrib/instrumentation/database/sql/otelsql"
+    semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
+)
+
+func main() {
+    // 注册带追踪的数据库驱动
+    driverName, err := otelsql.Register("postgres",
+        otelsql.WithAttributes(
+            semconv.DBSystemPostgreSQL,
+        ),
+    )
+    if err != nil {
+        log.Fatal(err)
+    }
+    
+    // 打开数据库连接
+    db, err := sql.Open(driverName, "postgres://user:pass@localhost/db?sslmode=disable")
+    if err != nil {
+        log.Fatal(err)
+    }
+    defer db.Close()
+    
+    // 执行查询（自动追踪）
+    ctx := context.Background()
+    rows, err := db.QueryContext(ctx, "SELECT id, name FROM users WHERE age > $1", 18)
+    if err != nil {
+        log.Fatal(err)
+    }
+    defer rows.Close()
+    
+    for rows.Next() {
+        var id int
+        var name string
+        if err := rows.Scan(&id, &name); err != nil {
+            log.Fatal(err)
+        }
+        log.Printf("User: %d - %s", id, name)
+    }
+}
+```
+
+### 7.3 Metrics 采集
+
+```go
+package main
+
+import (
+    "context"
+    "log"
+    "time"
+    
+    "go.opentelemetry.io/otel"
+    "go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc"
+    "go.opentelemetry.io/otel/metric"
+    sdkmetric "go.opentelemetry.io/otel/sdk/metric"
+    "go.opentelemetry.io/otel/sdk/resource"
+    semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
+)
+
+func initMetrics() (*sdkmetric.MeterProvider, error) {
+    ctx := context.Background()
+    
+    exporter, err := otlpmetricgrpc.New(ctx,
+        otlpmetricgrpc.WithEndpoint("localhost:4317"),
+        otlpmetricgrpc.WithInsecure(),
+    )
+    if err != nil {
+        return nil, err
+    }
+    
+    res, err := resource.New(ctx,
+        resource.WithAttributes(
+            semconv.ServiceName("my-service"),
+        ),
+    )
+    if err != nil {
+        return nil, err
+    }
+    
+    mp := sdkmetric.NewMeterProvider(
+        sdkmetric.WithReader(sdkmetric.NewPeriodicReader(exporter,
+            sdkmetric.WithInterval(10*time.Second),
+        )),
+        sdkmetric.WithResource(res),
+    )
+    
+    otel.SetMeterProvider(mp)
+    return mp, nil
+}
+
+func main() {
+    mp, err := initMetrics()
+    if err != nil {
+        log.Fatal(err)
+    }
+    defer mp.Shutdown(context.Background())
+    
+    // 创建 Counter
+    meter := mp.Meter("my-service")
+    counter, err := meter.Int64Counter(
+        "http.server.requests",
+        metric.WithDescription("Total HTTP requests"),
+    )
+    if err != nil {
+        log.Fatal(err)
+    }
+    
+    // 记录指标
+    ctx := context.Background()
+    counter.Add(ctx, 1,
+        metric.WithAttributes(
+            semconv.HTTPMethod("GET"),
+            semconv.HTTPStatusCode(200),
+        ),
+    )
+}
+```
+
+## 8. 性能优化技巧
+
+### 8.1 批处理优化
+
+```go
+tp := sdktrace.NewTracerProvider(
+    sdktrace.WithBatcher(exporter,
+        // 批处理超时
+        sdktrace.WithBatchTimeout(5*time.Second),
+        // 批次大小
+        sdktrace.WithMaxExportBatchSize(512),
+        // 队列大小
+        sdktrace.WithMaxQueueSize(2048),
+    ),
+)
+```
+
+### 8.2 采样策略
+
+```go
+// 父级采样器
+sampler := sdktrace.ParentBased(
+    // 根 Span 采样率 10%
+    sdktrace.TraceIDRatioBased(0.1),
+)
+
+tp := sdktrace.NewTracerProvider(
+    sdktrace.WithSampler(sampler),
+)
+```
+
+### 8.3 资源限制
+
+```go
+tp := sdktrace.NewTracerProvider(
+    sdktrace.WithSpanLimits(sdktrace.SpanLimits{
+        // 属性数量限制
+        AttributeCountLimit: 128,
+        // 事件数量限制
+        EventCountLimit: 128,
+        // 链接数量限制
+        LinkCountLimit: 128,
+        // 属性值长度限制
+        AttributeValueLengthLimit: 1024,
+    }),
+)
+```
+
+## 9. 故障排查
+
+### 9.1 常见问题
+
+**问题 1：Span 未导出**:
+
+```go
+// ❌ 错误：未调用 Shutdown
+func badExample() {
+    tp := sdktrace.NewTracerProvider(...)
+    otel.SetTracerProvider(tp)
+    
+    tracer := tp.Tracer("my-service")
+    _, span := tracer.Start(context.Background(), "operation")
+    span.End()
+    // 程序退出，Span 未导出
+}
+
+// ✅ 正确：调用 Shutdown
+func goodExample() {
+    tp := sdktrace.NewTracerProvider(...)
+    otel.SetTracerProvider(tp)
+    defer tp.Shutdown(context.Background())
+    
+    tracer := tp.Tracer("my-service")
+    _, span := tracer.Start(context.Background(), "operation")
+    span.End()
+}
+```
+
+**问题 2：Context 未传播**:
+
+```go
+// ❌ 错误：创建新 context
+func badHandler(w http.ResponseWriter, r *http.Request) {
+    _, span := tracer.Start(context.Background(), "operation")
+    defer span.End()
+    // Trace 断链
+}
+
+// ✅ 正确：使用请求 context
+func goodHandler(w http.ResponseWriter, r *http.Request) {
+    ctx := r.Context()
+    ctx, span := tracer.Start(ctx, "operation")
+    defer span.End()
+    // Trace 连续
+}
+```
+
+### 9.2 调试技巧
+
+**启用调试日志**：
+
+```go
+import "go.opentelemetry.io/otel"
+
+// 设置全局错误处理器
+otel.SetErrorHandler(otel.ErrorHandlerFunc(func(err error) {
+    log.Printf("OTEL Error: %v", err)
+}))
+```
+
+**使用 Stdout 导出器调试**：
+
+```go
+import "go.opentelemetry.io/otel/exporters/stdout/stdouttrace"
+
+exporter, _ := stdouttrace.New(
+    stdouttrace.WithPrettyPrint(),
+)
+```
+
+## 10. 参考资料
+
+- **语义模型**：`docs/otlp/semantic-model.md`
+- **OTTL 示例**：`docs/otlp/ottl-examples.md`
+- **OPAMP 概览**：`docs/opamp/overview.md`
+- **技术架构**：`docs/design/technical-model.md`
+- **官方文档**：<https://opentelemetry.io/docs/languages/go/>
+- **GitHub 仓库**：<https://github.com/open-telemetry/opentelemetry-go>

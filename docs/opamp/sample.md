@@ -21,6 +21,10 @@
     - [7.1 Server 端配置](#71-server-端配置)
     - [7.2 Agent 端配置](#72-agent-端配置)
   - [8. 最佳实践](#8-最佳实践)
+  - [9. 完整端到端示例](#9-完整端到端示例)
+    - [9.1 Server 端完整实现](#91-server-端完整实现)
+    - [9.2 Agent 端完整实现](#92-agent-端完整实现)
+    - [9.3 测试脚本](#93-测试脚本)
 
 ## 1. Agent 能力声明
 
@@ -764,6 +768,794 @@ opamp:
    - Agent 断线后自动重连（指数退避）
    - Server 故障时 Agent 使用本地配置继续运行
    - 保留配置历史，支持快速回滚
+
+## 9. 完整端到端示例
+
+### 9.1 Server 端完整实现
+
+**Go 实现的 OPAMP Server**：
+
+```go
+package main
+
+import (
+    "context"
+    "crypto/tls"
+    "crypto/x509"
+    "encoding/json"
+    "fmt"
+    "io/ioutil"
+    "log"
+    "net/http"
+    "sync"
+    "time"
+
+    "github.com/google/uuid"
+    "github.com/gorilla/websocket"
+    "github.com/open-telemetry/opamp-go/protobufs"
+    "github.com/open-telemetry/opamp-go/server"
+    "github.com/open-telemetry/opamp-go/server/types"
+    "google.golang.org/protobuf/proto"
+)
+
+type OPAMPServer struct {
+    server     server.OpAMPServer
+    agents     map[string]*AgentState
+    agentsMux  sync.RWMutex
+    configRepo *ConfigRepository
+}
+
+type AgentState struct {
+    InstanceID      string
+    LastHeartbeat   time.Time
+    EffectiveConfig *protobufs.AgentConfigMap
+    Health          *protobufs.ComponentHealth
+    RemoteConfig    *protobufs.AgentRemoteConfig
+}
+
+type ConfigRepository struct {
+    configs map[string]*protobufs.AgentRemoteConfig
+    mu      sync.RWMutex
+}
+
+func NewConfigRepository() *ConfigRepository {
+    return &ConfigRepository{
+        configs: make(map[string]*protobufs.AgentRemoteConfig),
+    }
+}
+
+func (r *ConfigRepository) GetConfig(agentID string, labels map[string]string) (*protobufs.AgentRemoteConfig, error) {
+    r.mu.RLock()
+    defer r.mu.RUnlock()
+    
+    // 根据标签匹配配置
+    env := labels["env"]
+    region := labels["region"]
+    
+    configKey := fmt.Sprintf("%s-%s", env, region)
+    if config, ok := r.configs[configKey]; ok {
+        return config, nil
+    }
+    
+    // 返回默认配置
+    return r.getDefaultConfig(), nil
+}
+
+func (r *ConfigRepository) getDefaultConfig() *protobufs.AgentRemoteConfig {
+    configYAML := `
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+processors:
+  batch:
+    timeout: 10s
+    send_batch_size: 1024
+  
+  memory_limiter:
+    check_interval: 1s
+    limit_mib: 512
+
+exporters:
+  otlp:
+    endpoint: collector.example.com:4317
+    tls:
+      insecure: false
+
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [memory_limiter, batch]
+      exporters: [otlp]
+`
+    
+    return &protobufs.AgentRemoteConfig{
+        Config: &protobufs.AgentConfigMap{
+            ConfigMap: map[string]*protobufs.AgentConfigFile{
+                "collector.yaml": {
+                    Body:        []byte(configYAML),
+                    ContentType: "application/x-yaml",
+                },
+            },
+        },
+        ConfigHash: []byte(hashConfig(configYAML)),
+    }
+}
+
+func (r *ConfigRepository) UpdateConfig(key string, config *protobufs.AgentRemoteConfig) {
+    r.mu.Lock()
+    defer r.mu.Unlock()
+    r.configs[key] = config
+}
+
+func NewOPAMPServer() *OPAMPServer {
+    return &OPAMPServer{
+        agents:     make(map[string]*AgentState),
+        configRepo: NewConfigRepository(),
+    }
+}
+
+func (s *OPAMPServer) Start(addr string, tlsConfig *tls.Config) error {
+    settings := server.StartSettings{
+        Settings: server.Settings{
+            Callbacks: server.CallbacksStruct{
+                OnConnectingFunc:         s.onAgentConnecting,
+                OnConnectedFunc:          s.onAgentConnected,
+                OnMessageFunc:            s.onMessage,
+                OnConnectionCloseFunc:    s.onConnectionClose,
+            },
+        },
+        ListenEndpoint: addr,
+        TLSConfig:      tlsConfig,
+    }
+    
+    srv := server.New(&NopLogger{})
+    if err := srv.Start(settings); err != nil {
+        return fmt.Errorf("failed to start server: %w", err)
+    }
+    
+    s.server = srv
+    
+    // 启动健康检查监控
+    go s.monitorAgentHealth()
+    
+    log.Printf("OPAMP Server started on %s", addr)
+    return nil
+}
+
+func (s *OPAMPServer) onAgentConnecting(request *http.Request) types.ConnectionResponse {
+    // 验证客户端证书
+    if len(request.TLS.PeerCertificates) == 0 {
+        log.Println("Client certificate required")
+        return types.ConnectionResponse{
+            Accept: false,
+            HTTPStatusCode: http.StatusUnauthorized,
+        }
+    }
+    
+    // 验证 Authorization header
+    authHeader := request.Header.Get("Authorization")
+    if !s.validateToken(authHeader) {
+        log.Println("Invalid authorization token")
+        return types.ConnectionResponse{
+            Accept: false,
+            HTTPStatusCode: http.StatusForbidden,
+        }
+    }
+    
+    return types.ConnectionResponse{
+        Accept: true,
+        HTTPStatusCode: http.StatusSwitchingProtocols,
+    }
+}
+
+func (s *OPAMPServer) onAgentConnected(conn types.Connection) {
+    log.Printf("Agent connected: %s", conn.RemoteAddr())
+}
+
+func (s *OPAMPServer) onMessage(conn types.Connection, message *protobufs.AgentToServer) *protobufs.ServerToAgent {
+    instanceID := string(message.InstanceUid)
+    
+    // 更新 Agent 状态
+    s.updateAgentState(instanceID, message)
+    
+    // 构建响应
+    response := &protobufs.ServerToAgent{
+        InstanceUid: message.InstanceUid,
+    }
+    
+    // 处理配置请求
+    if message.RemoteConfigStatus != nil {
+        config, err := s.getConfigForAgent(instanceID, message)
+        if err != nil {
+            log.Printf("Failed to get config for agent %s: %v", instanceID, err)
+        } else {
+            response.RemoteConfig = config
+            response.Flags = protobufs.ServerToAgentFlags_ServerToAgentFlags_ReportFullState
+        }
+    }
+    
+    // 处理健康报告
+    if message.Health != nil {
+        s.processHealthReport(instanceID, message.Health)
+    }
+    
+    // 处理包状态
+    if message.PackageStatuses != nil {
+        s.processPackageStatus(instanceID, message.PackageStatuses)
+    }
+    
+    return response
+}
+
+func (s *OPAMPServer) onConnectionClose(conn types.Connection) {
+    log.Printf("Agent disconnected: %s", conn.RemoteAddr())
+}
+
+func (s *OPAMPServer) updateAgentState(instanceID string, message *protobufs.AgentToServer) {
+    s.agentsMux.Lock()
+    defer s.agentsMux.Unlock()
+    
+    agent, exists := s.agents[instanceID]
+    if !exists {
+        agent = &AgentState{
+            InstanceID: instanceID,
+        }
+        s.agents[instanceID] = agent
+    }
+    
+    agent.LastHeartbeat = time.Now()
+    
+    if message.EffectiveConfig != nil {
+        agent.EffectiveConfig = message.EffectiveConfig
+    }
+    
+    if message.Health != nil {
+        agent.Health = message.Health
+    }
+}
+
+func (s *OPAMPServer) getConfigForAgent(instanceID string, message *protobufs.AgentToServer) (*protobufs.AgentRemoteConfig, error) {
+    // 提取 Agent 标签
+    labels := make(map[string]string)
+    if message.AgentDescription != nil && message.AgentDescription.IdentifyingAttributes != nil {
+        for _, attr := range message.AgentDescription.IdentifyingAttributes {
+            labels[attr.Key] = attr.Value.GetStringValue()
+        }
+    }
+    
+    // 从配置仓库获取配置
+    config, err := s.configRepo.GetConfig(instanceID, labels)
+    if err != nil {
+        return nil, err
+    }
+    
+    return config, nil
+}
+
+func (s *OPAMPServer) processHealthReport(instanceID string, health *protobufs.ComponentHealth) {
+    if !health.Healthy {
+        log.Printf("ALERT: Agent %s is unhealthy: %s", instanceID, health.LastError)
+        // 触发告警
+        s.triggerAlert(instanceID, health)
+    }
+}
+
+func (s *OPAMPServer) processPackageStatus(instanceID string, status *protobufs.PackageStatuses) {
+    for name, pkgStatus := range status.Packages {
+        if pkgStatus.ErrorMessage != "" {
+            log.Printf("Package %s installation failed on agent %s: %s", 
+                name, instanceID, pkgStatus.ErrorMessage)
+        } else {
+            log.Printf("Package %s successfully installed on agent %s (hash: %x)", 
+                name, instanceID, pkgStatus.AgentHasHash)
+        }
+    }
+}
+
+func (s *OPAMPServer) monitorAgentHealth() {
+    ticker := time.NewTicker(30 * time.Second)
+    defer ticker.Stop()
+    
+    for range ticker.C {
+        s.agentsMux.RLock()
+        now := time.Now()
+        for id, agent := range s.agents {
+            if now.Sub(agent.LastHeartbeat) > 2*time.Minute {
+                log.Printf("ALERT: Agent %s heartbeat timeout", id)
+                // 触发告警
+            }
+        }
+        s.agentsMux.RUnlock()
+    }
+}
+
+func (s *OPAMPServer) triggerAlert(instanceID string, health *protobufs.ComponentHealth) {
+    // 实现告警逻辑（发送到 PagerDuty、Slack 等）
+    log.Printf("Triggering alert for agent %s", instanceID)
+}
+
+func (s *OPAMPServer) validateToken(authHeader string) bool {
+    // 实现 JWT token 验证
+    return authHeader != ""
+}
+
+func hashConfig(config string) string {
+    // 实现配置哈希
+    return fmt.Sprintf("%x", len(config))
+}
+
+type NopLogger struct{}
+
+func (l *NopLogger) Debugf(format string, v ...interface{}) {}
+func (l *NopLogger) Errorf(format string, v ...interface{}) {
+    log.Printf("ERROR: "+format, v...)
+}
+
+func loadTLSConfig(certFile, keyFile, caFile string) (*tls.Config, error) {
+    cert, err := tls.LoadX509KeyPair(certFile, keyFile)
+    if err != nil {
+        return nil, err
+    }
+    
+    caCert, err := ioutil.ReadFile(caFile)
+    if err != nil {
+        return nil, err
+    }
+    
+    caCertPool := x509.NewCertPool()
+    caCertPool.AppendCertsFromPEM(caCert)
+    
+    return &tls.Config{
+        Certificates: []tls.Certificate{cert},
+        ClientAuth:   tls.RequireAndVerifyClientCert,
+        ClientCAs:    caCertPool,
+        MinVersion:   tls.VersionTLS13,
+    }, nil
+}
+
+func main() {
+    // 加载 TLS 配置
+    tlsConfig, err := loadTLSConfig(
+        "/etc/certs/server.crt",
+        "/etc/certs/server.key",
+        "/etc/certs/ca.crt",
+    )
+    if err != nil {
+        log.Fatalf("Failed to load TLS config: %v", err)
+    }
+    
+    // 创建并启动 Server
+    server := NewOPAMPServer()
+    if err := server.Start("0.0.0.0:4320", tlsConfig); err != nil {
+        log.Fatalf("Failed to start server: %v", err)
+    }
+    
+    // 等待中断信号
+    select {}
+}
+```
+
+### 9.2 Agent 端完整实现
+
+**Go 实现的 OPAMP Agent**：
+
+```go
+package main
+
+import (
+    "context"
+    "crypto/tls"
+    "crypto/x509"
+    "fmt"
+    "io/ioutil"
+    "log"
+    "os"
+    "os/signal"
+    "syscall"
+    "time"
+
+    "github.com/google/uuid"
+    "github.com/open-telemetry/opamp-go/client"
+    "github.com/open-telemetry/opamp-go/client/types"
+    "github.com/open-telemetry/opamp-go/protobufs"
+)
+
+type OPAMPAgent struct {
+    client         client.OpAMPClient
+    instanceID     uuid.UUID
+    agentVersion   string
+    effectiveConfig *protobufs.AgentConfigMap
+    configFile     string
+    collectorCmd   *CollectorManager
+}
+
+type CollectorManager struct {
+    // Collector 进程管理
+}
+
+func NewOPAMPAgent(configFile string) *OPAMPAgent {
+    return &OPAMPAgent{
+        instanceID:   uuid.New(),
+        agentVersion: "1.0.0",
+        configFile:   configFile,
+        collectorCmd: &CollectorManager{},
+    }
+}
+
+func (a *OPAMPAgent) Start(serverURL string, tlsConfig *tls.Config) error {
+    logger := &SimpleLogger{}
+    
+    opampClient := client.NewWebSocket(logger)
+    
+    settings := types.StartSettings{
+        OpAMPServerURL: serverURL,
+        TLSConfig:      tlsConfig,
+        InstanceUid:    a.instanceID.String(),
+        Callbacks: types.CallbacksStruct{
+            OnConnectFunc:          a.onConnect,
+            OnConnectFailedFunc:    a.onConnectFailed,
+            OnErrorFunc:            a.onError,
+            OnMessageFunc:          a.onMessage,
+            OnOpampConnectionSettingsFunc: a.onOpampConnectionSettings,
+            SaveRemoteConfigStatusFunc:    a.saveRemoteConfigStatus,
+            GetEffectiveConfigFunc:        a.getEffectiveConfig,
+        },
+        Capabilities: protobufs.AgentCapabilities_AgentCapabilities_AcceptsRemoteConfig |
+            protobufs.AgentCapabilities_AgentCapabilities_ReportsHealth |
+            protobufs.AgentCapabilities_AgentCapabilities_AcceptsPackages |
+            protobufs.AgentCapabilities_AgentCapabilities_AcceptsRestartCommand,
+    }
+    
+    if err := opampClient.Start(context.Background(), settings); err != nil {
+        return fmt.Errorf("failed to start OPAMP client: %w", err)
+    }
+    
+    a.client = opampClient
+    
+    // 发送初始状态
+    if err := a.sendAgentDescription(); err != nil {
+        log.Printf("Failed to send agent description: %v", err)
+    }
+    
+    // 启动健康报告
+    go a.reportHealth()
+    
+    log.Printf("OPAMP Agent started, instance ID: %s", a.instanceID)
+    return nil
+}
+
+func (a *OPAMPAgent) onConnect() {
+    log.Println("Connected to OPAMP server")
+}
+
+func (a *OPAMPAgent) onConnectFailed(err error) {
+    log.Printf("Failed to connect to OPAMP server: %v", err)
+}
+
+func (a *OPAMPAgent) onError(err error) {
+    log.Printf("OPAMP error: %v", err)
+}
+
+func (a *OPAMPAgent) onMessage(ctx context.Context, msg *types.MessageData) {
+    // 处理远程配置
+    if msg.RemoteConfig != nil {
+        if err := a.applyRemoteConfig(msg.RemoteConfig); err != nil {
+            log.Printf("Failed to apply remote config: %v", err)
+            a.sendConfigStatus(false, err.Error())
+        } else {
+            log.Println("Remote config applied successfully")
+            a.sendConfigStatus(true, "")
+        }
+    }
+    
+    // 处理包更新
+    if msg.PackagesAvailable != nil {
+        a.downloadAndInstallPackages(msg.PackagesAvailable)
+    }
+    
+    // 处理重启命令
+    if msg.AgentIdentification != nil {
+        log.Println("Received restart command")
+        a.restartCollector()
+    }
+}
+
+func (a *OPAMPAgent) onOpampConnectionSettings(ctx context.Context, settings *protobufs.OpAMPConnectionSettings) error {
+    // 处理连接设置更新（证书轮转等）
+    log.Println("Received new connection settings")
+    return nil
+}
+
+func (a *OPAMPAgent) saveRemoteConfigStatus(ctx context.Context, status *protobufs.RemoteConfigStatus) {
+    // 保存配置状态到本地
+    log.Printf("Saving remote config status: %v", status)
+}
+
+func (a *OPAMPAgent) getEffectiveConfig(ctx context.Context) (*protobufs.EffectiveConfig, error) {
+    // 读取当前生效的配置
+    configData, err := ioutil.ReadFile(a.configFile)
+    if err != nil {
+        return nil, err
+    }
+    
+    return &protobufs.EffectiveConfig{
+        ConfigMap: &protobufs.AgentConfigMap{
+            ConfigMap: map[string]*protobufs.AgentConfigFile{
+                "collector.yaml": {
+                    Body:        configData,
+                    ContentType: "application/x-yaml",
+                },
+            },
+        },
+    }, nil
+}
+
+func (a *OPAMPAgent) sendAgentDescription() error {
+    hostname, _ := os.Hostname()
+    
+    description := &protobufs.AgentDescription{
+        IdentifyingAttributes: []*protobufs.KeyValue{
+            {Key: "service.name", Value: &protobufs.AnyValue{Value: &protobufs.AnyValue_StringValue{StringValue: "otel-collector"}}},
+            {Key: "service.version", Value: &protobufs.AnyValue{Value: &protobufs.AnyValue_StringValue{StringValue: a.agentVersion}}},
+            {Key: "host.name", Value: &protobufs.AnyValue{Value: &protobufs.AnyValue_StringValue{StringValue: hostname}}},
+            {Key: "env", Value: &protobufs.AnyValue{Value: &protobufs.AnyValue_StringValue{StringValue: os.Getenv("ENV")}}},
+            {Key: "region", Value: &protobufs.AnyValue{Value: &protobufs.AnyValue_StringValue{StringValue: os.Getenv("REGION")}}},
+        },
+        NonIdentifyingAttributes: []*protobufs.KeyValue{
+            {Key: "os.type", Value: &protobufs.AnyValue{Value: &protobufs.AnyValue_StringValue{StringValue: "linux"}}},
+        },
+    }
+    
+    return a.client.SetAgentDescription(description)
+}
+
+func (a *OPAMPAgent) applyRemoteConfig(config *protobufs.AgentRemoteConfig) error {
+    // 1. 验证配置
+    if err := a.validateConfig(config); err != nil {
+        return fmt.Errorf("config validation failed: %w", err)
+    }
+    
+    // 2. 备份当前配置
+    if err := a.backupCurrentConfig(); err != nil {
+        return fmt.Errorf("failed to backup config: %w", err)
+    }
+    
+    // 3. 写入新配置
+    for filename, fileContent := range config.Config.ConfigMap {
+        filepath := fmt.Sprintf("/etc/otelcol/%s", filename)
+        if err := ioutil.WriteFile(filepath, fileContent.Body, 0644); err != nil {
+            // 回滚
+            a.restoreBackup()
+            return fmt.Errorf("failed to write config: %w", err)
+        }
+    }
+    
+    // 4. 重载 Collector
+    if err := a.reloadCollector(); err != nil {
+        // 回滚
+        a.restoreBackup()
+        return fmt.Errorf("failed to reload collector: %w", err)
+    }
+    
+    a.effectiveConfig = config.Config
+    return nil
+}
+
+func (a *OPAMPAgent) validateConfig(config *protobufs.AgentRemoteConfig) error {
+    // 实现配置验证逻辑
+    return nil
+}
+
+func (a *OPAMPAgent) backupCurrentConfig() error {
+    // 实现配置备份
+    return nil
+}
+
+func (a *OPAMPAgent) restoreBackup() error {
+    // 实现配置恢复
+    return nil
+}
+
+func (a *OPAMPAgent) reloadCollector() error {
+    // 发送 SIGHUP 信号重载 Collector
+    return nil
+}
+
+func (a *OPAMPAgent) restartCollector() {
+    log.Println("Restarting collector...")
+    // 实现 Collector 重启逻辑
+}
+
+func (a *OPAMPAgent) sendConfigStatus(success bool, errorMsg string) {
+    status := &protobufs.RemoteConfigStatus{
+        LastRemoteConfigHash: []byte("config-hash"),
+        Status:               protobufs.RemoteConfigStatuses_RemoteConfigStatuses_APPLIED,
+    }
+    
+    if !success {
+        status.Status = protobufs.RemoteConfigStatuses_RemoteConfigStatuses_FAILED
+        status.ErrorMessage = errorMsg
+    }
+    
+    a.client.SetRemoteConfigStatus(status)
+}
+
+func (a *OPAMPAgent) reportHealth() {
+    ticker := time.NewTicker(30 * time.Second)
+    defer ticker.Stop()
+    
+    for range ticker.C {
+        health := &protobufs.ComponentHealth{
+            Healthy:              true,
+            StartTimeUnixNano:    uint64(time.Now().UnixNano()),
+            LastError:            "",
+        }
+        
+        // 检查 Collector 健康状态
+        if !a.collectorCmd.IsHealthy() {
+            health.Healthy = false
+            health.LastError = "Collector is not responding"
+        }
+        
+        a.client.SetHealth(health)
+    }
+}
+
+func (a *OPAMPAgent) downloadAndInstallPackages(packages *protobufs.PackagesAvailable) {
+    for name, pkg := range packages.Packages {
+        log.Printf("Downloading package %s from %s", name, pkg.DownloadUrl)
+        // 实现包下载和安装逻辑
+    }
+}
+
+func (a *OPAMPAgent) Stop() {
+    if a.client != nil {
+        a.client.Stop(context.Background())
+    }
+}
+
+type SimpleLogger struct{}
+
+func (l *SimpleLogger) Debugf(format string, v ...interface{}) {
+    log.Printf("DEBUG: "+format, v...)
+}
+
+func (l *SimpleLogger) Errorf(format string, v ...interface{}) {
+    log.Printf("ERROR: "+format, v...)
+}
+
+func (cm *CollectorManager) IsHealthy() bool {
+    // 实现健康检查
+    return true
+}
+
+func loadAgentTLSConfig(certFile, keyFile, caFile string) (*tls.Config, error) {
+    cert, err := tls.LoadX509KeyPair(certFile, keyFile)
+    if err != nil {
+        return nil, err
+    }
+    
+    caCert, err := ioutil.ReadFile(caFile)
+    if err != nil {
+        return nil, err
+    }
+    
+    caCertPool := x509.NewCertPool()
+    caCertPool.AppendCertsFromPEM(caCert)
+    
+    return &tls.Config{
+        Certificates: []tls.Certificate{cert},
+        RootCAs:      caCertPool,
+        MinVersion:   tls.VersionTLS13,
+    }, nil
+}
+
+func main() {
+    // 加载 TLS 配置
+    tlsConfig, err := loadAgentTLSConfig(
+        "/etc/certs/agent.crt",
+        "/etc/certs/agent.key",
+        "/etc/certs/ca.crt",
+    )
+    if err != nil {
+        log.Fatalf("Failed to load TLS config: %v", err)
+    }
+    
+    // 创建并启动 Agent
+    agent := NewOPAMPAgent("/etc/otelcol/config.yaml")
+    if err := agent.Start("wss://opamp.example.com:4320/v1/opamp", tlsConfig); err != nil {
+        log.Fatalf("Failed to start agent: %v", err)
+    }
+    
+    // 等待中断信号
+    sigChan := make(chan os.Signal, 1)
+    signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
+    <-sigChan
+    
+    log.Println("Shutting down...")
+    agent.Stop()
+}
+```
+
+### 9.3 测试脚本
+
+**集成测试脚本**：
+
+```bash
+#!/bin/bash
+# test-opamp.sh
+
+set -e
+
+echo "=== OPAMP 端到端测试 ==="
+
+# 1. 启动 Server
+echo "Starting OPAMP Server..."
+docker run -d --name opamp-server \
+  -p 4320:4320 \
+  -v $(pwd)/certs:/etc/certs \
+  -v $(pwd)/configs:/etc/configs \
+  opamp-server:latest
+
+sleep 5
+
+# 2. 启动 Agent
+echo "Starting OPAMP Agent..."
+docker run -d --name opamp-agent \
+  -v $(pwd)/certs:/etc/certs \
+  -e OPAMP_SERVER=wss://opamp-server:4320/v1/opamp \
+  -e ENV=test \
+  -e REGION=us-west-2 \
+  opamp-agent:latest
+
+sleep 10
+
+# 3. 验证连接
+echo "Verifying connection..."
+docker logs opamp-server | grep "Agent connected" || {
+  echo "ERROR: Agent failed to connect"
+  exit 1
+}
+
+# 4. 推送新配置
+echo "Pushing new configuration..."
+curl -X POST http://localhost:8080/api/v1/config \
+  -H "Content-Type: application/json" \
+  -d '{
+    "target": "env=test,region=us-west-2",
+    "config": {
+      "receivers": {
+        "otlp": {
+          "protocols": {
+            "grpc": {"endpoint": "0.0.0.0:4317"}
+          }
+        }
+      }
+    }
+  }'
+
+sleep 5
+
+# 5. 验证配置应用
+echo "Verifying config application..."
+docker exec opamp-agent cat /etc/otelcol/config.yaml | grep "0.0.0.0:4317" || {
+  echo "ERROR: Config not applied"
+  exit 1
+}
+
+# 6. 清理
+echo "Cleaning up..."
+docker stop opamp-server opamp-agent
+docker rm opamp-server opamp-agent
+
+echo "=== 测试完成 ==="
+```
 
 ---
 
