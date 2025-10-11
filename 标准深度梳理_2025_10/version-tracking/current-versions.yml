@@ -1,0 +1,76 @@
+# OTLP标准版本追踪
+# 此文件由GitHub Actions自动维护
+# 最后更新: 2025-10-09
+
+otlp_spec:
+  version: v1.3.2
+  date: '2024-09-15'
+  repo: open-telemetry/opentelemetry-proto
+  description: OTLP协议规范
+
+semantic_conventions:
+  version: v1.29.0
+  date: '2024-10-01'
+  repo: open-telemetry/semantic-conventions
+  description: 语义约定标准
+
+collector:
+  version: v0.113.0
+  date: '2024-10-05'
+  repo: open-telemetry/opentelemetry-collector
+  description: OpenTelemetry Collector
+
+last_checked: '2025-10-09T00:00:00Z'
+
+# 版本历史 (最近5次更新)
+version_history:
+  - date: '2025-10-09'
+    component: semantic_conventions
+    old_version: v1.27.0
+    new_version: v1.29.0
+    notes: GenAI语义约定稳定化
+  
+  - date: '2025-10-05'
+    component: collector
+    old_version: v0.110.0
+    new_version: v0.113.0
+    notes: 性能优化与bug修复
+  
+  - date: '2024-09-15'
+    component: otlp_spec
+    old_version: v1.3.0
+    new_version: v1.3.2
+    notes: 小版本更新,修复文档问题
+  
+  - date: '2024-09-01'
+    component: otlp_spec
+    old_version: v1.2.0
+    new_version: v1.3.0
+    notes: Profiles信号稳定,性能优化
+  
+  - date: '2024-07-15'
+    component: semantic_conventions
+    old_version: v1.26.0
+    new_version: v1.27.0
+    notes: 云原生属性增强
+
+# 监控配置
+monitoring_config:
+  check_frequency: daily
+  notification_enabled: true
+  auto_create_issue: true
+  
+  # 需要监控的额外仓库
+  additional_repos:
+    - name: opentelemetry-specification
+      repo: open-telemetry/opentelemetry-specification
+      track_releases: true
+    
+    - name: opentelemetry-go
+      repo: open-telemetry/opentelemetry-go
+      track_releases: false  # 仅监控,不创建Issue
+    
+    - name: opentelemetry-java
+      repo: open-telemetry/opentelemetry-java
+      track_releases: false
+

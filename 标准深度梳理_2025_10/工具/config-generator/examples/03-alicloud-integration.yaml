@@ -1,0 +1,103 @@
+# OpenTelemetry Collector Configuration
+# Generated: Example for Alibaba Cloud SLS Integration
+# Mode: gateway
+# Environment: production
+# Collector Version: v0.113.0
+
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+        max_recv_msg_size_mib: 16
+      http:
+        endpoint: 0.0.0.0:4318
+        cors:
+          allowed_origins:
+            - "*"
+
+processors:
+  memory_limiter:
+    check_interval: 1s
+    limit_mib: 2048
+    spike_limit_mib: 512
+
+  resource:
+    attributes:
+      - key: deployment.environment
+        value: production
+        action: upsert
+      - key: service.instance.id
+        value: ${HOSTNAME}
+        action: insert
+      - key: cloud.provider
+        value: alibaba_cloud
+        action: insert
+      - key: cloud.region
+        value: cn-hangzhou
+        action: insert
+
+  tail_sampling:
+    decision_wait: 10s
+    num_traces: 100000
+    expected_new_traces_per_sec: 10000
+    policies:
+      - name: errors
+        type: status_code
+        status_code:
+          status_codes: [ERROR]
+      - name: slow-requests
+        type: latency
+        latency:
+          threshold_ms: 500
+      - name: normal-traffic
+        type: probabilistic
+        probabilistic:
+          sampling_percentage: 5  # 5% for cost optimization
+
+  batch:
+    timeout: 10s
+    send_batch_size: 8192
+    send_batch_max_size: 16384
+
+exporters:
+  # Alibaba Cloud SLS Exporter
+  alibabacloud_logservice/sls:
+    endpoint: cn-hangzhou.log.aliyuncs.com
+    project: ${ALIYUN_SLS_PROJECT}
+    logstore: ${ALIYUN_SLS_LOGSTORE}
+    access_key_id: ${ALIYUN_ACCESS_KEY_ID}
+    access_key_secret: ${ALIYUN_ACCESS_KEY_SECRET}
+
+extensions:
+  health_check:
+    endpoint: 0.0.0.0:13133
+
+  pprof:
+    endpoint: 127.0.0.1:1777
+
+service:
+  extensions: [health_check, pprof]
+
+  telemetry:
+    logs:
+      level: info
+      encoding: json
+    metrics:
+      level: detailed
+      address: 0.0.0.0:8888
+
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [memory_limiter, resource, tail_sampling, batch]
+      exporters: [alibabacloud_logservice/sls]
+    metrics:
+      receivers: [otlp]
+      processors: [memory_limiter, resource, batch]
+      exporters: [alibabacloud_logservice/sls]
+    logs:
+      receivers: [otlp]
+      processors: [memory_limiter, resource, batch]
+      exporters: [alibabacloud_logservice/sls]
+

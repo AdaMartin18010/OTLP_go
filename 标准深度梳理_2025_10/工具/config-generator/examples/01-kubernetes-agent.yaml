@@ -1,0 +1,82 @@
+# OpenTelemetry Collector Configuration
+# Generated: Example for Kubernetes Agent Mode
+# Mode: agent
+# Environment: production
+# Collector Version: v0.113.0
+
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+        cors:
+          allowed_origins:
+            - "*"
+
+processors:
+  memory_limiter:
+    check_interval: 1s
+    limit_mib: 512
+    spike_limit_mib: 128
+
+  resource:
+    attributes:
+      - key: deployment.environment
+        value: production
+        action: upsert
+      - key: service.instance.id
+        value: ${HOSTNAME}
+        action: insert
+      - key: k8s.pod.name
+        value: ${K8S_POD_NAME}
+        action: insert
+      - key: k8s.namespace.name
+        value: ${K8S_NAMESPACE}
+        action: insert
+
+  batch:
+    timeout: 10s
+    send_batch_size: 8192
+    send_batch_max_size: 16384
+
+exporters:
+  otlp:
+    endpoint: otel-collector-gateway.observability.svc.cluster.local:4317
+    tls:
+      insecure: true
+    compression: gzip
+
+extensions:
+  health_check:
+    endpoint: 0.0.0.0:13133
+
+  pprof:
+    endpoint: 127.0.0.1:1777
+
+service:
+  extensions: [health_check, pprof]
+
+  telemetry:
+    logs:
+      level: info
+      encoding: json
+    metrics:
+      level: detailed
+      address: 0.0.0.0:8888
+
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [memory_limiter, resource, batch]
+      exporters: [otlp]
+    metrics:
+      receivers: [otlp]
+      processors: [memory_limiter, resource, batch]
+      exporters: [otlp]
+    logs:
+      receivers: [otlp]
+      processors: [memory_limiter, resource, batch]
+      exporters: [otlp]
+

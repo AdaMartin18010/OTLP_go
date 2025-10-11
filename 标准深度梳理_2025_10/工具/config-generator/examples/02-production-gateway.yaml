@@ -1,0 +1,134 @@
+# OpenTelemetry Collector Configuration
+# Generated: Example for Production Gateway Mode
+# Mode: gateway
+# Environment: production
+# Collector Version: v0.113.0
+
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+        max_recv_msg_size_mib: 16
+      http:
+        endpoint: 0.0.0.0:4318
+        cors:
+          allowed_origins:
+            - "*"
+
+processors:
+  memory_limiter:
+    check_interval: 1s
+    limit_mib: 2048
+    spike_limit_mib: 512
+
+  filter/healthcheck:
+    traces:
+      span:
+        - 'attributes["http.target"] == "/health"'
+        - 'attributes["http.target"] == "/ready"'
+        - 'attributes["http.target"] == "/metrics"'
+
+  resource:
+    attributes:
+      - key: deployment.environment
+        value: production
+        action: upsert
+      - key: service.instance.id
+        value: ${HOSTNAME}
+        action: insert
+
+  attributes:
+    actions:
+      # Redact sensitive data
+      - key: http.url
+        pattern: "(password|token|secret)=([^&]+)"
+        replacement: "$1=***"
+        action: update
+      # Hash PII
+      - key: user.email
+        action: hash
+
+  tail_sampling:
+    decision_wait: 10s
+    num_traces: 100000
+    expected_new_traces_per_sec: 10000
+    policies:
+      # Keep all errors
+      - name: errors
+        type: status_code
+        status_code:
+          status_codes: [ERROR]
+      # Keep slow requests (>500ms)
+      - name: slow-requests
+        type: latency
+        latency:
+          threshold_ms: 500
+      # Sample 10% of normal traffic
+      - name: normal-traffic
+        type: probabilistic
+        probabilistic:
+          sampling_percentage: 10
+
+  batch:
+    timeout: 10s
+    send_batch_size: 8192
+    send_batch_max_size: 16384
+
+exporters:
+  otlp:
+    endpoint: otel-backend:4317
+    tls:
+      insecure: false
+      cert_file: /etc/otel/certs/client.crt
+      key_file: /etc/otel/certs/client.key
+      ca_file: /etc/otel/certs/ca.crt
+    headers:
+      authorization: "Bearer ${OTEL_AUTH_TOKEN}"
+    compression: gzip
+    retry_on_failure:
+      enabled: true
+      initial_interval: 1s
+      max_interval: 30s
+      max_elapsed_time: 5m
+    sending_queue:
+      enabled: true
+      num_consumers: 20
+      queue_size: 10000
+
+extensions:
+  health_check:
+    endpoint: 0.0.0.0:13133
+
+  pprof:
+    endpoint: 127.0.0.1:1777
+
+  file_storage:
+    directory: /var/lib/otelcol/file_storage
+    timeout: 10s
+
+service:
+  extensions: [health_check, pprof]
+
+  telemetry:
+    logs:
+      level: info
+      encoding: json
+    metrics:
+      level: detailed
+      address: 0.0.0.0:8888
+
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [memory_limiter, filter/healthcheck, resource, attributes, tail_sampling, batch]
+      exporters: [otlp]
+    metrics:
+      receivers: [otlp]
+      processors: [memory_limiter, resource, batch]
+      exporters: [otlp]
+    logs:
+      receivers: [otlp]
+      processors: [memory_limiter, filter/healthcheck, resource, batch]
+      exporters: [otlp]
+

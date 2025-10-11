@@ -1,0 +1,83 @@
+# OpenTelemetry Collector Configuration
+# Generated: Example for Development/Debug Mode
+# Mode: gateway
+# Environment: development
+# Collector Version: v0.113.0
+
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+        cors:
+          allowed_origins:
+            - "*"
+
+processors:
+  memory_limiter:
+    check_interval: 1s
+    limit_mib: 512
+    spike_limit_mib: 128
+
+  resource:
+    attributes:
+      - key: deployment.environment
+        value: development
+        action: upsert
+      - key: service.instance.id
+        value: ${HOSTNAME}
+        action: insert
+
+  batch:
+    timeout: 10s
+    send_batch_size: 2048  # Smaller batch for faster feedback
+    send_batch_max_size: 4096
+
+exporters:
+  # Console output for debugging
+  logging:
+    verbosity: detailed
+    sampling_initial: 5
+    sampling_thereafter: 200
+
+  # Optional: still export to backend
+  otlp:
+    endpoint: localhost:4317
+    tls:
+      insecure: true
+    compression: gzip
+
+extensions:
+  health_check:
+    endpoint: 0.0.0.0:13133
+
+  zpages:
+    endpoint: 0.0.0.0:55679
+
+service:
+  extensions: [health_check, zpages]
+
+  telemetry:
+    logs:
+      level: debug  # Verbose logging for debugging
+      encoding: json
+    metrics:
+      level: detailed
+      address: 0.0.0.0:8888
+
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [memory_limiter, resource, batch]
+      exporters: [logging, otlp]
+    metrics:
+      receivers: [otlp]
+      processors: [memory_limiter, resource, batch]
+      exporters: [logging, otlp]
+    logs:
+      receivers: [otlp]
+      processors: [memory_limiter, resource, batch]
+      exporters: [logging, otlp]
+
