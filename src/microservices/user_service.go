@@ -13,6 +13,8 @@ import (
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/trace"
+
+	"OTLP_go/src/pkg/types"
 )
 
 // UserService 用户服务实现
@@ -35,19 +37,11 @@ func NewUserService() *UserService {
 	return us
 }
 
-// User 用户数据结构
-type User struct {
-	ID        string    `json:"id"`
-	Name      string    `json:"name"`
-	Email     string    `json:"email"`
-	Phone     string    `json:"phone"`
-	Level     string    `json:"level"` // normal, vip, premium
-	CreatedAt time.Time `json:"created_at"`
-}
+// UserService 使用 types 包中的类型定义
 
 // seedUsers 初始化测试用户
 func (us *UserService) seedUsers() {
-	testUsers := []User{
+	testUsers := []types.User{
 		{
 			ID:        "user-001",
 			Name:      "Alice",
@@ -119,7 +113,7 @@ func (us *UserService) GetUserHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // getUser 查询用户
-func (us *UserService) getUser(ctx context.Context, userID string) (*User, error) {
+func (us *UserService) getUser(ctx context.Context, userID string) (*types.User, error) {
 	_, span := us.tracer.Start(ctx, "UserService.getUser")
 	defer span.End()
 
@@ -133,7 +127,7 @@ func (us *UserService) getUser(ctx context.Context, userID string) (*User, error
 		return nil, err
 	}
 
-	user := value.(User)
+	user := value.(types.User)
 	span.AddEvent("user.loaded", trace.WithAttributes(
 		attribute.String("user.id", user.ID),
 		attribute.String("user.level", user.Level),
@@ -183,7 +177,7 @@ func (us *UserService) CreateUserHandler(w http.ResponseWriter, r *http.Request)
 }
 
 // createUser 创建用户业务逻辑
-func (us *UserService) createUser(ctx context.Context, name, email, phone string) (*User, error) {
+func (us *UserService) createUser(ctx context.Context, name, email, phone string) (*types.User, error) {
 	ctx, span := us.tracer.Start(ctx, "UserService.createUser")
 	defer span.End()
 
@@ -212,7 +206,7 @@ func (us *UserService) createUser(ctx context.Context, name, email, phone string
 	checkSpan.End()
 
 	// 3. 创建用户记录
-	user := User{
+	user := types.User{
 		ID:        fmt.Sprintf("user-%d", time.Now().UnixNano()),
 		Name:      name,
 		Email:     email,
@@ -280,7 +274,7 @@ func (us *UserService) updateUserLevel(ctx context.Context, userID, level string
 		return err
 	}
 
-	user := value.(User)
+	user := value.(types.User)
 	oldLevel := user.Level
 	user.Level = level
 
@@ -363,7 +357,7 @@ func (us *UserService) getUserStats(ctx context.Context, userID string) (map[str
 func (us *UserService) emailExists(ctx context.Context, email string) bool {
 	exists := false
 	us.users.Range(func(key, value interface{}) bool {
-		user := value.(User)
+		user := value.(types.User)
 		if user.Email == email {
 			exists = true
 			return false // stop iteration

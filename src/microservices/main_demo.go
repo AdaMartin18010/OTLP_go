@@ -10,13 +10,10 @@ import (
 	"time"
 
 	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
-	"go.opentelemetry.io/otel/propagation"
-	"go.opentelemetry.io/otel/sdk/resource"
-	"go.opentelemetry.io/otel/sdk/trace"
-	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
+
+	"OTLP_go/src/pkg/config"
+	otelmanager "OTLP_go/src/pkg/otel"
+	"OTLP_go/src/pkg/types"
 )
 
 // RunMicroservicesDemo 运行完整的微服务演示
@@ -47,55 +44,22 @@ func RunMicroservicesDemo() {
 
 // initOpenTelemetry 初始化 OpenTelemetry
 func initOpenTelemetry(ctx context.Context) error {
-	endpoint := os.Getenv("OTLP_GRPC_ENDPOINT")
-	if endpoint == "" {
-		endpoint = "127.0.0.1:4317"
+	// 使用新的 OTel 管理器
+	cfg := &config.OTLPConfig{
+		Endpoint:       os.Getenv("OTLP_GRPC_ENDPOINT"),
+		Insecure:       true,
+		SamplingRate:   1.0, // 开发环境使用全采样
+		ServiceName:    "microservices-demo",
+		ServiceVersion: "1.0.0",
+		Environment:    "dev",
 	}
 
-	// 创建 OTLP gRPC Exporter
-	exporter, err := otlptracegrpc.New(ctx,
-		otlptracegrpc.WithEndpoint(endpoint),
-		otlptracegrpc.WithTLSCredentials(insecure.NewCredentials()),
-		otlptracegrpc.WithDialOption(grpc.WithBlock()),
-	)
-	if err != nil {
-		return fmt.Errorf("failed to create exporter: %w", err)
+	if cfg.Endpoint == "" {
+		cfg.Endpoint = "127.0.0.1:4317"
 	}
 
-	// 创建 Resource
-	res, err := resource.New(ctx,
-		resource.WithAttributes(
-			semconv.ServiceName("microservices-demo"),
-			semconv.ServiceVersion("1.0.0"),
-			semconv.DeploymentEnvironment("dev"),
-		),
-	)
-	if err != nil {
-		return fmt.Errorf("failed to create resource: %w", err)
-	}
-
-	// 创建 TracerProvider
-	tp := trace.NewTracerProvider(
-		trace.WithBatcher(exporter,
-			trace.WithMaxQueueSize(2048),
-			trace.WithMaxExportBatchSize(512),
-			trace.WithBatchTimeout(5*time.Second),
-		),
-		trace.WithResource(res),
-		trace.WithSampler(trace.AlwaysSample()),
-	)
-
-	// 设置全局 TracerProvider
-	otel.SetTracerProvider(tp)
-
-	// 设置全局 Propagator（W3C Trace Context）
-	otel.SetTextMapPropagator(propagation.NewCompositeTextMapPropagator(
-		propagation.TraceContext{},
-		propagation.Baggage{},
-	))
-
-	log.Println("OpenTelemetry initialized successfully")
-	return nil
+	// 初始化全局 OTel 管理器
+	return otelmanager.InitializeGlobalOTel(ctx, cfg)
 }
 
 // startUserService 启动用户服务
@@ -157,9 +121,9 @@ func runTestScenarios(ctx context.Context) {
 			"http://localhost:8081",
 		)
 
-		req := &CreateOrderRequest{
+		req := &types.CreateOrderRequest{
 			UserID: "user-001",
-			Items: []OrderItem{
+			Items: []types.OrderItem{
 				{ProductID: "prod-001", Quantity: 2, Price: 29.99},
 				{ProductID: "prod-002", Quantity: 1, Price: 49.99},
 			},
@@ -177,7 +141,7 @@ func runTestScenarios(ctx context.Context) {
 		log.Printf("  ✅ Order Created: ID=%s, Total=$%.2f\n", order.ID, order.TotalAmount)
 
 		// 处理支付
-		payment, err := gateway.paymentService.ProcessPayment(ctx, &PaymentRequest{
+		payment, err := gateway.paymentService.ProcessPayment(ctx, &types.PaymentRequest{
 			OrderID: order.ID,
 			Amount:  order.TotalAmount,
 			Method:  "credit_card",
@@ -255,9 +219,9 @@ func runTestScenarios(ctx context.Context) {
 		orderClient := NewOrderServiceClient("http://localhost:8082")
 
 		// 创建订单
-		order, err := orderClient.CreateOrder(ctx, &CreateOrderRequest{
+		order, err := orderClient.CreateOrder(ctx, &types.CreateOrderRequest{
 			UserID: "user-002",
-			Items: []OrderItem{
+			Items: []types.OrderItem{
 				{ProductID: "prod-003", Quantity: 1, Price: 99.99},
 			},
 			TotalAmount:   99.99,
@@ -312,9 +276,9 @@ func runTestScenarios(ctx context.Context) {
 				ctx, span := tracer.Start(ctx, fmt.Sprintf("order.%d", orderNum))
 				defer span.End()
 
-				order, err := gateway.orderService.CreateOrder(ctx, &CreateOrderRequest{
+				order, err := gateway.orderService.CreateOrder(ctx, &types.CreateOrderRequest{
 					UserID: "user-003",
-					Items: []OrderItem{
+					Items: []types.OrderItem{
 						{ProductID: fmt.Sprintf("prod-%03d", orderNum), Quantity: 1, Price: 19.99},
 					},
 					TotalAmount:   19.99,
@@ -345,6 +309,14 @@ func waitForShutdown() {
 
 	sig := <-sigCh
 	log.Printf("\nReceived signal: %v, shutting down gracefully...\n", sig)
+
+	// 优雅关闭 OpenTelemetry
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	if err := otelmanager.ShutdownGlobalOTel(ctx); err != nil {
+		log.Printf("Error shutting down OpenTelemetry: %v", err)
+	}
 
 	// 给服务一些时间完成处理
 	time.Sleep(2 * time.Second)

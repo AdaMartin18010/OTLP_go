@@ -1,6 +1,7 @@
 package microservices
 
 import (
+	"OTLP_go/src/pkg/types"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -31,24 +32,7 @@ func NewPaymentService() *PaymentService {
 	}
 }
 
-// Payment 支付数据结构
-type Payment struct {
-	ID            string    `json:"id"`
-	OrderID       string    `json:"order_id"`
-	Amount        float64   `json:"amount"`
-	Method        string    `json:"method"`
-	Status        string    `json:"status"`
-	TransactionID string    `json:"transaction_id"`
-	CreatedAt     time.Time `json:"created_at"`
-	CompletedAt   time.Time `json:"completed_at,omitempty"`
-}
-
-// PaymentRequest 支付请求
-type PaymentRequest struct {
-	OrderID string  `json:"order_id"`
-	Amount  float64 `json:"amount"`
-	Method  string  `json:"method"`
-}
+// PaymentService 使用 types 包中的类型定义
 
 // ProcessPaymentHandler 处理支付请求
 func (ps *PaymentService) ProcessPaymentHandler(w http.ResponseWriter, r *http.Request) {
@@ -62,7 +46,7 @@ func (ps *PaymentService) ProcessPaymentHandler(w http.ResponseWriter, r *http.R
 	)
 	defer span.End()
 
-	var req PaymentRequest
+	var req types.PaymentRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "invalid request")
@@ -92,7 +76,7 @@ func (ps *PaymentService) ProcessPaymentHandler(w http.ResponseWriter, r *http.R
 }
 
 // processPayment 处理支付业务逻辑
-func (ps *PaymentService) processPayment(ctx context.Context, req *PaymentRequest) (*Payment, error) {
+func (ps *PaymentService) processPayment(ctx context.Context, req *types.PaymentRequest) (*types.Payment, error) {
 	ctx, span := ps.tracer.Start(ctx, "PaymentService.processPayment")
 	defer span.End()
 
@@ -139,7 +123,7 @@ func (ps *PaymentService) processPayment(ctx context.Context, req *PaymentReques
 	gatewaySpan.End()
 
 	// 4. 创建支付记录
-	payment := &Payment{
+	payment := &types.Payment{
 		ID:            generatePaymentID(),
 		OrderID:       req.OrderID,
 		Amount:        req.Amount,
@@ -192,7 +176,7 @@ func (ps *PaymentService) GetPaymentHandler(w http.ResponseWriter, r *http.Reque
 }
 
 // getPayment 查询支付
-func (ps *PaymentService) getPayment(ctx context.Context, paymentID string) (*Payment, error) {
+func (ps *PaymentService) getPayment(ctx context.Context, paymentID string) (*types.Payment, error) {
 	_, span := ps.tracer.Start(ctx, "PaymentService.getPayment")
 	defer span.End()
 
@@ -203,7 +187,7 @@ func (ps *PaymentService) getPayment(ctx context.Context, paymentID string) (*Pa
 		return nil, err
 	}
 
-	payment := value.(*Payment)
+	payment := value.(*types.Payment)
 	return payment, nil
 }
 
@@ -277,7 +261,7 @@ func (ps *PaymentService) refundPayment(ctx context.Context, paymentID string) e
 }
 
 // Helper methods
-func (ps *PaymentService) validatePayment(ctx context.Context, req *PaymentRequest) error {
+func (ps *PaymentService) validatePayment(ctx context.Context, req *types.PaymentRequest) error {
 	if req.OrderID == "" {
 		return fmt.Errorf("order_id is required")
 	}
@@ -290,7 +274,7 @@ func (ps *PaymentService) validatePayment(ctx context.Context, req *PaymentReque
 	return nil
 }
 
-func (ps *PaymentService) performRiskCheck(ctx context.Context, req *PaymentRequest) error {
+func (ps *PaymentService) performRiskCheck(ctx context.Context, req *types.PaymentRequest) error {
 	_, span := ps.tracer.Start(ctx, "risk_check.analysis")
 	defer span.End()
 
@@ -310,7 +294,7 @@ func (ps *PaymentService) performRiskCheck(ctx context.Context, req *PaymentRequ
 	return nil
 }
 
-func (ps *PaymentService) callPaymentGateway(ctx context.Context, req *PaymentRequest) (string, error) {
+func (ps *PaymentService) callPaymentGateway(ctx context.Context, req *types.PaymentRequest) (string, error) {
 	_, span := ps.tracer.Start(ctx, "payment_gateway.charge")
 	defer span.End()
 

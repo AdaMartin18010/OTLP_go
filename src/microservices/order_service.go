@@ -13,6 +13,8 @@ import (
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/trace"
+
+	"OTLP_go/src/pkg/types"
 )
 
 // OrderService 订单服务实现
@@ -30,16 +32,7 @@ func NewOrderService() *OrderService {
 	}
 }
 
-// Order 订单数据结构
-type Order struct {
-	ID          string      `json:"id"`
-	UserID      string      `json:"user_id"`
-	Items       []OrderItem `json:"items"`
-	TotalAmount float64     `json:"total_amount"`
-	Status      string      `json:"status"`
-	CreatedAt   time.Time   `json:"created_at"`
-	UpdatedAt   time.Time   `json:"updated_at"`
-}
+// 注意：Order 数据结构已移至 pkg/types 包中
 
 // CreateOrderHandler HTTP 处理器
 func (os *OrderService) CreateOrderHandler(w http.ResponseWriter, r *http.Request) {
@@ -53,7 +46,7 @@ func (os *OrderService) CreateOrderHandler(w http.ResponseWriter, r *http.Reques
 	)
 	defer span.End()
 
-	var req CreateOrderRequest
+	var req types.CreateOrderRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "invalid request")
@@ -83,7 +76,7 @@ func (os *OrderService) CreateOrderHandler(w http.ResponseWriter, r *http.Reques
 }
 
 // createOrder 创建订单业务逻辑
-func (os *OrderService) createOrder(ctx context.Context, req *CreateOrderRequest) (*Order, error) {
+func (os *OrderService) createOrder(ctx context.Context, req *types.CreateOrderRequest) (*types.Order, error) {
 	ctx, span := os.tracer.Start(ctx, "OrderService.createOrder")
 	defer span.End()
 
@@ -111,7 +104,7 @@ func (os *OrderService) createOrder(ctx context.Context, req *CreateOrderRequest
 	inventorySpan.End()
 
 	// 3. 创建订单记录
-	order := &Order{
+	order := &types.Order{
 		ID:          generateOrderID(),
 		UserID:      req.UserID,
 		Items:       req.Items,
@@ -171,7 +164,7 @@ func (os *OrderService) GetOrderHandler(w http.ResponseWriter, r *http.Request) 
 }
 
 // getOrder 查询订单
-func (os *OrderService) getOrder(ctx context.Context, orderID string) (*Order, error) {
+func (os *OrderService) getOrder(ctx context.Context, orderID string) (*types.Order, error) {
 	_, span := os.tracer.Start(ctx, "OrderService.getOrder")
 	defer span.End()
 
@@ -183,7 +176,7 @@ func (os *OrderService) getOrder(ctx context.Context, orderID string) (*Order, e
 		return nil, err
 	}
 
-	order := value.(*Order)
+	order := value.(*types.Order)
 	span.SetAttributes(
 		attribute.String("order.id", order.ID),
 		attribute.String("order.status", order.Status),
@@ -241,7 +234,7 @@ func (os *OrderService) updateOrderStatus(ctx context.Context, orderID, status s
 		return err
 	}
 
-	order := value.(*Order)
+	order := value.(*types.Order)
 	oldStatus := order.Status
 	order.Status = status
 	order.UpdatedAt = time.Now()
@@ -322,7 +315,7 @@ func (os *OrderService) cancelOrder(ctx context.Context, orderID string) error {
 }
 
 // Helper methods
-func (os *OrderService) validateOrder(ctx context.Context, req *CreateOrderRequest) error {
+func (os *OrderService) validateOrder(ctx context.Context, req *types.CreateOrderRequest) error {
 	if req.UserID == "" {
 		return fmt.Errorf("user_id is required")
 	}
@@ -335,13 +328,13 @@ func (os *OrderService) validateOrder(ctx context.Context, req *CreateOrderReque
 	return nil
 }
 
-func (os *OrderService) checkInventory(ctx context.Context, items []OrderItem) error {
+func (os *OrderService) checkInventory(ctx context.Context, items []types.OrderItem) error {
 	// 模拟库存检查
 	time.Sleep(10 * time.Millisecond)
 	return nil
 }
 
-func (os *OrderService) restoreInventory(ctx context.Context, items []OrderItem) {
+func (os *OrderService) restoreInventory(ctx context.Context, items []types.OrderItem) {
 	// 模拟库存恢复
 	time.Sleep(10 * time.Millisecond)
 }

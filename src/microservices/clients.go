@@ -14,6 +14,9 @@ import (
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/trace"
+
+	"OTLP_go/src/pkg/errors"
+	"OTLP_go/src/pkg/types"
 )
 
 // OrderServiceClient 订单服务客户端
@@ -37,7 +40,7 @@ func NewOrderServiceClient(baseURL string) *OrderServiceClient {
 }
 
 // CreateOrder 创建订单
-func (c *OrderServiceClient) CreateOrder(ctx context.Context, req *CreateOrderRequest) (*Order, error) {
+func (c *OrderServiceClient) CreateOrder(ctx context.Context, req *types.CreateOrderRequest) (*types.Order, error) {
 	ctx, span := c.tracer.Start(ctx, "OrderServiceClient.CreateOrder",
 		trace.WithSpanKind(trace.SpanKindClient),
 		trace.WithAttributes(
@@ -49,13 +52,13 @@ func (c *OrderServiceClient) CreateOrder(ctx context.Context, req *CreateOrderRe
 	body, err := json.Marshal(req)
 	if err != nil {
 		span.RecordError(err)
-		return nil, err
+		return nil, errors.WrapError(err, "failed to marshal request")
 	}
 
 	httpReq, err := http.NewRequestWithContext(ctx, "POST", c.baseURL+"/orders/create", bytes.NewBuffer(body))
 	if err != nil {
 		span.RecordError(err)
-		return nil, err
+		return nil, errors.WrapError(err, "failed to create HTTP request")
 	}
 	httpReq.Header.Set("Content-Type", "application/json")
 
@@ -66,7 +69,7 @@ func (c *OrderServiceClient) CreateOrder(ctx context.Context, req *CreateOrderRe
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "http request failed")
-		return nil, err
+		return nil, errors.WrapError(err, "HTTP request failed")
 	}
 	defer resp.Body.Close()
 
@@ -77,13 +80,13 @@ func (c *OrderServiceClient) CreateOrder(ctx context.Context, req *CreateOrderRe
 		err := fmt.Errorf("create order failed: %s", string(body))
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "order creation failed")
-		return nil, err
+		return nil, errors.WrapError(err, "order creation failed")
 	}
 
-	var order Order
+	var order types.Order
 	if err := json.NewDecoder(resp.Body).Decode(&order); err != nil {
 		span.RecordError(err)
-		return nil, err
+		return nil, errors.WrapError(err, "failed to decode order response")
 	}
 
 	span.SetStatus(codes.Ok, "order created")
@@ -91,7 +94,7 @@ func (c *OrderServiceClient) CreateOrder(ctx context.Context, req *CreateOrderRe
 }
 
 // GetOrder 查询订单
-func (c *OrderServiceClient) GetOrder(ctx context.Context, orderID string) (*Order, error) {
+func (c *OrderServiceClient) GetOrder(ctx context.Context, orderID string) (*types.Order, error) {
 	ctx, span := c.tracer.Start(ctx, "OrderServiceClient.GetOrder",
 		trace.WithSpanKind(trace.SpanKindClient),
 		trace.WithAttributes(
@@ -122,10 +125,10 @@ func (c *OrderServiceClient) GetOrder(ctx context.Context, orderID string) (*Ord
 		return nil, err
 	}
 
-	var order Order
+	var order types.Order
 	if err := json.NewDecoder(resp.Body).Decode(&order); err != nil {
 		span.RecordError(err)
-		return nil, err
+		return nil, errors.WrapError(err, "failed to decode order response")
 	}
 
 	span.SetStatus(codes.Ok, "order retrieved")
@@ -189,7 +192,7 @@ func NewPaymentServiceClient(baseURL string) *PaymentServiceClient {
 }
 
 // ProcessPayment 处理支付
-func (c *PaymentServiceClient) ProcessPayment(ctx context.Context, req *PaymentRequest) (*Payment, error) {
+func (c *PaymentServiceClient) ProcessPayment(ctx context.Context, req *types.PaymentRequest) (*types.Payment, error) {
 	ctx, span := c.tracer.Start(ctx, "PaymentServiceClient.ProcessPayment",
 		trace.WithSpanKind(trace.SpanKindClient),
 		trace.WithAttributes(
@@ -232,10 +235,10 @@ func (c *PaymentServiceClient) ProcessPayment(ctx context.Context, req *PaymentR
 		return nil, err
 	}
 
-	var payment Payment
+	var payment types.Payment
 	if err := json.NewDecoder(resp.Body).Decode(&payment); err != nil {
 		span.RecordError(err)
-		return nil, err
+		return nil, errors.WrapError(err, "failed to decode payment response")
 	}
 
 	span.SetAttributes(
@@ -248,7 +251,7 @@ func (c *PaymentServiceClient) ProcessPayment(ctx context.Context, req *PaymentR
 }
 
 // GetPayment 查询支付
-func (c *PaymentServiceClient) GetPayment(ctx context.Context, paymentID string) (*Payment, error) {
+func (c *PaymentServiceClient) GetPayment(ctx context.Context, paymentID string) (*types.Payment, error) {
 	ctx, span := c.tracer.Start(ctx, "PaymentServiceClient.GetPayment",
 		trace.WithSpanKind(trace.SpanKindClient),
 	)
@@ -276,10 +279,10 @@ func (c *PaymentServiceClient) GetPayment(ctx context.Context, paymentID string)
 		return nil, err
 	}
 
-	var payment Payment
+	var payment types.Payment
 	if err := json.NewDecoder(resp.Body).Decode(&payment); err != nil {
 		span.RecordError(err)
-		return nil, err
+		return nil, errors.WrapError(err, "failed to decode payment response")
 	}
 
 	span.SetStatus(codes.Ok, "payment retrieved")
@@ -307,7 +310,7 @@ func NewUserServiceClient(baseURL string) *UserServiceClient {
 }
 
 // GetUser 查询用户
-func (c *UserServiceClient) GetUser(ctx context.Context, userID string) (*User, error) {
+func (c *UserServiceClient) GetUser(ctx context.Context, userID string) (*types.User, error) {
 	ctx, span := c.tracer.Start(ctx, "UserServiceClient.GetUser",
 		trace.WithSpanKind(trace.SpanKindClient),
 		trace.WithAttributes(
@@ -344,10 +347,10 @@ func (c *UserServiceClient) GetUser(ctx context.Context, userID string) (*User, 
 		return nil, err
 	}
 
-	var user User
+	var user types.User
 	if err := json.NewDecoder(resp.Body).Decode(&user); err != nil {
 		span.RecordError(err)
-		return nil, err
+		return nil, errors.WrapError(err, "failed to decode user response")
 	}
 
 	span.SetAttributes(

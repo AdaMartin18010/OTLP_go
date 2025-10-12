@@ -11,6 +11,8 @@ import (
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/trace"
+
+	"OTLP_go/src/pkg/types"
 )
 
 // APIGateway 微服务 API 网关实现
@@ -51,7 +53,7 @@ func (gw *APIGateway) CreateOrder(w http.ResponseWriter, r *http.Request) {
 	defer span.End()
 
 	// 解析请求
-	var req CreateOrderRequest
+	var req types.CreateOrderRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "invalid request body")
@@ -103,7 +105,7 @@ func (gw *APIGateway) CreateOrder(w http.ResponseWriter, r *http.Request) {
 
 	// 3. 处理支付
 	ctx, paymentSpan := gw.tracer.Start(ctx, "process_payment")
-	payment, err := gw.paymentService.ProcessPayment(ctx, &PaymentRequest{
+	payment, err := gw.paymentService.ProcessPayment(ctx, &types.PaymentRequest{
 		OrderID: order.ID,
 		Amount:  req.TotalAmount,
 		Method:  req.PaymentMethod,
@@ -128,7 +130,7 @@ func (gw *APIGateway) CreateOrder(w http.ResponseWriter, r *http.Request) {
 	paymentSpan.End()
 
 	// 4. 返回响应
-	response := CreateOrderResponse{
+	response := types.CreateOrderResponse{
 		OrderID:   order.ID,
 		PaymentID: payment.ID,
 		Status:    "completed",
@@ -201,26 +203,7 @@ func (gw *APIGateway) HealthCheck(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(health)
 }
 
-// Request/Response 数据结构
-type CreateOrderRequest struct {
-	UserID        string      `json:"user_id"`
-	Items         []OrderItem `json:"items"`
-	TotalAmount   float64     `json:"total_amount"`
-	PaymentMethod string      `json:"payment_method"`
-}
-
-type OrderItem struct {
-	ProductID string  `json:"product_id"`
-	Quantity  int     `json:"quantity"`
-	Price     float64 `json:"price"`
-}
-
-type CreateOrderResponse struct {
-	OrderID   string    `json:"order_id"`
-	PaymentID string    `json:"payment_id"`
-	Status    string    `json:"status"`
-	CreatedAt time.Time `json:"created_at"`
-}
+// 注意：数据结构已移至 pkg/types 包中
 
 // StartServer 启动 API 网关服务器
 func (gw *APIGateway) StartServer(addr string) error {
