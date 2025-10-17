@@ -251,7 +251,7 @@ func NewStringOptimizationManager() *StringOptimizationManager {
 
 // Initialize initializes the string optimization manager.
 func (som *StringOptimizationManager) Initialize(ctx context.Context) error {
-	ctx, span := som.tracer.Start(ctx, "string_optimization.initialize")
+	_, span := som.tracer.Start(ctx, "string_optimization.initialize")
 	defer span.End()
 
 	// Enable default features
@@ -295,7 +295,7 @@ func (som *StringOptimizationManager) Initialize(ctx context.Context) error {
 
 // Shutdown gracefully shuts down the string optimization manager.
 func (som *StringOptimizationManager) Shutdown(ctx context.Context) error {
-	ctx, span := som.tracer.Start(ctx, "string_optimization.shutdown")
+	_, span := som.tracer.Start(ctx, "string_optimization.shutdown")
 	defer span.End()
 
 	som.mu.Lock()
@@ -369,7 +369,7 @@ func (sp *StringPool) Put(str string) {
 		return
 	}
 
-	sp.pool.Put(str)
+	sp.pool.Put(&str)
 	atomic.AddInt64(&sp.currentSize, 1)
 }
 

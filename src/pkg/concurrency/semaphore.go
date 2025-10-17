@@ -3,6 +3,7 @@ package concurrency
 import (
 	"context"
 	"fmt"
+	"sync"
 	"time"
 
 	"go.opentelemetry.io/otel"
@@ -191,23 +192,34 @@ func ExampleWithSemaphore() {
 }
 
 // RateLimiter 速率限制器
+// 使用令牌桶算法实现
 type RateLimiter struct {
-	sem      *Semaphore
-	interval time.Duration
-	burst    int64
+	mu           sync.Mutex
+	tokens       int64
+	maxTokens    int64
+	refillRate   int64         // 每次补充的令牌数
+	refillPeriod time.Duration // 补充周期
+	lastRefill   time.Time
+	stopCh       chan struct{}
+	tracer       trace.Tracer
 }
 
 // NewRateLimiter 创建速率限制器
-// burst: 突发请求数量
-// interval: 补充间隔
-func NewRateLimiter(name string, burst int64, interval time.Duration) *RateLimiter {
+// maxTokens: 最大令牌数（突发容量）
+// refillRate: 每个周期补充的令牌数
+// refillPeriod: 补充周期
+func NewRateLimiter(name string, maxTokens int64, refillPeriod time.Duration) *RateLimiter {
 	rl := &RateLimiter{
-		sem:      NewSemaphore(name, burst),
-		interval: interval,
-		burst:    burst,
+		tokens:       maxTokens, // 初始满令牌
+		maxTokens:    maxTokens,
+		refillRate:   1, // 每个周期补充 1 个令牌
+		refillPeriod: refillPeriod,
+		lastRefill:   time.Now(),
+		stopCh:       make(chan struct{}),
+		tracer:       otel.Tracer("concurrency/ratelimiter"),
 	}
 
-	// 定期补充令牌
+	// 启动定期补充令牌的 goroutine
 	go rl.refillLoop()
 
 	return rl
@@ -215,26 +227,100 @@ func NewRateLimiter(name string, burst int64, interval time.Duration) *RateLimit
 
 // refillLoop 定期补充令牌
 func (rl *RateLimiter) refillLoop() {
-	ticker := time.NewTicker(rl.interval)
+	ticker := time.NewTicker(rl.refillPeriod)
 	defer ticker.Stop()
 
-	for range ticker.C {
-		// 尝试释放一个令牌
-		if rl.sem.TryAcquire(0) {
-			// 如果可以获取 0 权重，说明未满
-			rl.sem.Release(1)
+	for {
+		select {
+		case <-ticker.C:
+			rl.refill()
+		case <-rl.stopCh:
+			return
 		}
+	}
+}
+
+// refill 补充令牌（内部方法）
+func (rl *RateLimiter) refill() {
+	rl.mu.Lock()
+	defer rl.mu.Unlock()
+
+	now := time.Now()
+	elapsed := now.Sub(rl.lastRefill)
+
+	// 计算应该补充的令牌数
+	tokensToAdd := int64(elapsed / rl.refillPeriod)
+	if tokensToAdd > 0 {
+		rl.tokens = min(rl.tokens+tokensToAdd, rl.maxTokens)
+		rl.lastRefill = now
 	}
 }
 
 // Wait 等待获取令牌
 func (rl *RateLimiter) Wait(ctx context.Context) error {
-	return rl.sem.Acquire(ctx, 1)
+	_, span := rl.tracer.Start(ctx, "ratelimiter.wait")
+	defer span.End()
+
+	for {
+		// 先尝试获取
+		if rl.tryTakeToken() {
+			return nil
+		}
+
+		// 等待一个补充周期
+		select {
+		case <-time.After(rl.refillPeriod / 10): // 短暂等待后重试
+			continue
+		case <-ctx.Done():
+			span.RecordError(ctx.Err())
+			return ctx.Err()
+		}
+	}
 }
 
 // Allow 尝试获取令牌（非阻塞）
 func (rl *RateLimiter) Allow() bool {
-	return rl.sem.TryAcquire(1)
+	_, span := rl.tracer.Start(context.Background(), "ratelimiter.allow")
+	defer span.End()
+
+	allowed := rl.tryTakeToken()
+	span.SetAttributes(attribute.Bool("allowed", allowed))
+	return allowed
+}
+
+// tryTakeToken 尝试获取一个令牌（内部方法）
+func (rl *RateLimiter) tryTakeToken() bool {
+	rl.mu.Lock()
+	defer rl.mu.Unlock()
+
+	// 先尝试补充（基于时间的自然补充）
+	now := time.Now()
+	elapsed := now.Sub(rl.lastRefill)
+	tokensToAdd := int64(elapsed / rl.refillPeriod)
+	if tokensToAdd > 0 {
+		rl.tokens = min(rl.tokens+tokensToAdd, rl.maxTokens)
+		rl.lastRefill = now
+	}
+
+	// 检查是否有令牌
+	if rl.tokens > 0 {
+		rl.tokens--
+		return true
+	}
+	return false
+}
+
+// Stop 停止 RateLimiter
+func (rl *RateLimiter) Stop() {
+	close(rl.stopCh)
+}
+
+// min 返回两个 int64 的最小值
+func min(a, b int64) int64 {
+	if a < b {
+		return a
+	}
+	return b
 }
 
 // Example: 速率限制

@@ -309,7 +309,6 @@ type Analyzer struct {
 	mu           sync.RWMutex
 	name         string
 	analyzerType string
-	enabled      bool
 	analyzer     func(map[string]interface{}) (map[string]interface{}, error)
 	stats        *AnalyzerStats
 	cleanupFuncs []func() error
@@ -347,7 +346,7 @@ func NewPerformanceMonitor() *PerformanceMonitor {
 
 // Initialize initializes the performance monitor.
 func (pm *PerformanceMonitor) Initialize(ctx context.Context) error {
-	ctx, span := pm.tracer.Start(ctx, "performance_monitor.initialize")
+	_, span := pm.tracer.Start(ctx, "performance_monitor.initialize")
 	defer span.End()
 
 	// Enable default features
@@ -390,7 +389,7 @@ func (pm *PerformanceMonitor) Initialize(ctx context.Context) error {
 
 // Start starts the performance monitor.
 func (pm *PerformanceMonitor) Start(ctx context.Context) error {
-	ctx, span := pm.tracer.Start(ctx, "performance_monitor.start")
+	_, span := pm.tracer.Start(ctx, "performance_monitor.start")
 	defer span.End()
 
 	pm.mu.Lock()
@@ -447,7 +446,7 @@ func (pm *PerformanceMonitor) Start(ctx context.Context) error {
 
 // Stop stops the performance monitor.
 func (pm *PerformanceMonitor) Stop(ctx context.Context) error {
-	ctx, span := pm.tracer.Start(ctx, "performance_monitor.stop")
+	_, span := pm.tracer.Start(ctx, "performance_monitor.stop")
 	defer span.End()
 
 	pm.mu.Lock()
@@ -873,6 +872,14 @@ func (a *Aggregator) Stats() *AggregatorStats {
 	return a.stats
 }
 
+// Stats returns analyzer statistics.
+func (a *Analyzer) Stats() *AnalyzerStats {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+
+	return a.stats
+}
+
 // CreateAlerter creates a new alerter.
 func (pm *PerformanceMonitor) CreateAlerter(name, alertType string) (*Alerter, error) {
 	pm.mu.Lock()
@@ -915,12 +922,8 @@ func (a *Alerter) Start() error {
 
 	// Start alerting logic
 	go func() {
-		for {
-			select {
-			case <-time.After(1 * time.Second):
-				a.checkRules()
-			}
-		}
+		time.Sleep(1 * time.Second)
+		a.checkRules()
 	}()
 
 	return nil

@@ -160,6 +160,8 @@ func (m *Manager) shutdownStages(ctx context.Context, parentSpan trace.Span) err
 		case <-stageCtx.Done():
 			stageSpan.AddEvent("stage.timeout")
 			allErrors = append(allErrors, fmt.Errorf("stage %s timeout", stage))
+			// 超时也要等待所有 goroutine 完成
+			<-doneCh
 		}
 
 		close(errCh)
@@ -179,7 +181,7 @@ func (m *Manager) shutdownStages(ctx context.Context, parentSpan trace.Span) err
 }
 
 // shutdownSimple 简单 LIFO 关闭
-func (m *Manager) shutdownSimple(ctx context.Context, parentSpan trace.Span) error {
+func (m *Manager) shutdownSimple(ctx context.Context, _ trace.Span) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 

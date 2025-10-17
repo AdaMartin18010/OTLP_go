@@ -775,7 +775,7 @@ func (bm *BenchmarkManager) GetMetrics() *BenchmarkManagerMetrics {
 // Helper functions for benchmarking
 
 // startCPUProfile starts CPU profiling.
-func (bm *BenchmarkManager) startCPUProfile(ctx context.Context, benchmark *Benchmark, profiles map[string]*ProfileResult) error {
+func (bm *BenchmarkManager) startCPUProfile(_ context.Context, _ *Benchmark, profiles map[string]*ProfileResult) error {
 	profile := &ProfileResult{
 		Name:          "cpu",
 		Type:          "cpu",
@@ -789,7 +789,7 @@ func (bm *BenchmarkManager) startCPUProfile(ctx context.Context, benchmark *Benc
 }
 
 // startMemoryProfile starts memory profiling.
-func (bm *BenchmarkManager) startMemoryProfile(ctx context.Context, benchmark *Benchmark, profiles map[string]*ProfileResult) error {
+func (bm *BenchmarkManager) startMemoryProfile(_ context.Context, _ *Benchmark, profiles map[string]*ProfileResult) error {
 	profile := &ProfileResult{
 		Name:          "memory",
 		Type:          "memory",
@@ -803,7 +803,7 @@ func (bm *BenchmarkManager) startMemoryProfile(ctx context.Context, benchmark *B
 }
 
 // stopProfiling stops all profiling.
-func (bm *BenchmarkManager) stopProfiling(ctx context.Context, profiles map[string]*ProfileResult) error {
+func (bm *BenchmarkManager) stopProfiling(_ context.Context, profiles map[string]*ProfileResult) error {
 	for _, profile := range profiles {
 		profile.EndTime = time.Since(profile.StartTime)
 		profile.Status = "completed"
@@ -814,7 +814,7 @@ func (bm *BenchmarkManager) stopProfiling(ctx context.Context, profiles map[stri
 }
 
 // startCPUProfileForProfile starts CPU profiling for a profile.
-func (bm *BenchmarkManager) startCPUProfileForProfile(ctx context.Context, profile *Profile) error {
+func (bm *BenchmarkManager) startCPUProfileForProfile(_ context.Context, profile *Profile) error {
 	profile.Results = &ProfileResult{
 		Name:          profile.Name,
 		Type:          profile.Type,
@@ -826,7 +826,7 @@ func (bm *BenchmarkManager) startCPUProfileForProfile(ctx context.Context, profi
 }
 
 // startMemoryProfileForProfile starts memory profiling for a profile.
-func (bm *BenchmarkManager) startMemoryProfileForProfile(ctx context.Context, profile *Profile) error {
+func (bm *BenchmarkManager) startMemoryProfileForProfile(_ context.Context, profile *Profile) error {
 	profile.Results = &ProfileResult{
 		Name:          profile.Name,
 		Type:          profile.Type,
@@ -838,7 +838,7 @@ func (bm *BenchmarkManager) startMemoryProfileForProfile(ctx context.Context, pr
 }
 
 // startGoroutineProfile starts goroutine profiling for a profile.
-func (bm *BenchmarkManager) startGoroutineProfile(ctx context.Context, profile *Profile) error {
+func (bm *BenchmarkManager) startGoroutineProfile(_ context.Context, profile *Profile) error {
 	profile.Results = &ProfileResult{
 		Name:          profile.Name,
 		Type:          profile.Type,
@@ -850,7 +850,7 @@ func (bm *BenchmarkManager) startGoroutineProfile(ctx context.Context, profile *
 }
 
 // startBlockProfile starts block profiling for a profile.
-func (bm *BenchmarkManager) startBlockProfile(ctx context.Context, profile *Profile) error {
+func (bm *BenchmarkManager) startBlockProfile(_ context.Context, profile *Profile) error {
 	profile.Results = &ProfileResult{
 		Name:          profile.Name,
 		Type:          profile.Type,
@@ -862,7 +862,7 @@ func (bm *BenchmarkManager) startBlockProfile(ctx context.Context, profile *Prof
 }
 
 // startMutexProfile starts mutex profiling for a profile.
-func (bm *BenchmarkManager) startMutexProfile(ctx context.Context, profile *Profile) error {
+func (bm *BenchmarkManager) startMutexProfile(_ context.Context, profile *Profile) error {
 	profile.Results = &ProfileResult{
 		Name:          profile.Name,
 		Type:          profile.Type,
@@ -874,7 +874,7 @@ func (bm *BenchmarkManager) startMutexProfile(ctx context.Context, profile *Prof
 }
 
 // stopCPUProfile stops CPU profiling for a profile.
-func (bm *BenchmarkManager) stopCPUProfile(ctx context.Context, profile *Profile) (*ProfileResult, error) {
+func (bm *BenchmarkManager) stopCPUProfile(_ context.Context, profile *Profile) (*ProfileResult, error) {
 	if profile.Results == nil {
 		return nil, fmt.Errorf("profile not started")
 	}
@@ -889,7 +889,7 @@ func (bm *BenchmarkManager) stopCPUProfile(ctx context.Context, profile *Profile
 }
 
 // stopMemoryProfile stops memory profiling for a profile.
-func (bm *BenchmarkManager) stopMemoryProfile(ctx context.Context, profile *Profile) (*ProfileResult, error) {
+func (bm *BenchmarkManager) stopMemoryProfile(_ context.Context, profile *Profile) (*ProfileResult, error) {
 	if profile.Results == nil {
 		return nil, fmt.Errorf("profile not started")
 	}
@@ -904,7 +904,7 @@ func (bm *BenchmarkManager) stopMemoryProfile(ctx context.Context, profile *Prof
 }
 
 // stopGoroutineProfile stops goroutine profiling for a profile.
-func (bm *BenchmarkManager) stopGoroutineProfile(ctx context.Context, profile *Profile) (*ProfileResult, error) {
+func (bm *BenchmarkManager) stopGoroutineProfile(_ context.Context, profile *Profile) (*ProfileResult, error) {
 	if profile.Results == nil {
 		return nil, fmt.Errorf("profile not started")
 	}
@@ -919,7 +919,7 @@ func (bm *BenchmarkManager) stopGoroutineProfile(ctx context.Context, profile *P
 }
 
 // stopBlockProfile stops block profiling for a profile.
-func (bm *BenchmarkManager) stopBlockProfile(ctx context.Context, profile *Profile) (*ProfileResult, error) {
+func (bm *BenchmarkManager) stopBlockProfile(_ context.Context, profile *Profile) (*ProfileResult, error) {
 	if profile.Results == nil {
 		return nil, fmt.Errorf("profile not started")
 	}
@@ -934,7 +934,7 @@ func (bm *BenchmarkManager) stopBlockProfile(ctx context.Context, profile *Profi
 }
 
 // stopMutexProfile stops mutex profiling for a profile.
-func (bm *BenchmarkManager) stopMutexProfile(ctx context.Context, profile *Profile) (*ProfileResult, error) {
+func (bm *BenchmarkManager) stopMutexProfile(_ context.Context, profile *Profile) (*ProfileResult, error) {
 	if profile.Results == nil {
 		return nil, fmt.Errorf("profile not started")
 	}

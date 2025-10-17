@@ -194,6 +194,7 @@ type Profiler struct {
 	samples   []ProfileSample
 	mu        sync.RWMutex
 	config    *ProfilerConfig
+	done      chan struct{}
 }
 
 // ProfileSample represents a single profiling sample.
@@ -229,7 +230,7 @@ func NewPerformanceManager() *PerformanceManager {
 
 // Initialize initializes the performance manager with default settings.
 func (pm *PerformanceManager) Initialize(ctx context.Context) error {
-	ctx, span := pm.tracer.Start(ctx, "performance.initialize")
+	_, span := pm.tracer.Start(ctx, "performance.initialize")
 	defer span.End()
 
 	// Enable default features
@@ -259,7 +260,7 @@ func (pm *PerformanceManager) Initialize(ctx context.Context) error {
 
 // Shutdown gracefully shuts down the performance manager.
 func (pm *PerformanceManager) Shutdown(ctx context.Context) error {
-	ctx, span := pm.tracer.Start(ctx, "performance.shutdown")
+	_, span := pm.tracer.Start(ctx, "performance.shutdown")
 	defer span.End()
 
 	pm.mu.Lock()
@@ -502,6 +503,7 @@ func NewProfiler(config *ProfilerConfig) *Profiler {
 		startTime: time.Now(),
 		samples:   make([]ProfileSample, 0, config.MaxSamples),
 		config:    config,
+		done:      make(chan struct{}),
 	}
 }
 
@@ -522,7 +524,10 @@ func (p *Profiler) StopProfiling() []ProfileSample {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	p.enabled = false
+	if p.enabled {
+		p.enabled = false
+		close(p.done)
+	}
 	return p.samples
 }
 
@@ -531,10 +536,12 @@ func (p *Profiler) profilingLoop() {
 	ticker := time.NewTicker(p.config.SampleInterval)
 	defer ticker.Stop()
 
-	for p.enabled {
+	for {
 		select {
 		case <-ticker.C:
 			p.takeSample()
+		case <-p.done:
+			return
 		}
 	}
 }
@@ -853,11 +860,12 @@ func (rl *RateLimiter) Allow() bool {
 	now := time.Now()
 	if now.Sub(rl.lastRefill) >= rl.interval {
 		// Refill tokens
+	refillLoop:
 		for len(rl.tokens) < cap(rl.tokens) {
 			select {
 			case rl.tokens <- struct{}{}:
 			default:
-				break
+				break refillLoop
 			}
 		}
 		rl.lastRefill = now

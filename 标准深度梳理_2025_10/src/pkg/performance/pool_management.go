@@ -220,7 +220,7 @@ func NewPoolManager() *PoolManager {
 
 // Initialize initializes the pool manager.
 func (pm *PoolManager) Initialize(ctx context.Context) error {
-	ctx, span := pm.tracer.Start(ctx, "pool_manager.initialize")
+	_, span := pm.tracer.Start(ctx, "pool_manager.initialize")
 	defer span.End()
 
 	// Enable default features
@@ -252,7 +252,7 @@ func (pm *PoolManager) Initialize(ctx context.Context) error {
 
 // Shutdown gracefully shuts down the pool manager.
 func (pm *PoolManager) Shutdown(ctx context.Context) error {
-	ctx, span := pm.tracer.Start(ctx, "pool_manager.shutdown")
+	_, span := pm.tracer.Start(ctx, "pool_manager.shutdown")
 	defer span.End()
 
 	pm.mu.Lock()
@@ -599,7 +599,7 @@ func (gp *GenericPool) cleanup() {
 			gp.underflows++
 			gp.stats.Underflows++
 		default:
-			break
+			return
 		}
 	}
 }
@@ -1074,9 +1074,9 @@ func (pm *PoolManager) initializeDefaultPools() error {
 		_, err := pm.CreatePool(config, func() interface{} {
 			return make([]byte, 0, 1024)
 		}, func(obj interface{}) {
-			if buf, ok := obj.([]byte); ok {
-				buf = buf[:0] // Reset length but keep capacity
-			}
+			// Note: For []byte slices passed as interface{}, in-place reset is not effective
+			// since the slice header is passed by value. The pool will reuse objects as-is.
+			_ = obj // Use obj to satisfy linter
 		})
 		if err != nil {
 			return fmt.Errorf("failed to create default pool %s: %w", config.Name, err)
@@ -1102,9 +1102,9 @@ func (gpf *GenericPoolFactory) CreatePool(config *PoolConfig) (Pool, error) {
 	}
 
 	resetFunc := func(obj interface{}) {
-		if buf, ok := obj.([]byte); ok {
-			buf = buf[:0] // Reset length but keep capacity
-		}
+		// Note: For []byte slices passed as interface{}, in-place reset is not effective
+		// since the slice header is passed by value. The pool will reuse objects as-is.
+		_ = obj // Use obj to satisfy linter
 	}
 
 	pool := &GenericPool{
@@ -1165,9 +1165,9 @@ func (bpf *BoundedPoolFactory) CreatePool(config *PoolConfig) (Pool, error) {
 	}
 
 	resetFunc := func(obj interface{}) {
-		if buf, ok := obj.([]byte); ok {
-			buf = buf[:0] // Reset length but keep capacity
-		}
+		// Note: For []byte slices passed as interface{}, in-place reset is not effective
+		// since the slice header is passed by value. The pool will reuse objects as-is.
+		_ = obj // Use obj to satisfy linter
 	}
 
 	genericPool := &GenericPool{
@@ -1245,9 +1245,9 @@ func (upf *UnboundedPoolFactory) CreatePool(config *PoolConfig) (Pool, error) {
 	}
 
 	resetFunc := func(obj interface{}) {
-		if buf, ok := obj.([]byte); ok {
-			buf = buf[:0] // Reset length but keep capacity
-		}
+		// Note: For []byte slices passed as interface{}, in-place reset is not effective
+		// since the slice header is passed by value. The pool will reuse objects as-is.
+		_ = obj // Use obj to satisfy linter
 	}
 
 	genericPool := &GenericPool{
@@ -1309,9 +1309,9 @@ func (tpf *TimedPoolFactory) CreatePool(config *PoolConfig) (Pool, error) {
 	}
 
 	resetFunc := func(obj interface{}) {
-		if buf, ok := obj.([]byte); ok {
-			buf = buf[:0] // Reset length but keep capacity
-		}
+		// Note: For []byte slices passed as interface{}, in-place reset is not effective
+		// since the slice header is passed by value. The pool will reuse objects as-is.
+		_ = obj // Use obj to satisfy linter
 	}
 
 	genericPool := &GenericPool{
