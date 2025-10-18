@@ -1,142 +1,317 @@
-# 贡献指南
+# 🤝 贡献指南
 
-感谢您对 OTLP_go 项目的关注！我们欢迎各种形式的贡献。
+感谢您对 **OTLP Go技术栈深度梳理** 项目的关注！本文档将帮助您了解如何为项目做出贡献。
 
 ---
 
 ## 📋 目录
 
-- [行为准则](#行为准则)
-- [如何贡献](#如何贡献)
-- [开发环境设置](#开发环境设置)
+- [贡献类型](#贡献类型)
+- [开始之前](#开始之前)
+- [贡献流程](#贡献流程)
 - [代码规范](#代码规范)
+- [文档规范](#文档规范)
 - [提交规范](#提交规范)
-- [Pull Request 流程](#pull-request-流程)
-- [问题报告](#问题报告)
+- [审核流程](#审核流程)
 
 ---
 
-## 行为准则
-
-本项目遵循 [Contributor Covenant](https://www.contributor-covenant.org/) 行为准则。参与本项目即表示您同意遵守其条款。
-
----
-
-## 如何贡献
-
-### 贡献类型
+## 🎯 贡献类型
 
 我们欢迎以下类型的贡献：
 
-- 🐛 **Bug 修复**: 修复代码中的错误
-- ✨ **新功能**: 添加新的示例或功能
-- 📝 **文档改进**: 改进或补充文档
-- 🎨 **代码优化**: 性能优化或代码重构
-- 🧪 **测试**: 添加或改进测试用例
-- 🌐 **翻译**: 文档翻译
+### 1. 📝 文档改进
+- 修正拼写错误、语法错误
+- 补充缺失的说明
+- 改进文档结构和可读性
+- 添加更多实战案例
+
+### 2. 💻 代码示例
+- 新增完整的代码示例
+- 改进现有示例的质量
+- 添加更多注释和说明
+- 补充单元测试
+
+### 3. 🐛 问题修复
+- 修复代码错误
+- 修复配置错误
+- 修复文档中的技术错误
+
+### 4. 🌟 新特性
+- 新增技术领域的深度梳理
+- 补充缺失的最佳实践
+- 添加生产环境案例
+
+### 5. 📊 性能测试
+- 补充基准测试
+- 验证优化效果
+- 提供性能对比数据
 
 ---
 
-## 开发环境设置
+## 🚀 开始之前
 
 ### 前置要求
 
-- **Go**: 1.25.1 或更高版本
-- **Docker**: 用于运行 OTLP Collector 和 Jaeger
-- **Make**: 用于运行构建脚本
-- **Git**: 版本控制
+1. **环境准备**
+   - Go 1.25.1+
+   - Git
+   - VSCode/GoLand (推荐)
 
-### 设置步骤
+2. **了解项目**
+   - 阅读 [README.md](README.md)
+   - 浏览 [项目导航中心](标准深度梳理_2025_10/📍_Go语言项目导航中心_2025-Q4.md)
+   - 查看 [项目看板](标准深度梳理_2025_10/📊_项目持续推进看板_2025-Q4.md)
 
-1. **Fork 项目**
-
-    ```bash
-    # 在 GitHub 上 Fork 项目
-    # 然后克隆到本地
-    git clone https://github.com/YOUR_USERNAME/OTLP_go.git
-    cd OTLP_go
-    ```
-
-2. **安装依赖**
-
-    ```bash
-    # 下载 Go 依赖
-    make mod-download
-
-    # 安装开发工具
-    make install-tools
-    ```
-
-3. **启动服务**
-
-    ```bash
-    # 启动 OTLP Collector 和 Jaeger
-    make docker-up
-    ```
-
-4. **运行测试**
-
-    ```bash
-    # 运行所有测试
-    make test
-
-    # 运行基准测试
-    make bench
-    ```
+3. **检查现有Issue**
+   - 搜索是否已有相关Issue
+   - 避免重复工作
 
 ---
 
-## 代码规范
+## 🔄 贡献流程
 
-### Go 代码风格
+### 1. Fork 项目
 
-遵循官方 [Go Code Review Comments](https://github.com/golang/go/wiki/CodeReviewComments)。
+点击 GitHub 页面右上角的 **Fork** 按钮
 
-**关键点**:
+### 2. 克隆到本地
 
-- 使用 `gofmt` 格式化代码
-- 使用有意义的变量名
-- 添加必要的注释
-- 导出的函数和类型必须有文档注释
-- 错误处理要完整
+```bash
+git clone https://github.com/YOUR_USERNAME/OTLP_go.git
+cd OTLP_go
+```
 
-**示例**:
+### 3. 创建分支
+
+```bash
+# 文档改进
+git checkout -b docs/improve-ebpf-guide
+
+# 代码示例
+git checkout -b feat/add-grpc-example
+
+# 问题修复
+git checkout -b fix/correct-k8s-yaml
+
+# 性能测试
+git checkout -b test/benchmark-sharded-lock
+```
+
+### 4. 进行修改
+
+#### 文档修改
+```bash
+# 编辑文档
+vim 标准深度梳理_2025_10/🐝_Go_eBPF深度集成指南_零侵入式可观测性.md
+
+# 预览效果（使用Markdown预览工具）
+```
+
+#### 代码修改
+```bash
+# 编辑代码
+vim examples/otlp-basic/main.go
+
+# 格式化
+gofmt -w examples/otlp-basic/main.go
+
+# 运行测试
+go test ./examples/otlp-basic/...
+```
+
+### 5. 提交更改
+
+```bash
+# 添加修改
+git add .
+
+# 提交（遵循提交规范）
+git commit -m "docs: 补充eBPF Ring Buffer使用说明"
+
+# 推送到远程
+git push origin docs/improve-ebpf-guide
+```
+
+### 6. 创建Pull Request
+
+1. 访问您的Fork仓库页面
+2. 点击 **New Pull Request**
+3. 填写PR标题和描述（参考模板）
+4. 提交PR
+
+---
+
+## 📐 代码规范
+
+### Go代码规范
+
+#### 1. 格式化
+
+```bash
+# 使用gofmt格式化
+gofmt -w .
+
+# 或使用goimports（推荐）
+goimports -w .
+```
+
+#### 2. 代码检查
+
+```bash
+# 运行golangci-lint
+golangci-lint run --timeout 5m
+
+# 竞态检测
+go test -race ./...
+```
+
+#### 3. 注释规范
 
 ```go
-// GoodExample demonstrates proper Go code style
-func GoodExample(ctx context.Context, name string) error {
-    if name == "" {
-        return errors.New("name cannot be empty")
-    }
+// ✅ 正确：包注释
+// Package telemetry 提供OpenTelemetry集成功能
+package telemetry
 
-    // Process the name
-    result, err := processName(ctx, name)
+// ✅ 正确：函数注释
+// InitOTLP 初始化OpenTelemetry Pipeline
+// 返回shutdown函数用于优雅关闭
+func InitOTLP(ctx context.Context, cfg OTLPConfig) (func(context.Context) error, error) {
+    // 实现...
+}
+
+// ✅ 正确：复杂逻辑注释
+func processData(data []byte) error {
+    // 步骤1: 验证数据格式
+    if err := validate(data); err != nil {
+        return err
+    }
+    
+    // 步骤2: 解析数据
+    parsed, err := parse(data)
     if err != nil {
-        return fmt.Errorf("failed to process name: %w", err)
+        return err
     }
-
-    log.Printf("Processed: %s", result)
-    return nil
+    
+    // 步骤3: 处理业务逻辑
+    return handle(parsed)
 }
 ```
 
-### 文档规范
+#### 4. 错误处理
 
-- 使用 Markdown 格式
-- 添加目录（超过 3 个章节）
-- 包含代码示例
-- 添加运行说明
-- 包含输出示例
+```go
+// ✅ 正确：使用fmt.Errorf包装错误
+if err := doSomething(); err != nil {
+    return fmt.Errorf("failed to do something: %w", err)
+}
+
+// ❌ 错误：不包装错误
+if err := doSomething(); err != nil {
+    return err
+}
+```
+
+#### 5. 单元测试
+
+```go
+// ✅ 正确：表驱动测试
+func TestAdd(t *testing.T) {
+    tests := []struct {
+        name string
+        a    int
+        b    int
+        want int
+    }{
+        {"positive", 1, 2, 3},
+        {"negative", -1, -2, -3},
+        {"zero", 0, 0, 0},
+    }
+    
+    for _, tt := range tests {
+        t.Run(tt.name, func(t *testing.T) {
+            got := Add(tt.a, tt.b)
+            if got != tt.want {
+                t.Errorf("Add(%d, %d) = %d; want %d", tt.a, tt.b, got, tt.want)
+            }
+        })
+    }
+}
+```
 
 ---
 
-## 提交规范
+## 📝 文档规范
 
-### Commit Message 格式
+### Markdown规范
 
-使用 [Conventional Commits](https://www.conventionalcommits.org/) 规范：
+#### 1. 标题层级
 
-```text
+```markdown
+# H1 - 文档标题（仅一个）
+## H2 - 章节
+### H3 - 小节
+#### H4 - 子小节
+```
+
+#### 2. 代码块
+
+````markdown
+```go
+// 指定语言以启用语法高亮
+func main() {
+    fmt.Println("Hello, World!")
+}
+```
+````
+
+#### 3. 表格
+
+```markdown
+| 列1 | 列2 | 列3 |
+|-----|-----|-----|
+| 值1 | 值2 | 值3 |
+```
+
+#### 4. 链接
+
+```markdown
+# 文档内链接
+[相关章节](#章节锚点)
+
+# 其他文档链接
+[eBPF指南](标准深度梳理_2025_10/🐝_Go_eBPF深度集成指南_零侵入式可观测性.md)
+
+# 外部链接
+[Go官方文档](https://go.dev/doc/)
+```
+
+#### 5. 列表
+
+```markdown
+# 无序列表
+- 项目1
+- 项目2
+  - 子项目2.1
+  - 子项目2.2
+
+# 有序列表
+1. 第一步
+2. 第二步
+3. 第三步
+
+# 任务列表
+- [x] 已完成
+- [ ] 待完成
+```
+
+---
+
+## 💬 提交规范
+
+### Commit Message格式
+
+```
 <type>(<scope>): <subject>
 
 <body>
@@ -144,202 +319,134 @@ func GoodExample(ctx context.Context, name string) error {
 <footer>
 ```
 
-**类型 (type)**:
+### Type类型
 
 - `feat`: 新功能
-- `fix`: Bug 修复
-- `docs`: 文档更新
-- `style`: 代码格式（不影响功能）
-- `refactor`: 代码重构
-- `perf`: 性能优化
+- `fix`: 修复问题
+- `docs`: 文档修改
+- `style`: 格式修改（不影响代码逻辑）
+- `refactor`: 重构
 - `test`: 测试相关
 - `chore`: 构建/工具相关
 
-**示例**:
+### 示例
 
-```text
-feat(examples): add distributed tracing example
+```bash
+# 文档修改
+git commit -m "docs: 补充Kubernetes HPA配置说明"
 
-Add a complete distributed tracing example demonstrating:
-- API Gateway
-- Order Service
-- Payment Service
-- Inventory Service
+# 新增功能
+git commit -m "feat: 添加gRPC追踪示例代码"
 
-Closes #123
+# 修复问题
+git commit -m "fix: 修正Dockerfile中的构建参数"
+
+# 测试
+git commit -m "test: 添加分片锁性能基准测试"
 ```
 
 ---
 
-## Pull Request 流程
+## 🔍 审核流程
 
-### 1. 创建分支
+### Pull Request检查清单
 
-```bash
-# 从 main 创建功能分支
-git checkout -b feature/your-feature-name
+提交PR前，请确认：
 
-# 或修复分支
-git checkout -b fix/your-bug-fix
-```
+- [ ] 代码通过 `gofmt` 格式化
+- [ ] 代码通过 `golangci-lint` 检查
+- [ ] 所有测试通过 `go test ./...`
+- [ ] 通过竞态检测 `go test -race ./...`
+- [ ] 文档更新（如需要）
+- [ ] 添加必要的注释
+- [ ] 提交消息符合规范
 
-### 2. 开发和测试
+### 审核标准
 
-```bash
-# 开发您的功能
-# ...
+我们将从以下方面审核PR：
 
-# 运行测试
-make test
+1. **代码质量**
+   - 遵循Go最佳实践
+   - 代码简洁易读
+   - 适当的错误处理
 
-# 运行代码检查
-make lint
+2. **文档质量**
+   - 内容准确无误
+   - 结构清晰
+   - 示例完整可运行
 
-# 格式化代码
-make fmt
-```
+3. **测试覆盖**
+   - 单元测试覆盖率 > 80%
+   - 关键路径有测试
+   - 边界情况考虑
 
-### 3. 提交更改
-
-```bash
-# 添加更改
-git add .
-
-# 提交（遵循提交规范）
-git commit -m "feat(scope): description"
-
-# 推送到您的 Fork
-git push origin feature/your-feature-name
-```
-
-### 4. 创建 Pull Request
-
-1. 在 GitHub 上打开 Pull Request
-2. 填写 PR 模板
-3. 等待 CI 检查通过
-4. 等待代码审查
-
-### PR 检查清单
-
-- [ ] 代码遵循项目规范
-- [ ] 添加了必要的测试
-- [ ] 所有测试通过
-- [ ] 更新了相关文档
-- [ ] Commit message 符合规范
-- [ ] 没有合并冲突
+4. **性能影响**
+   - 无明显性能退化
+   - 有性能测试数据支持
 
 ---
 
-## 问题报告
+## 🎯 优先级指南
 
-### Bug 报告
+我们特别欢迎以下类型的贡献：
 
-使用 Bug 报告模板，包含：
+### 高优先级 ⭐⭐⭐
 
-- **环境信息**: Go 版本、OS、Docker 版本
-- **重现步骤**: 详细的步骤
-- **预期行为**: 应该发生什么
-- **实际行为**: 实际发生了什么
-- **日志/截图**: 相关的错误信息
+- 修复技术错误
+- 补充生产环境案例
+- 添加性能基准测试
+- 改进代码示例质量
 
-**示例**:
+### 中优先级 ⭐⭐
 
-```markdown
-    **环境**:
-    - Go: 1.25.1
-    - OS: Ubuntu 20.04
-    - Docker: 24.0.0
+- 补充文档说明
+- 新增代码示例
+- 文档格式优化
 
-    **重现步骤**:
-    1. 运行 `make docker-up`
-    2. 运行 `cd examples/basic && go run main.go`
-    3. 观察错误
+### 低优先级 ⭐
 
-    **预期**: 示例成功运行
-    **实际**: 连接被拒绝
-
-    **日志**:
-    ```text
-
-    Error: connection refused to localhost:4317
-
-    ```
-```
-
-### 功能请求
-
-包含：
-
-- **功能描述**: 清晰描述新功能
-- **使用场景**: 为什么需要这个功能
-- **建议实现**: 如何实现（可选）
-- **替代方案**: 其他可能的方案
+- 拼写错误修正
+- 样式调整
 
 ---
 
-## 代码审查
+## ❓ 常见问题
 
-### 审查标准
+### 1. 我的PR被拒绝了怎么办？
 
-- **功能性**: 代码是否正确实现功能
-- **可读性**: 代码是否易于理解
-- **性能**: 是否有性能问题
-- **测试**: 测试是否充分
-- **文档**: 文档是否完整
+不要气馁！查看审核意见，根据反馈修改后重新提交。
 
-### 审查流程
+### 2. 我不确定我的想法是否合适？
 
-1. 自动化检查（CI）
-2. 代码审查（至少 1 个维护者）
-3. 测试验证
-4. 合并到 main
+先创建一个Issue讨论您的想法，获得反馈后再开始编码。
 
----
+### 3. 我只想修改一个拼写错误，也需要这么复杂的流程吗？
 
-## 开发技巧
+对于小修改，可以简化流程，但仍需遵循基本的提交规范。
 
-### 运行单个示例
+### 4. 代码审核需要多长时间？
 
-```bash
-cd examples/basic
-go run main.go
-```
-
-### 运行特定测试
-
-```bash
-cd benchmarks
-go test -run TestSpanCreation
-```
-
-### 查看 Collector 日志
-
-```bash
-docker logs -f otel-collector
-```
-
-### 调试追踪
-
-```bash
-# 访问 Jaeger UI
-open http://localhost:16686
-```
+通常在3-7个工作日内完成审核。紧急修复会优先处理。
 
 ---
 
-## 获取帮助
+## 📞 联系我们
 
-- **文档**: 查看 [docs/](./docs/) 目录
-- **示例**: 查看 [examples/](./examples/) 目录
-- **问题**: 提交 GitHub Issue
-- **讨论**: 使用 GitHub Discussions
+如有任何问题，欢迎通过以下方式联系：
 
----
-
-## 许可证
-
-贡献的代码将采用与项目相同的许可证（见 [LICENSE](./LICENSE)）。
+- **GitHub Issues**: 提交Issue讨论
+- **GitHub Discussions**: 参与社区讨论
+- **Email**: platform@example.com
 
 ---
 
-**感谢您的贡献！** 🎉
+## 🙏 感谢
+
+感谢所有为本项目做出贡献的开发者！
+
+您的每一个贡献都让这个项目变得更好 ❤️
+
+---
+
+**最后更新**: 2025-10-17  
+**维护者**: 平台工程团队
