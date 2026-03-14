@@ -133,8 +133,12 @@ func TestSemaphoreConcurrency(t *testing.T) {
 
 			// Track active count
 			current := activeCount.Add(1)
-			if current > maxActive {
-				atomic.StoreInt32(&maxActive, current)
+			// Use atomic compare and swap pattern
+			for {
+				oldMax := atomic.LoadInt32(&maxActive)
+				if current <= oldMax || atomic.CompareAndSwapInt32(&maxActive, oldMax, current) {
+					break
+				}
 			}
 
 			// Simulate work

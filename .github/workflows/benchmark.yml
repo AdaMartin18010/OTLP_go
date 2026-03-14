@@ -1,0 +1,224 @@
+name: Benchmarks
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'src/**/*.go'
+      - 'benchmarks/**'
+      - 'go.mod'
+      - 'go.sum'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'src/**/*.go'
+      - 'benchmarks/**'
+      - 'go.mod'
+      - 'go.sum'
+  workflow_dispatch:
+    inputs:
+      benchmark_pattern:
+        description: 'Benchmark pattern to run (default: all)'
+        required: false
+        default: '.'
+        type: string
+      benchmark_time:
+        description: 'Benchmark time duration'
+        required: false
+        default: '3s'
+        type: choice
+        options:
+          - '1s'
+          - '3s'
+          - '5s'
+          - '10s'
+
+env:
+  GO_VERSION: '1.25'
+
+permissions:
+  contents: read
+  actions: write
+
+jobs:
+  # ============================================================================
+  # Run Benchmarks
+  # ============================================================================
+  benchmark:
+    name: Run Benchmarks
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Run benchmarks
+        id: benchmark
+        run: |
+          BENCH_TIME="${{ github.event.inputs.benchmark_time || '3s' }}"
+          BENCH_PATTERN="${{ github.event.inputs.benchmark_pattern || '.' }}"
+          
+          echo "Running benchmarks with pattern: $BENCH_PATTERN, duration: $BENCH_TIME"
+          
+          # Run benchmarks and capture output
+          cd benchmarks
+          go test -bench="$BENCH_PATTERN" -benchmem -benchtime="$BENCH_TIME" -count=3 2>&1 | tee ../benchmark_output.txt
+
+      - name: Process benchmark results
+        run: |
+          echo "## Benchmark Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          cat benchmark_output.txt >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+      - name: Upload benchmark results
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-results
+          path: benchmark_output.txt
+          retention-days: 90
+
+  # ============================================================================
+  # Compare Benchmarks (PR only)
+  # ============================================================================
+  compare:
+    name: Compare Benchmarks
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    if: github.event_name == 'pull_request'
+    needs: benchmark
+
+    steps:
+      - name: Checkout PR code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Run benchmarks (PR)
+        run: |
+          cd benchmarks
+          go test -bench=. -benchmem -benchtime=3s -count=3 2>&1 | tee ../bench_pr.txt
+
+      - name: Checkout base code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.base_ref }}
+          clean: false
+
+      - name: Run benchmarks (base)
+        run: |
+          cd benchmarks
+          go test -bench=. -benchmem -benchtime=3s -count=3 2>&1 | tee ../bench_base.txt
+
+      - name: Compare results
+        id: compare
+        run: |
+          echo "## Benchmark Comparison" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Comparing PR vs Base branch (${{ github.base_ref }})" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          
+          # Extract benchmark results and compare
+          echo "PR Results:" >> $GITHUB_STEP_SUMMARY
+          grep -E "^Benchmark" bench_pr.txt >> $GITHUB_STEP_SUMMARY || echo "No benchmark results found" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Base Results:" >> $GITHUB_STEP_SUMMARY
+          grep -E "^Benchmark" bench_base.txt >> $GITHUB_STEP_SUMMARY || echo "No benchmark results found" >> $GITHUB_STEP_SUMMARY
+          
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+      - name: Comment PR
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            let body = '## 📊 Benchmark Results\n\n';
+            
+            try {
+              const prResults = fs.readFileSync('bench_pr.txt', 'utf8');
+              const baseResults = fs.readFileSync('bench_base.txt', 'utf8');
+              
+              body += '<details>\n<summary>PR Benchmark Results</summary>\n\n```\n' + prResults + '\n```\n</details>\n\n';
+              body += '<details>\n<summary>Base Benchmark Results</summary>\n\n```\n' + baseResults + '\n```\n</details>\n';
+            } catch (error) {
+              body += '❌ Error reading benchmark results: ' + error.message;
+            }
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: body
+            });
+
+  # ============================================================================
+  # Store Benchmark History
+  # ============================================================================
+  store:
+    name: Store Benchmark History
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: benchmark
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download benchmark results
+        uses: actions/download-artifact@v4
+        with:
+          name: benchmark-results
+
+      - name: Store in benchmark-data branch
+        run: |
+          # Create benchmark data directory
+          mkdir -p benchmark-data
+          
+          # Copy results with timestamp
+          TIMESTAMP=$(date -u +"%Y%m%d_%H%M%S")
+          cp benchmark_output.txt "benchmark-data/benchmark_${TIMESTAMP}.txt"
+          
+          # Create/update latest symlink
+          cp benchmark_output.txt "benchmark-data/latest.txt"
+
+      - name: Upload to artifacts for GitHub Pages
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-history
+          path: benchmark-data/
+          retention-days: 365
+
+      - name: Generate trend summary
+        run: |
+          echo "## Benchmark History Updated" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Benchmark results have been stored for trend analysis." >> $GITHUB_STEP_SUMMARY
+          echo "- Timestamp: $(date -u +"%Y-%m-%d %H:%M:%S UTC")" >> $GITHUB_STEP_SUMMARY
+          echo "- Commit: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY

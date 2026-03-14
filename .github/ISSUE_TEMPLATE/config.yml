@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: OTLP_go Documentation
+    url: https://github.com/OTLP_go/OTLP_go/blob/main/docs
+    about: Check our documentation for usage guides and examples
+  - name: Security Vulnerability
+    url: https://github.com/OTLP_go/OTLP_go/security/advisories/new
+    about: Please report security vulnerabilities privately here

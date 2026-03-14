@@ -1,0 +1,76 @@
+# Lychee link checker configuration
+# https://github.com/lycheeverse/lychee
+
+# Timeout for each link check (in seconds)
+timeout = 30
+
+# Maximum number of concurrent link checks
+max_concurrency = 10
+
+# Number of retries for failed links
+max_retries = 3
+
+# Retry wait time in seconds
+retry_wait_time = 2
+
+# Excluded paths and patterns
+exclude = [
+    # Local addresses
+    "localhost",
+    "127\\.0\\.0\\.1",
+    "0\\.0\\.0\\.0",
+    "::1",
+    
+    # Example domains
+    "example\\.com",
+    "example\\.org",
+    "example\\.net",
+    
+    # Placeholder URLs
+    "your-",
+    "\\*",
+    "\\$",
+    
+    # Private IP ranges
+    "192\\.168\\.",
+    "10\\.",
+    "172\\.(1[6-9]|2[0-9]|3[01])\\.",
+]
+
+# Exclude specific file paths
+exclude_path = [
+    "node_modules",
+    "vendor",
+    ".git",
+    "CHANGELOG.md",
+]
+
+# Accept these status codes as valid
+accept = [200, 201, 204, 301, 302, 307, 308, 403]
+
+# User agent for link checks
+user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.0"
+
+# Verbose output
+verbose = true
+
+# Show progress
+progress = true
+
+# Cache valid links
+cache_max_age = "1d"
+
+# Output format
+format = "detailed"
+
+# Check fragments (anchors)
+check_fragments = true
+
+# Follow redirects
+follow_redirects = true
+
+# Require HTTPS
+# require_https = false
+
+# GitHub token for higher rate limits (if checking many GitHub links)
+# github_token = ""

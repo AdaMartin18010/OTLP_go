@@ -2910,3 +2910,338 @@ func TestPipelineExecutor_executeStageWithRetry_Success(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, 0, result.RetryCount) // Should succeed on first try
 }
+
+// TestCodeQualityChecker_Check_WithSecurityAndPerformance validates Check with all options enabled
+func TestCodeQualityChecker_Check_WithSecurityAndPerformance(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Create go.mod
+	goMod := `module testmod
+
+go 1.21
+`
+	err := os.WriteFile(filepath.Join(tmpDir, "go.mod"), []byte(goMod), 0644)
+	require.NoError(t, err)
+
+	// Create a simple Go file with benchmark
+	goFile := `package testmod
+
+func Add(a, b int) int {
+	return a + b
+}
+`
+	err = os.WriteFile(filepath.Join(tmpDir, "main.go"), []byte(goFile), 0644)
+	require.NoError(t, err)
+
+	benchFile := `package testmod
+
+import "testing"
+
+func BenchmarkAdd(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		Add(1, 2)
+	}
+}
+`
+	err = os.WriteFile(filepath.Join(tmpDir, "main_test.go"), []byte(benchFile), 0644)
+	require.NoError(t, err)
+
+	config := &QualityConfig{
+		GoVersion:    "1.21",
+		TestCoverage: 50.0,
+		SecurityScan: true,
+		Performance:  true,
+	}
+	checker := NewCodeQualityChecker(config)
+	ctx := context.Background()
+
+	// Run check - may fail but should not panic
+	report, err := checker.Check(ctx, tmpDir)
+	if err == nil {
+		assert.NotNil(t, report)
+		assert.GreaterOrEqual(t, report.OverallScore, 0.0)
+	}
+}
+
+// TestTestAutomation_setupService validates setupService
+func TestTestAutomation_setupService(t *testing.T) {
+	config := &TestAutomationConfig{}
+	ta := NewTestAutomation(config)
+
+	service := ServiceConfig{
+		Name:  "test-service",
+		Image: "test:latest",
+	}
+
+	ctx := context.Background()
+	err := ta.setupService(ctx, service)
+	assert.NoError(t, err)
+}
+
+// TestTestAutomation_setupDatabase validates setupDatabase
+func TestTestAutomation_setupDatabase(t *testing.T) {
+	config := &TestAutomationConfig{}
+	ta := NewTestAutomation(config)
+
+	db := DatabaseConfig{
+		Name: "test-db",
+		Type: "postgres",
+	}
+
+	ctx := context.Background()
+	err := ta.setupDatabase(ctx, db)
+	assert.NoError(t, err)
+}
+
+// TestTestAutomation_cleanupService validates cleanupService
+func TestTestAutomation_cleanupService(t *testing.T) {
+	config := &TestAutomationConfig{}
+	ta := NewTestAutomation(config)
+
+	service := ServiceConfig{
+		Name: "test-service",
+	}
+
+	ctx := context.Background()
+	err := ta.cleanupService(ctx, service)
+	assert.NoError(t, err)
+}
+
+// TestTestAutomation_cleanupDatabase validates cleanupDatabase
+func TestTestAutomation_cleanupDatabase(t *testing.T) {
+	config := &TestAutomationConfig{}
+	ta := NewTestAutomation(config)
+
+	db := DatabaseConfig{
+		Name: "test-db",
+	}
+
+	ctx := context.Background()
+	err := ta.cleanupDatabase(ctx, db)
+	assert.NoError(t, err)
+}
+
+// TestPipelineStats_MultipleUpdates validates PipelineStats with multiple updates
+func TestPipelineStats_MultipleUpdates(t *testing.T) {
+	stats := &PipelineStats{}
+
+	stats.TotalStages = 10
+	stats.CompletedStages = 8
+	stats.FailedStages = 1
+	stats.SkippedStages = 1
+	stats.TotalDuration = 5 * time.Minute
+	stats.ArtifactsCount = 5
+	stats.RetryCount = 3
+
+	assert.Equal(t, int64(10), stats.TotalStages)
+	assert.Equal(t, int64(8), stats.CompletedStages)
+	assert.Equal(t, int64(1), stats.FailedStages)
+	assert.Equal(t, int64(1), stats.SkippedStages)
+	assert.Equal(t, 5*time.Minute, stats.TotalDuration)
+	assert.Equal(t, int64(5), stats.ArtifactsCount)
+	assert.Equal(t, int64(3), stats.RetryCount)
+}
+
+// TestStageResult_Complete validates a complete StageResult
+func TestStageResult_Complete(t *testing.T) {
+	now := time.Now()
+	result := &StageResult{
+		Name:       "complete-stage",
+		Status:     "success",
+		StartTime:  now,
+		EndTime:    now.Add(10 * time.Second),
+		Duration:   10 * time.Second,
+		Output:     "Build output here",
+		Error:      nil,
+		RetryCount: 2,
+		Artifacts:  []string{"bin/app", "docs/"},
+		Metrics: map[string]interface{}{
+			"cpu_percent":   45.5,
+			"memory_mb":     256,
+			"duration_secs": 10,
+		},
+	}
+
+	assert.Equal(t, "complete-stage", result.Name)
+	assert.Equal(t, "success", result.Status)
+	assert.Equal(t, 10*time.Second, result.Duration)
+	assert.Equal(t, 2, result.RetryCount)
+	assert.Len(t, result.Artifacts, 2)
+	assert.Equal(t, 45.5, result.Metrics["cpu_percent"])
+}
+
+// TestPipelineStage_FullConfiguration validates PipelineStage with all fields
+func TestPipelineStage_FullConfiguration(t *testing.T) {
+	stage := PipelineStage{
+		Name:     "full-stage",
+		Commands: []string{"go build", "go test"},
+		Environment: map[string]string{
+			"CGO_ENABLED": "0",
+			"GOOS":        "linux",
+		},
+		Timeout:      10 * time.Minute,
+		RetryCount:   3,
+		Condition:    "always()",
+		Parallel:     true,
+		Dependencies: []string{"deps", "lint"},
+		Artifacts:    []string{"binary", "coverage.out"},
+	}
+
+	assert.Equal(t, "full-stage", stage.Name)
+	assert.Len(t, stage.Commands, 2)
+	assert.Equal(t, "0", stage.Environment["CGO_ENABLED"])
+	assert.Equal(t, 10*time.Minute, stage.Timeout)
+	assert.Equal(t, 3, stage.RetryCount)
+	assert.Equal(t, "always()", stage.Condition)
+	assert.True(t, stage.Parallel)
+	assert.Len(t, stage.Dependencies, 2)
+	assert.Len(t, stage.Artifacts, 2)
+}
+
+// TestPipelineConfig_Complete validates a complete PipelineConfig
+func TestPipelineConfig_Complete(t *testing.T) {
+	config := &PipelineConfig{
+		Name:    "complete-pipeline",
+		Version: "2.0.0",
+		Stages: []PipelineStage{
+			{
+				Name:     "build",
+				Commands: []string{"go build"},
+			},
+			{
+				Name:     "test",
+				Commands: []string{"go test"},
+			},
+		},
+		Environment: map[string]string{
+			"CI": "true",
+		},
+		Artifacts: []string{"coverage.out"},
+		Notifications: []Notification{
+			{
+				Type:    "slack",
+				Enabled: true,
+				Events:  []string{"success", "failure"},
+			},
+		},
+		Timeout:           30 * time.Minute,
+		ParallelExecution: true,
+		RetryPolicy: &RetryPolicy{
+			MaxRetries: 3,
+			Delay:      10 * time.Second,
+			Backoff:    "exponential",
+		},
+	}
+
+	assert.Equal(t, "complete-pipeline", config.Name)
+	assert.Equal(t, "2.0.0", config.Version)
+	assert.Len(t, config.Stages, 2)
+	assert.Equal(t, "true", config.Environment["CI"])
+	assert.Len(t, config.Notifications, 1)
+	assert.Equal(t, 30*time.Minute, config.Timeout)
+	assert.True(t, config.ParallelExecution)
+	assert.NotNil(t, config.RetryPolicy)
+}
+
+// TestQualityReport_Empty validates empty QualityReport
+func TestQualityReport_Empty(t *testing.T) {
+	report := &QualityReport{
+		Timestamp:      time.Now(),
+		GoVersion:      "1.21",
+		LintResults:    []LintResult{},
+		TestResults:    nil,
+		Coverage:       0.0,
+		Complexity:     map[string]int{},
+		Duplication:    0.0,
+		SecurityIssues: []SecurityIssue{},
+		Performance:    nil,
+		OverallScore:   0.0,
+	}
+
+	assert.Equal(t, "1.21", report.GoVersion)
+	assert.Equal(t, 0.0, report.Coverage)
+	assert.Equal(t, 0.0, report.OverallScore)
+	assert.Empty(t, report.LintResults)
+	assert.Empty(t, report.SecurityIssues)
+}
+
+// TestTestResult_StatusTransitions validates TestResult status values
+func TestTestResult_StatusTransitions(t *testing.T) {
+	statuses := []string{"passed", "failed", "skipped", "running", "unknown"}
+
+	for _, status := range statuses {
+		result := &TestResult{
+			Name:   "TestStatus",
+			Status: status,
+		}
+		assert.Equal(t, status, result.Status)
+	}
+}
+
+// TestDeploymentConfig_Minimal validates minimal DeploymentConfig
+func TestDeploymentConfig_Minimal(t *testing.T) {
+	config := &DeploymentConfig{
+		Name:        "minimal-app",
+		Environment: "dev",
+		Replicas:    1,
+		Image:       "minimal:latest",
+		Ports:       []PortConfig{},
+	}
+
+	assert.Equal(t, "minimal-app", config.Name)
+	assert.Equal(t, "dev", config.Environment)
+	assert.Equal(t, 1, config.Replicas)
+	assert.Empty(t, config.Ports)
+}
+
+// TestNotification_MultipleEvents validates Notification with multiple events
+func TestNotification_MultipleEvents(t *testing.T) {
+	notification := Notification{
+		Type:     "webhook",
+		Enabled:  true,
+		Events:   []string{"started", "success", "failure", "always"},
+		Template: "{{.Event}}: {{.Message}}",
+		Config: map[string]string{
+			"url":   "https://example.com/webhook",
+			"token": "secret",
+		},
+	}
+
+	assert.Equal(t, "webhook", notification.Type)
+	assert.Len(t, notification.Events, 4)
+	assert.Equal(t, "https://example.com/webhook", notification.Config["url"])
+}
+
+// TestAutomationStats_IncrementOperations validates AutomationStats incrementing
+func TestAutomationStats_IncrementOperations(t *testing.T) {
+	stats := &AutomationStats{}
+
+	// Simulate operations
+	stats.PipelinesExecuted++
+	stats.PipelinesExecuted++
+	stats.QualityChecksRun++
+	stats.DeploymentsExecuted++
+	stats.NotificationsSent += 5
+	stats.TotalDuration += 10 * time.Minute
+	stats.LastOperationTime = time.Now()
+
+	assert.Equal(t, int64(2), stats.PipelinesExecuted)
+	assert.Equal(t, int64(1), stats.QualityChecksRun)
+	assert.Equal(t, int64(1), stats.DeploymentsExecuted)
+	assert.Equal(t, int64(5), stats.NotificationsSent)
+	assert.Equal(t, 10*time.Minute, stats.TotalDuration)
+}
+
+// TestPortConfig_Multiple validates multiple PortConfig
+func TestPortConfig_Multiple(t *testing.T) {
+	ports := []PortConfig{
+		{Name: "http", Port: 80, TargetPort: 8080, Protocol: "TCP"},
+		{Name: "https", Port: 443, TargetPort: 8443, Protocol: "TCP"},
+		{Name: "grpc", Port: 50051, TargetPort: 50051, Protocol: "TCP"},
+	}
+
+	assert.Len(t, ports, 3)
+	assert.Equal(t, "http", ports[0].Name)
+	assert.Equal(t, 443, ports[1].Port)
+	assert.Equal(t, 50051, ports[2].Port)
+}

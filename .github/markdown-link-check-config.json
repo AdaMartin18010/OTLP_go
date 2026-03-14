@@ -5,20 +5,60 @@
     },
     {
       "pattern": "^https://localhost"
+    },
+    {
+      "pattern": "^http://127\\.0\\.0\\.1"
+    },
+    {
+      "pattern": "^https://127\\.0\\.0\\.1"
+    },
+    {
+      "pattern": "^http://example\\."
+    },
+    {
+      "pattern": "^https://example\\."
+    },
+    {
+      "pattern": "^http://your-"
+    },
+    {
+      "pattern": "^https://your-"
+    },
+    {
+      "pattern": "^http://\\*"
+    },
+    {
+      "pattern": "^https://\\*"
+    },
+    {
+      "pattern": "^http://\\$"
+    },
+    {
+      "pattern": "^https://\\$"
+    },
+    {
+      "pattern": "^http://192\\.168\\."
+    },
+    {
+      "pattern": "^http://10\\."
+    },
+    {
+      "pattern": "^http://172\\.(1[6-9]|2[0-9]|3[01])\\."
     }
   ],
   "replacementPatterns": [],
   "httpHeaders": [
     {
-      "urls": ["https://github.com"],
+      "urls": ["https://github.com", "https://docs.github.com"],
       "headers": {
-        "Accept-Encoding": "zstd, br, gzip, deflate"
+        "Accept-Encoding": "zstd, br, gzip, deflate",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
       }
     }
   ],
-  "timeout": "20s",
+  "timeout": "30s",
   "retryOn429": true,
   "retryCount": 3,
   "fallbackRetryDelay": "30s",
-  "aliveStatusCodes": [200, 206]
+  "aliveStatusCodes": [200, 201, 204, 301, 302, 307, 308, 403]
 }

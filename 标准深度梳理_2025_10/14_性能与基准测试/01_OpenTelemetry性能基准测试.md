@@ -1,6 +1,6 @@
 # OpenTelemetry性能基准测试
 
-> **测试环境**: 生产级配置  
+> **测试环境**: 生产级配置
 > **最后更新**: 2025年10月8日
 
 ---
@@ -101,7 +101,7 @@ package benchmark
 import (
     "context"
     "testing"
-    
+
     "go.opentelemetry.io/otel"
     sdktrace "go.opentelemetry.io/otel/sdk/trace"
     "go.opentelemetry.io/otel/trace"
@@ -112,7 +112,7 @@ func BenchmarkSpanCreation(b *testing.B) {
     tp := sdktrace.NewTracerProvider()
     tracer := tp.Tracer("benchmark")
     ctx := context.Background()
-    
+
     b.ResetTimer()
     for i := 0; i < b.N; i++ {
         _, span := tracer.Start(ctx, "test-span")
@@ -125,7 +125,7 @@ func BenchmarkSpanWithAttributes(b *testing.B) {
     tp := sdktrace.NewTracerProvider()
     tracer := tp.Tracer("benchmark")
     ctx := context.Background()
-    
+
     b.ResetTimer()
     for i := 0; i < b.N; i++ {
         _, span := tracer.Start(ctx, "test-span")
@@ -143,7 +143,7 @@ func BenchmarkNestedSpans(b *testing.B) {
     tp := sdktrace.NewTracerProvider()
     tracer := tp.Tracer("benchmark")
     ctx := context.Background()
-    
+
     b.ResetTimer()
     for i := 0; i < b.N; i++ {
         ctx, span1 := tracer.Start(ctx, "parent")
@@ -165,7 +165,7 @@ func BenchmarkBatchProcessor(b *testing.B) {
     )
     tracer := tp.Tracer("benchmark")
     ctx := context.Background()
-    
+
     b.ResetTimer()
     for i := 0; i < b.N; i++ {
         _, span := tracer.Start(ctx, "test-span")
@@ -700,13 +700,13 @@ metrics:
   - otel_sdk_spans_created_total
   - otel_sdk_spans_ended_total
   - otel_sdk_export_duration_seconds
-  
+
   # Collector指标
   - otelcol_receiver_accepted_spans
   - otelcol_processor_batch_batch_size_trigger
   - otelcol_exporter_sent_spans
   - otelcol_exporter_send_failed_spans
-  
+
   # 资源指标
   - process_cpu_seconds_total
   - process_resident_memory_bytes
@@ -715,6 +715,6 @@ metrics:
 
 ---
 
-**文档状态**: ✅ 完成  
-**测试环境**: 生产级配置  
+**文档状态**: ✅ 完成
+**测试环境**: 生产级配置
 **数据来源**: 真实压测结果

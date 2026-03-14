@@ -1,0 +1,60 @@
+name: Stale Issues & PRs
+
+on:
+  schedule:
+    - cron: '0 0 * * *'  # Run daily at midnight UTC
+  workflow_dispatch:
+
+permissions:
+  issues: write
+  pull-requests: write
+
+jobs:
+  stale:
+    name: Mark stale issues and PRs
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Mark stale issues and PRs
+        uses: actions/stale@v9
+        with:
+          # Issue settings
+          stale-issue-message: |
+            👋 Hello! This issue has been automatically marked as stale because it has not had recent activity.
+            
+            It will be closed in 7 days if no further activity occurs. If this issue is still relevant, please comment to keep it open.
+            
+            Thank you for your contributions! 🙏
+          close-issue-message: |
+            🔒 This issue has been closed due to inactivity. 
+            
+            If you believe this issue is still relevant, please feel free to reopen it or create a new issue with updated information.
+          stale-issue-label: 'stale'
+          exempt-issue-labels: 'pinned,security,bug,help wanted,good first issue'
+          
+          # PR settings
+          stale-pr-message: |
+            👋 Hello! This pull request has been automatically marked as stale because it has not had recent activity.
+            
+            It will be closed in 7 days if no further activity occurs. If you're still working on this, please comment to keep it open.
+            
+            Thank you for your contributions! 🙏
+          close-pr-message: |
+            🔒 This pull request has been closed due to inactivity.
+            
+            If you're still interested in contributing these changes, please feel free to reopen the PR or create a new one.
+          stale-pr-label: 'stale'
+          exempt-pr-labels: 'pinned,work in progress'
+          
+          # Timing
+          days-before-stale: 60
+          days-before-close: 7
+          
+          # Operations
+          operations-per-run: 100
+          remove-stale-when-updated: true
+          delete-branch: false
+          
+          # Exemptions
+          exempt-all-milestones: true
+          exempt-draft-pr: true

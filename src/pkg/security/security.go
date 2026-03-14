@@ -60,6 +60,7 @@ type SensitiveDataFilter struct {
 	replacement string
 	config      *FilterConfig
 	stats       *FilterStats
+	statsMu     sync.Mutex // Separate mutex for stats to allow concurrent filtering
 	tracer      trace.Tracer
 }
 
@@ -230,11 +231,13 @@ func (f *SensitiveDataFilter) Filter(data string) string {
 	}
 
 	// Update statistics
+	f.statsMu.Lock()
 	f.stats.TotalFilters++
 	f.stats.SuccessfulFilters++
 	f.stats.PatternMatches += int64(matches)
 	f.stats.DataProcessed += int64(len(data))
 	f.stats.LastFilterTime = time.Now()
+	f.statsMu.Unlock()
 
 	span.SetAttributes(
 		attribute.Int("output_length", len(result)),
@@ -315,11 +318,13 @@ func (f *SensitiveDataFilter) FilterMap(data map[string]interface{}) map[string]
 	}
 
 	// Update statistics
+	f.statsMu.Lock()
 	f.stats.TotalFilters++
 	f.stats.SuccessfulFilters++
 	f.stats.PatternMatches += int64(sensitiveKeys)
 	f.stats.DataProcessed += int64(len(data))
 	f.stats.LastFilterTime = time.Now()
+	f.statsMu.Unlock()
 
 	span.SetAttributes(
 		attribute.Int("sensitive_keys_found", sensitiveKeys),
@@ -404,10 +409,11 @@ func (f *SensitiveDataFilter) isSensitiveKey(key string) bool {
 //	validator.AddRule("password", security.PasswordRule)
 //	errors := validator.Validate(data)
 type InputValidator struct {
-	mu     sync.RWMutex
-	rules  map[string]*ValidationRule
-	stats  *ValidationStats
-	tracer trace.Tracer
+	mu      sync.RWMutex
+	rules   map[string]*ValidationRule
+	stats   *ValidationStats
+	statsMu sync.Mutex // Separate mutex for stats
+	tracer  trace.Tracer
 }
 
 // ValidationStats holds statistics about validation operations.
@@ -533,11 +539,13 @@ func (v *InputValidator) Validate(data map[string]string) map[string]string {
 	}
 
 	// Update statistics
+	v.statsMu.Lock()
 	v.stats.TotalValidations += int64(validations)
 	v.stats.SuccessfulValidations += int64(validations - failures)
 	v.stats.FailedValidations += int64(failures)
 	v.stats.RuleViolations += int64(failures)
 	v.stats.LastValidationTime = time.Now()
+	v.statsMu.Unlock()
 
 	span.SetAttributes(
 		attribute.Int("validations_performed", validations),
