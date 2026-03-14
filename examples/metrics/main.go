@@ -1,10 +1,10 @@
-// Package main demonstrates OTLP metrics collection
+﻿// Package main demonstrates OTLP metrics collection
 package main
 
 import (
 	"context"
 	"log"
-	"math/rand"
+	"math/rand/v2"
 	"time"
 
 	"go.opentelemetry.io/otel"
@@ -81,10 +81,10 @@ func main() {
 
 	// Simulate HTTP server metrics
 	ctx := context.Background()
-	for i := 0; i < 100; i++ {
+	for i := range 100 {
 		// Simulate request
-		method := []string{"GET", "POST", "PUT", "DELETE"}[rand.Intn(4)]
-		status := []int{200, 201, 400, 404, 500}[rand.Intn(5)]
+		method := []string{"GET", "POST", "PUT", "DELETE"}[rand.IntN(4)]
+		status := []int{200, 201, 400, 404, 500}[rand.IntN(5)]
 		duration := rand.Float64() * 1000 // 0-1000ms
 
 		attrs := []attribute.KeyValue{

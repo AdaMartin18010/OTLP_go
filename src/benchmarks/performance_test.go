@@ -1,4 +1,4 @@
-package benchmarks
+﻿package benchmarks
 
 import (
 	"context"
@@ -92,7 +92,7 @@ func BenchmarkSpanAttributes(b *testing.B) {
 
 	b.Run("10-Attributes", func(b *testing.B) {
 		attrs := make([]attribute.KeyValue, 10)
-		for i := 0; i < 10; i++ {
+		for i := range 10 {
 			attrs[i] = attribute.Int("key", i)
 		}
 
@@ -106,7 +106,7 @@ func BenchmarkSpanAttributes(b *testing.B) {
 
 	b.Run("20-Attributes", func(b *testing.B) {
 		attrs := make([]attribute.KeyValue, 20)
-		for i := 0; i < 20; i++ {
+		for i := range 20 {
 			attrs[i] = attribute.Int("key", i)
 		}
 

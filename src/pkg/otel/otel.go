@@ -16,8 +16,8 @@ import (
 	oteltrace "go.opentelemetry.io/otel/trace"
 	"google.golang.org/grpc/credentials"
 
-	"OTLP_go/src/pkg/config"
-	otelresource "OTLP_go/src/pkg/resource"
+	"OTLP_go/pkg/config"
+	otelresource "OTLP_go/pkg/resource"
 )
 
 // OTelManager OpenTelemetry 管理器

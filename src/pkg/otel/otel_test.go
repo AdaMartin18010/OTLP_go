@@ -1,4 +1,4 @@
-package otel
+﻿package otel
 
 import (
 	"context"
@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"OTLP_go/src/pkg/config"
+	"OTLP_go/pkg/config"
 
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/propagation"
@@ -752,7 +752,7 @@ func TestGetGlobalOTelManager_Concurrent(t *testing.T) {
 	globalOTelManager = nil
 
 	var managers []*OTelManager
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		managers = append(managers, GetGlobalOTelManager())
 	}
 
@@ -767,7 +767,7 @@ func TestGetGlobalOTelManager_Concurrent(t *testing.T) {
 
 	// Now all should return the same manager
 	managers = nil
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		managers = append(managers, GetGlobalOTelManager())
 	}
 
@@ -898,7 +898,7 @@ func TestGlobalOTelManager_GoroutineSafety(t *testing.T) {
 
 	// Concurrent reads
 	done := make(chan bool, 10)
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		go func() {
 			m := GetGlobalOTelManager()
 			assert.NotNil(t, m)
@@ -907,7 +907,7 @@ func TestGlobalOTelManager_GoroutineSafety(t *testing.T) {
 	}
 
 	// Wait for all goroutines
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		<-done
 	}
 
@@ -1098,7 +1098,7 @@ func TestOTelManager_GetTracerProvider_MultipleCalls(t *testing.T) {
 	manager := NewOTelManager(cfg)
 
 	// Multiple calls should return the same (nil) value
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		tp := manager.GetTracerProvider()
 		assert.Nil(t, tp)
 	}

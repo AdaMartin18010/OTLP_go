@@ -1,4 +1,4 @@
-package security
+﻿package security
 
 import (
 	"regexp"
@@ -1133,7 +1133,7 @@ func TestAuditLogger_Log_BufferFull(t *testing.T) {
 	defer logger.Stop()
 
 	// Fill the buffer
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		event := &AuditEvent{
 			ID:     "event",
 			Action: "test",
@@ -1389,7 +1389,7 @@ func TestSensitiveDataFilter_ConcurrentAccess(t *testing.T) {
 
 	// Run concurrent filtering operations only (no concurrent writes)
 	var wg sync.WaitGroup
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
@@ -1414,7 +1414,7 @@ func TestInputValidator_ConcurrentAccess(t *testing.T) {
 
 	// Run concurrent validation operations only (no concurrent writes)
 	var wg sync.WaitGroup
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
@@ -1435,7 +1435,7 @@ func TestSecurityManager_ConcurrentAccess(t *testing.T) {
 
 	// Run concurrent read operations only (no concurrent writes)
 	var wg sync.WaitGroup
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()

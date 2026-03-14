@@ -1,4 +1,4 @@
-// Package examples provides microservices demonstration for OTLP Go project.
+﻿// Package examples provides microservices demonstration for OTLP Go project.
 // This file demonstrates microservices architecture with OpenTelemetry integration.
 package main
 
@@ -282,7 +282,7 @@ func scenario6_PerformanceTest(ctx context.Context, gateway *microservices.APIGa
 	successCount := 0
 	errorCount := 0
 
-	for i := 0; i < 100; i++ {
+	for i := range 100 {
 		_ = &types.CreateOrderRequest{
 			UserID: "user-" + generateID(),
 			Items: []types.OrderItem{

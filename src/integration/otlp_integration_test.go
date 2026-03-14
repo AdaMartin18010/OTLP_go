@@ -1,14 +1,14 @@
-package integration
+﻿package integration
 
 import (
 	"context"
 	"testing"
 	"time"
 
-	"OTLP_go/src/pkg/config"
-	pkgctx "OTLP_go/src/pkg/context"
-	"OTLP_go/src/pkg/performance"
-	"OTLP_go/src/pkg/shutdown"
+	"OTLP_go/pkg/config"
+	pkgctx "OTLP_go/pkg/context"
+	"OTLP_go/pkg/performance"
+	"OTLP_go/pkg/shutdown"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -194,7 +194,7 @@ func TestPerformanceMonitoringLifecycle(t *testing.T) {
 	monitor.Start()
 
 	// Simulate workload
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		monitor.UpdateMetric("workload", float64(i))
 		time.Sleep(10 * time.Millisecond)
 	}

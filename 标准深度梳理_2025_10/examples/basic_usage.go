@@ -1,4 +1,4 @@
-// Package examples provides comprehensive usage examples for OTLP Go project.
+﻿// Package examples provides comprehensive usage examples for OTLP Go project.
 // This file demonstrates basic usage patterns and best practices.
 package main
 
@@ -107,7 +107,7 @@ func MetricsExample() {
 	}
 
 	// 记录指标
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		start := time.Now()
 
 		// 模拟请求处理
@@ -423,7 +423,7 @@ func PerformanceExample() {
 	)
 
 	start := time.Now()
-	for i := 0; i < 100; i++ {
+	for i := range 100 {
 		// 模拟批量操作
 		time.Sleep(1 * time.Millisecond)
 	}

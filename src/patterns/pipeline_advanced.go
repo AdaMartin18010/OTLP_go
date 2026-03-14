@@ -1,4 +1,4 @@
-package patterns
+﻿package patterns
 
 import (
 	"context"
@@ -367,7 +367,7 @@ func ExampleLogStreamPipeline() {
 	go func() {
 		defer close(input)
 		levels := []string{"DEBUG", "INFO", "WARN", "ERROR"}
-		for i := 0; i < 1000; i++ {
+		for i := range 1000 {
 			input <- &LogEntry{
 				Timestamp: time.Now(),
 				Level:     levels[i%len(levels)],

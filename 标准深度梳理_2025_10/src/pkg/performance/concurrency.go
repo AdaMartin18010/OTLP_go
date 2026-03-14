@@ -1,4 +1,4 @@
-// Package performance provides advanced concurrency optimization patterns and utilities.
+﻿// Package performance provides advanced concurrency optimization patterns and utilities.
 // This file focuses on high-performance concurrency patterns, lock-free data structures,
 // and advanced synchronization primitives for OTLP Go applications.
 package performance
@@ -367,7 +367,7 @@ func NewWorkStealingPool(numWorkers int) *WorkStealingPool {
 	}
 
 	// Initialize workers and their local queues
-	for i := 0; i < numWorkers; i++ {
+	for i := range numWorkers {
 		pool.taskQueues[i] = &LockFreeQueue{}
 		pool.workers[i] = &WorkStealingWorker{
 			id:         i,

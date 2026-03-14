@@ -1,9 +1,9 @@
-package main
+﻿package main
 
 import (
 	"context"
 	"fmt"
-	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"time"
@@ -16,9 +16,9 @@ import (
 	semconv "go.opentelemetry.io/otel/semconv/v1.30.0"
 	"google.golang.org/grpc/credentials"
 
-	pkgctx "OTLP_go/src/pkg/context"
-	pkgruntime "OTLP_go/src/pkg/runtime"
-	"OTLP_go/src/pkg/shutdown"
+	pkgctx "OTLP_go/pkg/context"
+	pkgruntime "OTLP_go/pkg/runtime"
+	"OTLP_go/pkg/shutdown"
 )
 
 // newTracerProvider 创建 TracerProvider
@@ -99,37 +99,47 @@ func main() {
 	shutdownMgr := shutdown.NewManager(30 * time.Second)
 
 	// 初始化日志（提前，用于记录启动过程）
-	logger := log.New(os.Stdout, "[APP] ", log.LstdFlags)
-	logger.Printf("🚀 Starting OTLP Go Demo version=%s go_version=%s otlp_endpoint=%s port=%s",
-		"2.1.0", "1.25.1", endpoint, port)
+	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
+		AddSource: true,
+		Level:     slog.LevelInfo,
+	}))
+	slog.SetDefault(logger)
+	logger.Info("🚀 Starting OTLP Go Demo",
+		slog.String("version", "2.1.0"),
+		slog.String("go_version", "1.23"),
+		slog.String("otlp_endpoint", endpoint),
+		slog.String("port", port),
+	)
 
 	// 阶段 1: 初始化追踪
 	tp, err := newTracerProvider(ctx, endpoint)
 	if err != nil {
-		log.Fatalf("❌ Failed to initialize tracer provider: %v", err)
+		logger.Error("❌ Failed to initialize tracer provider", slog.Any("error", err))
+		os.Exit(1)
 	}
 	otel.SetTracerProvider(tp)
-	logger.Println("✅ Tracer provider initialized")
+	logger.Info("✅ Tracer provider initialized")
 
 	// 注册追踪关闭
 	shutdownMgr.RegisterStage("telemetry", func(ctx context.Context) error {
-		logger.Println("🔄 Shutting down tracer provider...")
+		logger.Info("🔄 Shutting down tracer provider...")
 		return tp.Shutdown(ctx)
 	})
 
 	// 阶段 2: 初始化指标
 	mp, err := initMetricProvider(ctx, endpoint)
 	if err != nil {
-		log.Fatalf("❌ Failed to initialize meter provider: %v", err)
+		logger.Error("❌ Failed to initialize meter provider", slog.Any("error", err))
+		os.Exit(1)
 	}
-	logger.Println("✅ Meter provider initialized")
+	logger.Info("✅ Meter provider initialized")
 
 	// 启动指标循环
 	startCounterLoop(ctx)
 
 	// 注册指标关闭
 	shutdownMgr.RegisterStage("telemetry", func(ctx context.Context) error {
-		logger.Println("🔄 Shutting down meter provider...")
+		logger.Info("🔄 Shutting down meter provider...")
 		return mp.Shutdown(ctx)
 	})
 
@@ -141,7 +151,7 @@ func main() {
 
 	// 注册 pipeline 关闭
 	shutdownMgr.RegisterStage("business", func(ctx context.Context) error {
-		logger.Println("🔄 Closing pipeline...")
+		logger.Info("🔄 Closing pipeline...")
 		p.close()
 		return nil
 	})
@@ -164,8 +174,13 @@ func main() {
 			attribute.String("request.id", pkgctx.GetRequestID(ctx)),
 		)
 
-		logger.Printf("📨 Handling request method=%s path=%s remote=%s request_id=%s trace_id=%s",
-			r.Method, r.URL.Path, r.RemoteAddr, pkgctx.GetRequestID(ctx), pkgctx.GetTraceID(ctx))
+		logger.Info("📨 Handling request",
+			slog.String("method", r.Method),
+			slog.String("path", r.URL.Path),
+			slog.String("remote", r.RemoteAddr),
+			slog.String("request_id", pkgctx.GetRequestID(ctx)),
+			slog.String("trace_id", pkgctx.GetTraceID(ctx)),
+		)
 
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte("hello otlp from Go 1.25.1\n"))
@@ -218,15 +233,19 @@ func main() {
 
 	// 注册服务器关闭
 	shutdownMgr.RegisterStage("http", func(ctx context.Context) error {
-		logger.Println("🔄 Shutting down HTTP server...")
+		logger.Info("🔄 Shutting down HTTP server...")
 		return server.Shutdown(ctx)
 	})
 
 	// 启动服务器
 	go func() {
-		logger.Printf("🌐 Server listening addr=%s otlp=%s", addr, endpoint)
+		logger.Info("🌐 Server listening",
+		slog.String("addr", addr),
+		slog.String("otlp", endpoint),
+	)
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatalf("❌ Server error: %v", err)
+			logger.Error("❌ Server error", slog.Any("error", err))
+			os.Exit(1)
 		}
 	}()
 
@@ -238,8 +257,8 @@ func main() {
 
 	// 执行优雅关闭
 	if err := shutdownMgr.Shutdown(); err != nil {
-		logger.Printf("⚠️  Shutdown completed with errors: %v", err)
+		logger.Error("⚠️  Shutdown completed with errors", slog.Any("error", err))
 	} else {
-		logger.Println("✅ Shutdown completed successfully")
+		logger.Info("✅ Shutdown completed successfully")
 	}
 }

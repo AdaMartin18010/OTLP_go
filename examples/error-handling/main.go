@@ -1,11 +1,11 @@
-package main
+﻿package main
 
 import (
 	"context"
 	"errors"
 	"fmt"
 	"log"
-	"math/rand"
+	"math/rand/v2"
 	"strings"
 	"time"
 

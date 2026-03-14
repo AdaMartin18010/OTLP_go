@@ -1,4 +1,4 @@
-package patterns
+﻿package patterns
 
 import (
 	"context"
@@ -6,8 +6,8 @@ import (
 	"sync"
 	"time"
 
-	"OTLP_go/src/pkg/concurrency"
-	"OTLP_go/src/pkg/pool"
+	"OTLP_go/pkg/concurrency"
+	"OTLP_go/pkg/pool"
 
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
@@ -201,7 +201,7 @@ func ExampleFanOutFanIn() {
 
 	// 准备任务
 	jobs := make([]Job, 100)
-	for i := 0; i < 100; i++ {
+	for i := range 100 {
 		jobs[i] = Job{
 			ID:      fmt.Sprintf("job-%d", i),
 			Payload: map[string]interface{}{"index": i},

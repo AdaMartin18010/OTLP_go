@@ -1,4 +1,4 @@
-// Package main demonstrates Span pooling for zero-allocation optimization
+﻿// Package main demonstrates Span pooling for zero-allocation optimization
 package main
 
 import (
@@ -100,7 +100,7 @@ func testWithoutPooling(iterations int) {
 
 	start := time.Now()
 
-	for i := 0; i < iterations; i++ {
+	for range iterations {
 		// Allocate new span data each time
 		span := &SpanData{
 			Name:       "operation",
@@ -141,7 +141,7 @@ func testWithPooling(iterations int) {
 
 	start := time.Now()
 
-	for i := 0; i < iterations; i++ {
+	for range iterations {
 		// Acquire from pool
 		span := pool.Acquire()
 

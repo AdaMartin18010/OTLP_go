@@ -1,4 +1,4 @@
-package concurrency
+﻿package concurrency
 
 import (
 	"context"
@@ -224,7 +224,7 @@ func TestRateLimiterWait(t *testing.T) {
 	ctx := context.Background()
 
 	// Should be able to acquire burst capacity
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		err := limiter.Wait(ctx)
 		assert.NoError(t, err)
 	}

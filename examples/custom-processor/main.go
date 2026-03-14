@@ -1,4 +1,4 @@
-// Package main demonstrates custom span processor implementation
+﻿// Package main demonstrates custom span processor implementation
 package main
 
 import (
@@ -159,7 +159,7 @@ func main() {
 	span3.End()
 
 	// More spans
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		_, span := tracer.Start(ctx, "batch-operation")
 		time.Sleep(5 * time.Millisecond)
 		span.End()

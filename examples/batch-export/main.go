@@ -1,4 +1,4 @@
-// Package main demonstrates batch export optimization
+﻿// Package main demonstrates batch export optimization
 package main
 
 import (
@@ -53,7 +53,7 @@ func testBatchConfig(batchSize int, timeout time.Duration) {
 	spanCount := 1000
 
 	// Create many spans quickly
-	for i := 0; i < spanCount; i++ {
+	for i := range spanCount {
 		_, span := tracer.Start(context.Background(), "operation",
 			trace.WithAttributes(
 				attribute.Int("span.index", i),

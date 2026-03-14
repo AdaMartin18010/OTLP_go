@@ -1,4 +1,4 @@
-package performance
+﻿package performance
 
 import (
 	"runtime"
@@ -214,14 +214,14 @@ func TestConcurrentMetricsAccess(t *testing.T) {
 	defer monitor.Stop()
 
 	// Prepare some metrics
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		monitor.UpdateMetric("metric", float64(i))
 	}
 
 	done := make(chan bool)
 
 	// Concurrent readers
-	for i := 0; i < 50; i++ {
+	for range 50 {
 		go func() {
 			_, _ = monitor.GetMetric("metric")
 			_ = monitor.GetAllMetrics()
@@ -231,7 +231,7 @@ func TestConcurrentMetricsAccess(t *testing.T) {
 	}
 
 	// Concurrent writers
-	for i := 0; i < 50; i++ {
+	for i := range 50 {
 		go func(val float64) {
 			monitor.UpdateMetric("metric", val)
 			done <- true
@@ -239,7 +239,7 @@ func TestConcurrentMetricsAccess(t *testing.T) {
 	}
 
 	// Wait for all
-	for i := 0; i < 100; i++ {
+	for range 100 {
 		<-done
 	}
 }
@@ -274,7 +274,7 @@ func BenchmarkGetStats(b *testing.B) {
 	defer monitor.Stop()
 
 	// Prepare some metrics
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		monitor.UpdateMetric("metric", float64(i))
 	}
 
@@ -322,7 +322,7 @@ func TestRealMemoryUsage(t *testing.T) {
 	monitor := NewPerformanceMonitor(time.Second)
 
 	// Update many metrics
-	for i := 0; i < 1000; i++ {
+	for i := range 1000 {
 		monitor.UpdateMetric("test", float64(i))
 	}
 

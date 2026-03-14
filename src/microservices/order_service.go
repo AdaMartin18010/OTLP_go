@@ -14,7 +14,7 @@ import (
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/trace"
 
-	"OTLP_go/src/pkg/types"
+	"OTLP_go/pkg/types"
 )
 
 // OrderService 订单服务实现

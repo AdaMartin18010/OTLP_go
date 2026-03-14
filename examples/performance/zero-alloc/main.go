@@ -1,4 +1,4 @@
-// Package main demonstrates zero-allocation optimization techniques
+﻿// Package main demonstrates zero-allocation optimization techniques
 package main
 
 import (
@@ -59,7 +59,7 @@ func testBaseline(iterations int) {
 
 	start := time.Now()
 
-	for i := 0; i < iterations; i++ {
+	for range iterations {
 		_, span := tracer.Start(ctx, "operation")
 		span.SetAttributes(
 			attribute.String("method", "GET"),
@@ -93,7 +93,7 @@ func testPreallocatedAttributes(iterations int) {
 
 	start := time.Now()
 
-	for i := 0; i < iterations; i++ {
+	for range iterations {
 		_, span := tracer.Start(ctx, "operation")
 		span.SetAttributes(attrs...)
 		span.End()
@@ -119,7 +119,7 @@ func testAttributeReuse(iterations int) {
 
 	start := time.Now()
 
-	for i := 0; i < iterations; i++ {
+	for range iterations {
 		// Reuse slice
 		attrs[0] = attribute.String("method", "GET")
 		attrs[1] = attribute.String("path", "/api/users")
@@ -163,7 +163,7 @@ func testStringInterning(iterations int) {
 
 	start := time.Now()
 
-	for i := 0; i < iterations; i++ {
+	for range iterations {
 		_, span := tracer.Start(ctx, "operation")
 		span.SetAttributes(
 			attribute.String("method", method),
@@ -195,7 +195,7 @@ func testZeroCopy(iterations int) {
 
 	start := time.Now()
 
-	for i := 0; i < iterations; i++ {
+	for range iterations {
 		_, span := tracer.Start(ctx, "operation")
 
 		// Zero-copy string conversion using unsafe

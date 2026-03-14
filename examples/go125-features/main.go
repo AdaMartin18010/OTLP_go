@@ -1,4 +1,4 @@
-package main
+﻿package main
 
 import (
 	"context"
@@ -189,7 +189,7 @@ func demonstrateSyncOnce(ctx context.Context, tracer trace.Tracer) {
 
 	// 多次调用 OnceFunc,只执行一次
 	var wg sync.WaitGroup
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		wg.Add(1)
 		go func(id int) {
 			defer wg.Done()
@@ -199,13 +199,13 @@ func demonstrateSyncOnce(ctx context.Context, tracer trace.Tracer) {
 	wg.Wait()
 
 	// 多次调用 OnceValue,只计算一次
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		value := getExpensiveValue()
 		log.Printf("📦 Got value: %s (call %d)", value, i+1)
 	}
 
 	// 多次调用 OnceValues,只计算一次
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		env, port := getConfiguration()
 		log.Printf("🌍 Config: env=%s, port=%d (call %d)", env, port, i+1)
 	}

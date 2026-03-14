@@ -1,4 +1,4 @@
-// Package main demonstrates the most basic OTLP tracing example
+﻿// Package main demonstrates the most basic OTLP tracing example
 package main
 
 import (
@@ -81,7 +81,7 @@ func initTracerProvider() (*sdktrace.TracerProvider, error) {
 		resource.WithAttributes(
 			semconv.ServiceName("basic-example"),
 			semconv.ServiceVersion("1.0.0"),
-			semconv.DeploymentEnvironment("development"),
+			attribute.String("deployment.environment", "development"),
 		),
 	)
 	if err != nil {
@@ -173,7 +173,7 @@ func processData(ctx context.Context, tracer trace.Tracer) {
 	defer span.End()
 
 	// Simulate processing
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		time.Sleep(20 * time.Millisecond)
 		span.AddEvent("processing-item",
 			trace.WithAttributes(
@@ -188,3 +188,4 @@ func processData(ctx context.Context, tracer trace.Tracer) {
 
 	log.Println("Data processing completed")
 }
+

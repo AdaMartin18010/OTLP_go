@@ -1,4 +1,4 @@
-package main
+﻿package main
 
 import (
 	"context"
@@ -73,7 +73,7 @@ func demonstrateSpanPool(ctx context.Context, tracer trace.Tracer) {
 	runtime.ReadMemStats(&m1)
 	start := time.Now()
 
-	for i := 0; i < iterations; i++ {
+	for i := range iterations {
 		sd := &SpanData{
 			TraceID:    fmt.Sprintf("trace-%d", i),
 			SpanID:     fmt.Sprintf("span-%d", i),
@@ -92,7 +92,7 @@ func demonstrateSpanPool(ctx context.Context, tracer trace.Tracer) {
 	runtime.ReadMemStats(&m1)
 	start = time.Now()
 
-	for i := 0; i < iterations; i++ {
+	for i := range iterations {
 		sd := AcquireSpanData()
 		sd.TraceID = fmt.Sprintf("trace-%d", i)
 		sd.SpanID = fmt.Sprintf("span-%d", i)
@@ -167,7 +167,7 @@ func demonstratePreallocation(ctx context.Context, tracer trace.Tracer) {
 	runtime.ReadMemStats(&m1)
 
 	attrs1 := make([]attribute.KeyValue, 0) // 容量为0
-	for i := 0; i < 100; i++ {
+	for i := range 100 {
 		attrs1 = append(attrs1, attribute.Int(fmt.Sprintf("key%d", i), i))
 	}
 
@@ -179,7 +179,7 @@ func demonstratePreallocation(ctx context.Context, tracer trace.Tracer) {
 	runtime.ReadMemStats(&m1)
 
 	attrs2 := make([]attribute.KeyValue, 0, 100) // 预分配容量100
-	for i := 0; i < 100; i++ {
+	for i := range 100 {
 		attrs2 = append(attrs2, attribute.Int(fmt.Sprintf("key%d", i), i))
 	}
 
@@ -194,7 +194,7 @@ func demonstratePreallocation(ctx context.Context, tracer trace.Tracer) {
 
 	// 使用对象池 + 预分配
 	attrBuf := AcquireAttributeBuffer()
-	for i := 0; i < 100; i++ {
+	for i := range 100 {
 		attrBuf.Add(attribute.Int(fmt.Sprintf("key%d", i), i))
 	}
 	log.Printf("✅ Pooled buffer with %d attributes", len(attrBuf.Attributes()))
@@ -246,7 +246,7 @@ func demonstrateZeroAlloc(ctx context.Context, tracer trace.Tracer) {
 	runtime.ReadMemStats(&m1)
 	start := time.Now()
 
-	for i := 0; i < iterations; i++ {
+	for range iterations {
 		attrs := []attribute.KeyValue{
 			attribute.String("service", "api"),
 			attribute.Int("status", 200),
@@ -264,7 +264,7 @@ func demonstrateZeroAlloc(ctx context.Context, tracer trace.Tracer) {
 	runtime.ReadMemStats(&m1)
 	start = time.Now()
 
-	for i := 0; i < iterations; i++ {
+	for range iterations {
 		var builder ZeroAllocSpanBuilder
 		builder.AddString("service", "api")
 		builder.AddInt("status", 200)
@@ -357,7 +357,7 @@ func demonstrateBatchProcessing(ctx context.Context, tracer trace.Tracer) {
 	exporter := NewBatchExporter(tracer, 100)
 
 	// 生成1000个 Span
-	for i := 0; i < 1000; i++ {
+	for i := range 1000 {
 		sd := AcquireSpanData()
 		sd.TraceID = fmt.Sprintf("trace-%d", i)
 		sd.SpanID = fmt.Sprintf("span-%d", i)
@@ -416,7 +416,7 @@ func demonstrateGCTuning(ctx context.Context, tracer trace.Tracer) {
 	// 模拟大量内存分配
 	const allocCount = 100000
 	data := make([]*SpanData, allocCount)
-	for i := 0; i < allocCount; i++ {
+	for i := range allocCount {
 		data[i] = AcquireSpanData()
 		data[i].Name = fmt.Sprintf("span-%d", i)
 	}
@@ -431,7 +431,7 @@ func demonstrateGCTuning(ctx context.Context, tracer trace.Tracer) {
 		stats2.MemAlloc/1024/1024)
 
 	// 释放内存
-	for i := 0; i < allocCount; i++ {
+	for i := range allocCount {
 		ReleaseSpanData(data[i])
 	}
 	data = nil

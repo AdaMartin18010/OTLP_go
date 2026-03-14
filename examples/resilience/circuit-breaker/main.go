@@ -1,4 +1,4 @@
-// Package main demonstrates circuit breaker pattern for fault tolerance
+﻿// Package main demonstrates circuit breaker pattern for fault tolerance
 package main
 
 import (
@@ -140,7 +140,7 @@ func main() {
 
 	// Simulate service calls
 	ctx := context.Background()
-	for i := 0; i < 20; i++ {
+	for i := range 20 {
 		time.Sleep(500 * time.Millisecond)
 
 		err := cb.Call(ctx, func() error {

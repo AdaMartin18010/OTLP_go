@@ -12,7 +12,7 @@ import (
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/trace"
 
-	"OTLP_go/src/pkg/types"
+	"OTLP_go/pkg/types"
 )
 
 // APIGateway 微服务 API 网关实现

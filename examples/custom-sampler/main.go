@@ -1,10 +1,10 @@
-// Package main demonstrates custom sampling strategies
+﻿// Package main demonstrates custom sampling strategies
 package main
 
 import (
 	"context"
 	"log"
-	"math/rand"
+	"math/rand/v2"
 	"time"
 
 	"go.opentelemetry.io/otel"
@@ -35,7 +35,7 @@ func main() {
 	tracer := otel.Tracer("custom-sampler-example")
 
 	// Simulate various requests
-	for i := 0; i < 20; i++ {
+	for i := range 20 {
 		simulateRequest(tracer, i)
 		time.Sleep(100 * time.Millisecond)
 	}
@@ -168,10 +168,10 @@ func simulateRequest(tracer trace.Tracer, requestID int) {
 	// Randomly generate request characteristics
 	isError := rand.Float64() < 0.1     // 10% error rate
 	isSlow := rand.Float64() < 0.15     // 15% slow requests
-	duration := rand.Int63n(1000) + 100 // 100-1100ms
+	duration := rand.Int64N(1000) + 100 // 100-1100ms
 
 	if isSlow {
-		duration = rand.Int63n(1000) + 600 // 600-1600ms for slow requests
+		duration = rand.Int64N(1000) + 600 // 600-1600ms for slow requests
 	}
 
 	// Create span with attributes for sampling decision
@@ -216,3 +216,4 @@ func simulateRequest(tracer trace.Tracer, requestID int) {
 		),
 	)
 }
+

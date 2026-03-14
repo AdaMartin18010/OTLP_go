@@ -1,4 +1,4 @@
-package main
+﻿package main
 
 import (
 	"context"
@@ -199,7 +199,7 @@ func NewWorkerPool(workers int, queueSize int) *WorkerPool {
 	}
 
 	// 启动 workers
-	for i := 0; i < workers; i++ {
+	for i := range workers {
 		wp.wg.Add(1)
 		go wp.worker(i)
 	}
@@ -312,7 +312,7 @@ func demonstrateSpanPool(tracer trace.Tracer) {
 	runtime.ReadMemStats(&m1)
 	start := time.Now()
 
-	for i := 0; i < 10000; i++ {
+	for i := range 10000 {
 		_, span := tracer.Start(ctx, fmt.Sprintf("operation-%d", i))
 		span.SetAttributes(
 			attribute.String("type", "test"),
@@ -329,7 +329,7 @@ func demonstrateSpanPool(tracer trace.Tracer) {
 	runtime.ReadMemStats(&m1)
 	start = time.Now()
 
-	for i := 0; i < 10000; i++ {
+	for i := range 10000 {
 		ps := AcquireSpan(tracer, ctx, fmt.Sprintf("pooled-operation-%d", i))
 		ps.SetAttribute(attribute.String("type", "test"))
 		ps.SetAttribute(attribute.Int("iteration", i))
@@ -359,7 +359,7 @@ func demonstrateWorkerPool(tracer trace.Tracer) {
 
 	// 提交任务
 	start := time.Now()
-	for i := 0; i < 1000; i++ {
+	for i := range 1000 {
 		taskID := i
 		pool.Submit(func() {
 			ps := AcquireSpan(tracer, ctx, fmt.Sprintf("worker-task-%d", taskID))
@@ -401,7 +401,7 @@ func demonstrateAttributeCache(tracer trace.Tracer) {
 
 	// 使用缓存
 	start := time.Now()
-	for i := 0; i < 1000; i++ {
+	for i := range 1000 {
 		ps := AcquireSpan(tracer, ctx, fmt.Sprintf("cached-operation-%d", i))
 
 		// 从缓存获取属性
@@ -427,7 +427,7 @@ func demonstrateBatchExport(tracer trace.Tracer) {
 
 	// 生成大量 Span
 	start := time.Now()
-	for i := 0; i < 5000; i++ {
+	for i := range 5000 {
 		ps := AcquireSpan(tracer, ctx, fmt.Sprintf("batch-operation-%d", i))
 		ps.SetAttribute(attribute.String("type", "batch"))
 		ps.SetAttribute(attribute.Int("id", i))
@@ -451,7 +451,7 @@ func demonstrateMemoryEfficiency(tracer trace.Tracer) {
 	runtime.ReadMemStats(&m1)
 
 	// 执行大量操作
-	for i := 0; i < 10000; i++ {
+	for i := range 10000 {
 		ps := AcquireSpan(tracer, ctx, "memory-test")
 		ps.SetAttribute(attribute.String("test", "memory"))
 		ps.SetAttribute(attribute.Int("id", i))

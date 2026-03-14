@@ -1,4 +1,4 @@
-// Package performance provides performance optimization utilities for OTLP Go applications.
+﻿// Package performance provides performance optimization utilities for OTLP Go applications.
 // It includes memory allocation optimization, concurrency patterns, string operations,
 // object pooling, benchmarking, and performance monitoring capabilities.
 package performance
@@ -448,7 +448,7 @@ func RunBenchmark(name string, iterations int, fn func() error) (*BenchmarkResul
 	var m1 runtime.MemStats
 	runtime.ReadMemStats(&m1)
 
-	for i := 0; i < iterations; i++ {
+	for i := range iterations {
 		if err := fn(); err != nil {
 			return nil, fmt.Errorf("benchmark function failed: %w", err)
 		}

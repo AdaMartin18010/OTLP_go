@@ -35,10 +35,10 @@ import (
 	"testing"
 	"time"
 
-	"OTLP_go/src/pkg/config"
-	"OTLP_go/src/pkg/errors"
-	"OTLP_go/src/pkg/otel"
-	"OTLP_go/src/pkg/types"
+	"OTLP_go/pkg/config"
+	"OTLP_go/pkg/errors"
+	"OTLP_go/pkg/otel"
+	"OTLP_go/pkg/types"
 )
 
 // TestSuite provides a comprehensive test suite management system with setup/teardown

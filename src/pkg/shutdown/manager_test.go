@@ -1,4 +1,4 @@
-package shutdown
+﻿package shutdown
 
 import (
 	"context"
@@ -290,7 +290,7 @@ func TestConcurrentShutdown(t *testing.T) {
 	manager := NewManager(5 * time.Second)
 
 	var calls atomic.Int32
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		manager.Register(func(ctx context.Context) error {
 			calls.Add(1)
 			return nil
@@ -299,14 +299,14 @@ func TestConcurrentShutdown(t *testing.T) {
 
 	// 并发调用 Shutdown
 	errChan := make(chan error, 5)
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		go func() {
 			errChan <- manager.Shutdown()
 		}()
 	}
 
 	// 收集结果
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		err := <-errChan
 		if err != nil {
 			t.Logf("Shutdown %d returned error: %v", i, err)

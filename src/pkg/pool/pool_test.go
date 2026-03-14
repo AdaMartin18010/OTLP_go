@@ -1,4 +1,4 @@
-package pool
+﻿package pool
 
 import (
 	"bytes"
@@ -164,7 +164,7 @@ func TestSizedPoolConcurrency(t *testing.T) {
 	sizes := []int{100, 500, 1000, 5000, 10000}
 
 	for _, size := range sizes {
-		for i := 0; i < 20; i++ {
+		for range 20 {
 			wg.Add(1)
 			go func(s int) {
 				defer wg.Done()
@@ -330,7 +330,7 @@ func TestSizedPoolPutNonExistent(t *testing.T) {
 func TestBufferPoolConcurrency(t *testing.T) {
 	var wg sync.WaitGroup
 
-	for i := 0; i < 100; i++ {
+	for range 100 {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
@@ -349,7 +349,7 @@ func TestByteSlicePoolConcurrency(t *testing.T) {
 	sizes := []int{100, 500, 1000, 2000, 5000}
 
 	for _, size := range sizes {
-		for i := 0; i < 20; i++ {
+		for range 20 {
 			wg.Add(1)
 			go func(s int) {
 				defer wg.Done()
@@ -383,7 +383,7 @@ func TestPoolMetricsIntegration(t *testing.T) {
 	})
 
 	// Perform multiple get/put operations
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		val := pool.Get()
 		pool.Put(val)
 	}

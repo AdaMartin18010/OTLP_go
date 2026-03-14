@@ -1,4 +1,4 @@
-package patterns
+﻿package patterns
 
 import (
 	"context"
@@ -436,7 +436,7 @@ func ExampleWorkerPool() {
 
 	// 提交任务
 	tasks := make([]Task, 50)
-	for i := 0; i < 50; i++ {
+	for i := range 50 {
 		tasks[i] = NewEmailTask(
 			fmt.Sprintf("email-%d", i),
 			fmt.Sprintf("user%d@example.com", i),

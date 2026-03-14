@@ -1,4 +1,4 @@
-package benchmarks
+﻿package benchmarks
 
 import (
 	"context"
@@ -54,7 +54,7 @@ func BenchmarkExportWithAttributes(b *testing.B) {
 
 			// Pre-generate attributes
 			attrs := make([]attribute.KeyValue, count)
-			for i := 0; i < count; i++ {
+			for i := range count {
 				attrs[i] = attribute.String("key", "value")
 			}
 
@@ -89,7 +89,7 @@ func BenchmarkExportWithEvents(b *testing.B) {
 
 			for i := 0; i < b.N; i++ {
 				_, span := tracer.Start(ctx, "operation")
-				for j := 0; j < count; j++ {
+				for range count {
 					span.AddEvent("event")
 				}
 				span.End()

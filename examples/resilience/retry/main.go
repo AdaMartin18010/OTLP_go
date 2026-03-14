@@ -1,4 +1,4 @@
-// Package main demonstrates retry mechanism with exponential backoff
+﻿// Package main demonstrates retry mechanism with exponential backoff
 package main
 
 import (
@@ -6,7 +6,7 @@ import (
 	"errors"
 	"log"
 	"math"
-	"math/rand"
+	"math/rand/v2"
 	"time"
 
 	"go.opentelemetry.io/otel"

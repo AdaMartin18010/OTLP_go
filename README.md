@@ -2,7 +2,8 @@
 
 > **专注于Go语言**的OpenTelemetry协议（OTLP）及云原生技术深度实践指南
 
-[![Go Version](https://img.shields.io/badge/Go-1.25.1-00ADD8?logo=go)](https://go.dev/)
+[![Go Version](https://img.shields.io/badge/Go-1.26-00ADD8?logo=go)](https://go.dev/)
+[![Go Workspace](https://img.shields.io/badge/Go%20Workspace-33%20modules-purple.svg)](WORKSPACE.md)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Documentation](https://img.shields.io/badge/docs-12%2C804%20lines-brightgreen.svg)](标准深度梳理_2025_10/)
 [![Code Examples](https://img.shields.io/badge/examples-108-orange.svg)](标准深度梳理_2025_10/)
@@ -15,12 +16,40 @@
 
 ### 🎯 核心特点
 
+- ✅ **Go 1.26 Workspace** - 33个模块的多模块仓库管理
 - ✅ **100% Go语言专注** - 不涉及其他编程语言
 - ✅ **生产环境就绪** - 所有配置和代码均符合企业标准
 - ✅ **OTLP全链路集成** - Traces + Metrics + Logs + Profiles
 - ✅ **完整代码示例** - 108个可直接运行的Go程序
 - ✅ **性能驱动** - 15组基准测试验证优化效果
 - ✅ **深度实战** - 5个生产级完整案例
+
+---
+
+## 🚀 快速开始 (Go Workspace)
+
+本项目使用 **Go 1.26 Workspace** 管理 33 个独立模块：
+
+```bash
+# 查看所有模块
+go list -m all
+
+# 构建所有模块
+go build ./...
+
+# 测试所有子包
+go test -race OTLP_go/pkg/...
+
+# 同步依赖版本
+go work sync
+```
+
+**模块组成：**
+- 1个核心 SDK (根目录)
+- 16个独立子包 (`pkg/*`) - 可单独发布
+- 16个完整示例 (`examples/*`)
+
+📖 详细文档: [WORKSPACE.md](WORKSPACE.md)
 
 ---
 

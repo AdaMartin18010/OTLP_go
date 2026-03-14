@@ -3,7 +3,7 @@ package microservices
 import (
 	"context"
 	"fmt"
-	"log"
+	"log/slog"
 	"os"
 	"os/signal"
 	"syscall"
@@ -11,9 +11,9 @@ import (
 
 	"go.opentelemetry.io/otel"
 
-	"OTLP_go/src/pkg/config"
-	otelmanager "OTLP_go/src/pkg/otel"
-	"OTLP_go/src/pkg/types"
+	"OTLP_go/pkg/config"
+	otelmanager "OTLP_go/pkg/otel"
+	"OTLP_go/pkg/types"
 )
 
 // RunMicroservicesDemo 运行完整的微服务演示
@@ -23,7 +23,8 @@ func RunMicroservicesDemo() {
 
 	// 初始化 OpenTelemetry
 	if err := initOpenTelemetry(ctx); err != nil {
-		log.Fatalf("Failed to initialize OpenTelemetry: %v", err)
+		slog.Error("Failed to initialize OpenTelemetry", slog.Any("error", err))
+		os.Exit(1)
 	}
 
 	// 启动各个服务（在实际场景中应该在不同的进程/容器中运行）
@@ -65,27 +66,27 @@ func initOpenTelemetry(ctx context.Context) error {
 // startUserService 启动用户服务
 func startUserService() {
 	service := NewUserService()
-	log.Println("Starting User Service on :8081")
+	slog.Info("Starting User Service", slog.String("address", ":8081"))
 	if err := service.StartServer(":8081"); err != nil {
-		log.Printf("User Service error: %v\n", err)
+		slog.Error("User Service error", slog.Any("error", err))
 	}
 }
 
 // startOrderService 启动订单服务
 func startOrderService() {
 	service := NewOrderService()
-	log.Println("Starting Order Service on :8082")
+	slog.Info("Starting Order Service", slog.String("address", ":8082"))
 	if err := service.StartServer(":8082"); err != nil {
-		log.Printf("Order Service error: %v\n", err)
+		slog.Error("Order Service error", slog.Any("error", err))
 	}
 }
 
 // startPaymentService 启动支付服务
 func startPaymentService() {
 	service := NewPaymentService()
-	log.Println("Starting Payment Service on :8083")
+	slog.Info("Starting Payment Service", slog.String("address", ":8083"))
 	if err := service.StartServer(":8083"); err != nil {
-		log.Printf("Payment Service error: %v\n", err)
+		slog.Error("Payment Service error", slog.Any("error", err))
 	}
 }
 
@@ -96,9 +97,9 @@ func startAPIGateway() {
 		"http://localhost:8083", // Payment Service
 		"http://localhost:8081", // User Service
 	)
-	log.Println("Starting API Gateway on :8080")
+	slog.Info("Starting API Gateway", slog.String("address", ":8080"))
 	if err := gateway.StartServer(":8080"); err != nil {
-		log.Printf("API Gateway error: %v\n", err)
+		slog.Error("API Gateway error", slog.Any("error", err))
 	}
 }
 
@@ -106,14 +107,14 @@ func startAPIGateway() {
 func runTestScenarios(ctx context.Context) {
 	tracer := otel.Tracer("test-scenarios")
 
-	log.Println("=== Running Test Scenarios ===")
+	slog.Info("=== Running Test Scenarios ===")
 
 	// 场景 1: 成功的订单创建流程
 	func() {
 		ctx, span := tracer.Start(ctx, "scenario.successful_order")
 		defer span.End()
 
-		log.Println("Scenario 1: Successful Order Creation")
+		slog.Info("Scenario 1: Successful Order Creation")
 
 		gateway := NewAPIGateway(
 			"http://localhost:8082",
@@ -134,11 +135,13 @@ func runTestScenarios(ctx context.Context) {
 		// 模拟创建订单（实际应该通过 HTTP 调用）
 		order, err := gateway.orderService.CreateOrder(ctx, req)
 		if err != nil {
-			log.Printf("  ❌ Failed: %v\n", err)
+			slog.Info("  ❌ Failed", slog.Any("error", err))
 			return
 		}
 
-		log.Printf("  ✅ Order Created: ID=%s, Total=$%.2f\n", order.ID, order.TotalAmount)
+		slog.Info("  ✅ Order Created",
+			slog.String("id", order.ID),
+			slog.Float64("total", order.TotalAmount))
 
 		// 处理支付
 		payment, err := gateway.paymentService.ProcessPayment(ctx, &types.PaymentRequest{
@@ -147,11 +150,13 @@ func runTestScenarios(ctx context.Context) {
 			Method:  "credit_card",
 		})
 		if err != nil {
-			log.Printf("  ❌ Payment Failed: %v\n", err)
+			slog.Info("  ❌ Payment Failed", slog.Any("error", err))
 			return
 		}
 
-		log.Printf("  ✅ Payment Processed: ID=%s, Status=%s\n", payment.ID, payment.Status)
+		slog.Info("  ✅ Payment Processed",
+			slog.String("id", payment.ID),
+			slog.String("status", payment.Status))
 	}()
 
 	time.Sleep(1 * time.Second)
@@ -161,7 +166,7 @@ func runTestScenarios(ctx context.Context) {
 		ctx, span := tracer.Start(ctx, "scenario.invalid_user")
 		defer span.End()
 
-		log.Println("\nScenario 2: Invalid User")
+		slog.Info("Scenario 2: Invalid User")
 
 		gateway := NewAPIGateway(
 			"http://localhost:8082",
@@ -172,9 +177,9 @@ func runTestScenarios(ctx context.Context) {
 		// 尝试使用不存在的用户
 		user, err := gateway.userService.GetUser(ctx, "user-999")
 		if err != nil {
-			log.Printf("  ✅ Expected Error: %v\n", err)
+			slog.Info("  ✅ Expected Error", slog.Any("error", err))
 		} else {
-			log.Printf("  ❌ Unexpected Success: %+v\n", user)
+			slog.Info("  ❌ Unexpected Success", slog.Any("user", user))
 		}
 	}()
 
@@ -185,26 +190,31 @@ func runTestScenarios(ctx context.Context) {
 		ctx, span := tracer.Start(ctx, "scenario.user_stats")
 		defer span.End()
 
-		log.Println("\nScenario 3: User Stats Query")
+		slog.Info("Scenario 3: User Stats Query")
 
 		client := NewUserServiceClient("http://localhost:8081")
 
 		user, err := client.GetUser(ctx, "user-001")
 		if err != nil {
-			log.Printf("  ❌ Failed to get user: %v\n", err)
+			slog.Info("  ❌ Failed to get user", slog.Any("error", err))
 			return
 		}
 
-		log.Printf("  ✅ User Found: %s (%s) - Level: %s\n", user.Name, user.Email, user.Level)
+		slog.Info("  ✅ User Found",
+			slog.String("name", user.Name),
+			slog.String("email", user.Email),
+			slog.String("level", user.Level))
 
 		stats, err := client.GetUserStats(ctx, "user-001")
 		if err != nil {
-			log.Printf("  ❌ Failed to get stats: %v\n", err)
+			slog.Info("  ❌ Failed to get stats", slog.Any("error", err))
 			return
 		}
 
-		log.Printf("  ✅ Stats Retrieved: Orders=%v, Spent=$%.2f, Points=%v\n",
-			stats["total_orders"], stats["total_spent"], stats["loyalty_points"])
+		slog.Info("  ✅ Stats Retrieved",
+			slog.Any("total_orders", stats["total_orders"]),
+			slog.Float64("total_spent", stats["total_spent"].(float64)),
+			slog.Any("loyalty_points", stats["loyalty_points"]))
 	}()
 
 	time.Sleep(1 * time.Second)
@@ -214,7 +224,7 @@ func runTestScenarios(ctx context.Context) {
 		ctx, span := tracer.Start(ctx, "scenario.order_cancellation")
 		defer span.End()
 
-		log.Println("\nScenario 4: Order Cancellation")
+		slog.Info("Scenario 4: Order Cancellation")
 
 		orderClient := NewOrderServiceClient("http://localhost:8082")
 
@@ -228,28 +238,28 @@ func runTestScenarios(ctx context.Context) {
 			PaymentMethod: "paypal",
 		})
 		if err != nil {
-			log.Printf("  ❌ Failed to create order: %v\n", err)
+			slog.Info("  ❌ Failed to create order", slog.Any("error", err))
 			return
 		}
 
-		log.Printf("  ✅ Order Created: ID=%s\n", order.ID)
+		slog.Info("  ✅ Order Created", slog.String("id", order.ID))
 
 		// 取消订单
 		if err := orderClient.CancelOrder(ctx, order.ID); err != nil {
-			log.Printf("  ❌ Failed to cancel: %v\n", err)
+			slog.Info("  ❌ Failed to cancel", slog.Any("error", err))
 			return
 		}
 
-		log.Printf("  ✅ Order Cancelled: ID=%s\n", order.ID)
+		slog.Info("  ✅ Order Cancelled", slog.String("id", order.ID))
 
 		// 验证状态
 		updatedOrder, err := orderClient.GetOrder(ctx, order.ID)
 		if err != nil {
-			log.Printf("  ❌ Failed to verify: %v\n", err)
+			slog.Info("  ❌ Failed to verify", slog.Any("error", err))
 			return
 		}
 
-		log.Printf("  ✅ Status Verified: %s\n", updatedOrder.Status)
+		slog.Info("  ✅ Status Verified", slog.String("status", updatedOrder.Status))
 	}()
 
 	time.Sleep(1 * time.Second)
@@ -259,7 +269,7 @@ func runTestScenarios(ctx context.Context) {
 		ctx, span := tracer.Start(ctx, "scenario.concurrent_orders")
 		defer span.End()
 
-		log.Println("\nScenario 5: Concurrent Order Processing")
+		slog.Info("Scenario 5: Concurrent Order Processing")
 
 		gateway := NewAPIGateway(
 			"http://localhost:8082",
@@ -271,7 +281,7 @@ func runTestScenarios(ctx context.Context) {
 		numOrders := 5
 		results := make(chan string, numOrders)
 
-		for i := 0; i < numOrders; i++ {
+		for i := range numOrders {
 			go func(orderNum int) {
 				ctx, span := tracer.Start(ctx, fmt.Sprintf("order.%d", orderNum))
 				defer span.End()
@@ -294,12 +304,12 @@ func runTestScenarios(ctx context.Context) {
 		}
 
 		// 收集结果
-		for i := 0; i < numOrders; i++ {
-			log.Printf("  ✅ %s\n", <-results)
+		for range numOrders {
+			slog.Info("  ✅ " + <-results)
 		}
 	}()
 
-	log.Println("=== All Test Scenarios Completed ===")
+	slog.Info("=== All Test Scenarios Completed ===")
 }
 
 // waitForShutdown 等待关闭信号
@@ -308,18 +318,18 @@ func waitForShutdown() {
 	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
 
 	sig := <-sigCh
-	log.Printf("\nReceived signal: %v, shutting down gracefully...\n", sig)
+	slog.Info("Received signal, shutting down gracefully", slog.String("signal", sig.String()))
 
 	// 优雅关闭 OpenTelemetry
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
 	if err := otelmanager.ShutdownGlobalOTel(ctx); err != nil {
-		log.Printf("Error shutting down OpenTelemetry: %v", err)
+		slog.Error("Error shutting down OpenTelemetry", slog.Any("error", err))
 	}
 
 	// 给服务一些时间完成处理
 	time.Sleep(2 * time.Second)
 
-	log.Println("Shutdown complete")
+	slog.Info("Shutdown complete")
 }

@@ -1,4 +1,4 @@
-package automation
+﻿package automation
 
 import (
 	"context"
@@ -855,7 +855,7 @@ func TestAutomationManager_ConcurrentAccess(t *testing.T) {
 
 	// Concurrent writes
 	done := make(chan bool)
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		go func() {
 			manager.SetPipelineExecutor(executor)
 			manager.SetQualityChecker(&CodeQualityChecker{})
@@ -864,19 +864,19 @@ func TestAutomationManager_ConcurrentAccess(t *testing.T) {
 		}()
 	}
 
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		<-done
 	}
 
 	// Concurrent reads
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		go func() {
 			_ = manager.GetStats()
 			done <- true
 		}()
 	}
 
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		<-done
 	}
 }
@@ -1593,7 +1593,7 @@ func TestPipelineExecutor_ConcurrentResultsAccess(t *testing.T) {
 	// Use mutex for safe concurrent writes
 	done := make(chan bool)
 	var mu sync.Mutex
-	for i := 0; i < 100; i++ {
+	for i := range 100 {
 		go func(idx int) {
 			mu.Lock()
 			executor.results[fmt.Sprintf("stage-%d", idx)] = &StageResult{
@@ -1605,7 +1605,7 @@ func TestPipelineExecutor_ConcurrentResultsAccess(t *testing.T) {
 		}(i)
 	}
 
-	for i := 0; i < 100; i++ {
+	for range 100 {
 		<-done
 	}
 
@@ -1624,14 +1624,14 @@ func TestNotificationService_ConcurrentAccess(t *testing.T) {
 
 	// Concurrent sends
 	done := make(chan error)
-	for i := 0; i < 50; i++ {
+	for i := range 50 {
 		go func(idx int) {
 			err := service.Send(ctx, "console", string(rune(idx)))
 			done <- err
 		}(i)
 	}
 
-	for i := 0; i < 50; i++ {
+	for range 50 {
 		err := <-done
 		assert.NoError(t, err)
 	}
@@ -2499,7 +2499,7 @@ func TestAutomationManager_MultipleExecutions(t *testing.T) {
 	ctx := context.Background()
 
 	// Execute multiple times
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		err := manager.ExecutePipeline(ctx)
 		assert.NoError(t, err)
 	}

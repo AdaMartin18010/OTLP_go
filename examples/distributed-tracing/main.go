@@ -1,11 +1,11 @@
-// Package main demonstrates a complete distributed tracing example
+﻿// Package main demonstrates a complete distributed tracing example
 package main
 
 import (
 	"context"
 	"fmt"
 	"log"
-	"math/rand"
+	"math/rand/v2"
 	"time"
 
 	"go.opentelemetry.io/otel"
@@ -97,7 +97,7 @@ func callOrderService(ctx context.Context) (string, error) {
 	}
 
 	// Save to database
-	orderID := fmt.Sprintf("order-%d", rand.Intn(10000))
+	orderID := fmt.Sprintf("order-%d", rand.IntN(10000))
 	if err := saveOrder(ctx, orderID); err != nil {
 		span.RecordError(err)
 		return "", err
@@ -184,7 +184,7 @@ func processPayment(ctx context.Context) error {
 	}
 
 	span.SetAttributes(
-		attribute.String("payment.transaction_id", fmt.Sprintf("txn-%d", rand.Intn(100000))),
+		attribute.String("payment.transaction_id", fmt.Sprintf("txn-%d", rand.IntN(100000))),
 		attribute.String("payment.status", "completed"),
 	)
 	log.Println("  ✓ [Payment Service] Payment successful")
@@ -271,7 +271,7 @@ func initTracerProvider(serviceName string) (*sdktrace.TracerProvider, error) {
 		resource.WithAttributes(
 			semconv.ServiceName(serviceName),
 			semconv.ServiceVersion("1.0.0"),
-			semconv.DeploymentEnvironment("production"),
+			attribute.String("deployment.environment", "production"),
 		),
 	)
 	if err != nil {
@@ -286,3 +286,4 @@ func initTracerProvider(serviceName string) (*sdktrace.TracerProvider, error) {
 
 	return tp, nil
 }
+

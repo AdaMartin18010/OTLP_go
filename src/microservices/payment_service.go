@@ -1,11 +1,11 @@
-package microservices
+﻿package microservices
 
 import (
-	"OTLP_go/src/pkg/types"
+	"OTLP_go/pkg/types"
 	"context"
 	"encoding/json"
 	"fmt"
-	"math/rand"
+	"math/rand/v2"
 	"net/http"
 	"sync"
 	"time"

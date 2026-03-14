@@ -1,4 +1,4 @@
-package main
+﻿package main
 
 import (
 	"context"
@@ -356,7 +356,7 @@ func demonstrateCustomExporter(tracer trace.Tracer) {
 	log.Println("\n--- Custom Exporter Demo ---")
 
 	ctx := context.Background()
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		_, span := tracer.Start(ctx, fmt.Sprintf("operation-%d", i))
 		span.SetAttributes(
 			attribute.Int("iteration", i),
@@ -425,7 +425,7 @@ func demonstrateDynamicSampler(tracer trace.Tracer, sampler *DynamicSampler) {
 	ctx := context.Background()
 
 	// 生成100个 Span
-	for i := 0; i < 100; i++ {
+	for i := range 100 {
 		_, span := tracer.Start(ctx, fmt.Sprintf("sampled-operation-%d", i))
 		span.End()
 	}
@@ -509,7 +509,7 @@ func main() {
 
 	// 再次测试
 	ctx := context.Background()
-	for i := 0; i < 50; i++ {
+	for i := range 50 {
 		_, span := tracer.Start(ctx, fmt.Sprintf("adjusted-operation-%d", i))
 		span.End()
 	}
