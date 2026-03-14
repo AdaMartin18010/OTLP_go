@@ -10,13 +10,20 @@ import (
 	metricapi "go.opentelemetry.io/otel/metric"
 	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/resource"
-	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
+	semconv "go.opentelemetry.io/otel/semconv/v1.30.0"
+	"google.golang.org/grpc/credentials"
 )
 
 func initMetricProvider(ctx context.Context, endpoint string) (*sdkmetric.MeterProvider, error) {
+	// 使用 TLS 安全连接和重试配置
 	exp, err := otlpmetricgrpc.New(ctx,
 		otlpmetricgrpc.WithEndpoint(endpoint),
-		otlpmetricgrpc.WithInsecure(),
+		otlpmetricgrpc.WithTLSCredentials(credentials.NewClientTLSFromCert(nil, "")),
+		otlpmetricgrpc.WithRetry(otlpmetricgrpc.RetryConfig{
+			Enabled:         true,
+			InitialInterval: 1 * time.Second,
+			MaxInterval:     10 * time.Second,
+		}),
 	)
 	if err != nil {
 		return nil, err
@@ -25,7 +32,7 @@ func initMetricProvider(ctx context.Context, endpoint string) (*sdkmetric.MeterP
 	res, err := resource.New(ctx,
 		resource.WithAttributes(
 			semconv.ServiceName("otlp-go-demo"),
-			semconv.DeploymentEnvironment("dev"),
+			attribute.String("deployment.environment", "dev"),
 		),
 	)
 	if err != nil {

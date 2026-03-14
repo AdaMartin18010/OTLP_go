@@ -12,8 +12,9 @@ import (
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
-	semconv "go.opentelemetry.io/otel/semconv/v1.21.0"
+	semconv "go.opentelemetry.io/otel/semconv/v1.30.0"
 	"go.opentelemetry.io/otel/trace"
+	"google.golang.org/grpc/credentials"
 )
 
 func main() {
@@ -48,7 +49,8 @@ func initTracerProviderWithCustomSampler() (*sdktrace.TracerProvider, error) {
 
 	exporter, err := otlptracegrpc.New(ctx,
 		otlptracegrpc.WithEndpoint("localhost:4317"),
-		otlptracegrpc.WithInsecure(),
+		otlptracegrpc.WithTLSCredentials(credentials.NewClientTLSFromCert(nil, "")),
+		otlptracegrpc.WithRetry(otlptracegrpc.RetryConfig{Enabled: true, InitialInterval: 1 * time.Second, MaxInterval: 10 * time.Second, MaxElapsedTime: 30 * time.Second}),
 	)
 	if err != nil {
 		return nil, err

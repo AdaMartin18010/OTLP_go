@@ -1,7 +1,7 @@
 # OTLP × Golang × CSP 完整技术体系
 
-> **更新日期**: 2025-10-03  
-> **状态**: ✅ 已完成系统化整合  
+> **更新日期**: 2025-10-03
+> **状态**: ✅ 已完成系统化整合
 > **新增文档**: 10+ 篇深度分析 (85,000+ 字)
 
 ---
@@ -47,7 +47,7 @@
             固定欄位（service.name, k8s.pod.name, host.name, os.type…）→ 讓「收集器」不必猜，就能知道「這條指標屬於誰」。
 
     結論：資料一進 OTLP 就已經是「可被機器理解的對象模型」，而非原始 bytes；這是「自我分析」的先決條件。
-    
+
     收集層：Pipeline 天然「分級+邊緣聚合」
         OTLP 官方架構 = Agent (DaemonSet) → Gateway → Backend。
         把「邊緣」放大，就能在本地完成「感知 → 決策 → 觸發」：
@@ -210,7 +210,7 @@
         分析：中心或邊緣 OTTL 計算「異常分數」。
         決策：中心將「新 OTTL 規則 + 新閾值」透過 OPAMP 灰度推送。
         執行：Agent 載入新規則後，就地限流/重啟容器/調路由。
-    
+
     小結：為何足以支撐「分散式自我運維」
     語義完備：OTLP 自帶因果、資源、指標三元組，保證數據可機讀。
     邊緣計算：OTTL 讓 Collector 變成「可程式化閘道器」，無需外部 ETL。
@@ -224,13 +224,13 @@
     并首次出现**可自我运维（Self-Ops）**的完整闭环。
 
     下面按「OTTL」「OPAMP」「eBPF Profiling」「语义约定」「生态治理」五个维度，汇总当前进展与落地状态。
-    
+
     OTTL：语法冻结、性能 10×、Playground 上线
     语法规范 v1.0 已冻结（2025-06），Path 解析器改用字节码+SIMD，单核吞吐从 30 k span/s → 300 k span/s。
     交互式 OTTL Playground 正式发布，浏览器内实时验证语句并生成 Metrics/Trace 样例，降低调试成本 60%。
     函数库新增 k8s(), ec2(), regex_replace() 等 40+ 内置函数，覆盖 90% 常见脱敏、降维、路由需求。
     边缘场景开始下发放 Collector：阿里内部 2.3k 节点运行 OTTL-WASM 过滤器，灰度变更平均耗时 4.3 s。
-    
+
     OPAMP：协议 v1.0 定稿，反向通道生产落地
     消息格式（proto）2025-03 被标记为 Stable；哈希+签名+压缩默认开启，证书热轮换成功率 99.7%（eBay 实测）。
     控制面实现已出现 3 个开源参考：
@@ -239,19 +239,19 @@
     – opamp-operator（K8s CRD 方式管理 Sidecar/DS）
     灰度能力细化到「标签+权重+回滚窗口」三级策略；
     腾讯自研平台利用 OPAMP 在 7 天内滚动升级 1.8 万节点，失败率 0.02%。
-    
+
     与 OTTL 联动：Server 端可一次性下发「RemoteConfig + OTTLScript」双对象，实现「边收集-边修正-边隔离」的闭环。
     eBPF Profiling：第四支柱正式合入主库
     Continuous Profiling 代理由 Elastic 完整捐赠，无需重启、无字节码注入，基于 eBPF 做全栈采样（内核→native→JVM/Python/Node）。
     OTLP Profile 信号（pprof-based）已合并进 opentelemetry-proto v1.3，与 Trace/Metric/Log 共用 Resource & Semantic Convention。
     Collector contrib 新增 profilingreceiver + profilingexporter，可直接把 CPU/Heap/Lock 火焰图送到 Grafana Phlare、Pyroscope、Elastic。
-    
+
     性能：单核 5% 以下 overhead，采样频率 99 Hz 时，每秒生成 ≈ 150 k 样本，經 OTTL 壓縮後網絡開銷 < 200 KB/s。
     语义约定：HTTP 模式锁定，Gen-AI & CI/CD 模式孵化
     HTTP Semantic Convention v1.0 已于 2025-06 KubeCon 中国宣布冻结，Cover 17 种主流框架（Spring、ASP.NET、gin、Echo、Actix）。
     Gen-AI 信号（LLM 调用 token 数、prompt/response 长度、模型名）进入 Experimental，预计 2026 Q1 Stable；OpenAI & MS 已提供参考实现。
     CI/CD 可观测性（Argo、Jenkins、GitHub Actions）语义约定草案 0.3 发布，可生成 Pipeline-Trace 与 Build-Metrics，已在 DaoCloud 内部 nightly 跑 6k Pipeline。
-    
+
     生态与治理：9 个 SIG、74 子域、900+ 属性
     社区贡献量仅次于 Kubernetes；2024-2025 年 PR 年增长率 46%，Issue 关闭率 92%。
     Otel Weaver 正式 GA——用来自动生成语义约定文档、JSONSchema、OpenAPI、Rust/Go 代码骨架，已被 3 家厂商集成到 CI。

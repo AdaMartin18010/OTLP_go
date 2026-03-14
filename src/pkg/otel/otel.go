@@ -7,13 +7,14 @@ import (
 	"time"
 
 	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/sdk/resource"
 	"go.opentelemetry.io/otel/sdk/trace"
-	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
+	semconv "go.opentelemetry.io/otel/semconv/v1.30.0"
 	oteltrace "go.opentelemetry.io/otel/trace"
-	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 
 	"OTLP_go/src/pkg/config"
 	otelresource "OTLP_go/src/pkg/resource"
@@ -40,11 +41,16 @@ func (m *OTelManager) Initialize(ctx context.Context) error {
 		return fmt.Errorf("invalid OTLP config: %w", err)
 	}
 
-	// 创建 OTLP gRPC Exporter
+	// 创建 OTLP gRPC Exporter（使用 TLS 和重试）
 	exporter, err := otlptracegrpc.New(ctx,
 		otlptracegrpc.WithEndpoint(m.config.Endpoint),
-		otlptracegrpc.WithInsecure(),
-		otlptracegrpc.WithDialOption(grpc.WithBlock()),
+		otlptracegrpc.WithTLSCredentials(credentials.NewClientTLSFromCert(nil, "")),
+		otlptracegrpc.WithRetry(otlptracegrpc.RetryConfig{
+			Enabled:         true,
+			InitialInterval: 1 * time.Second,
+			MaxInterval:     10 * time.Second,
+			MaxElapsedTime:  30 * time.Second,
+		}),
 	)
 	if err != nil {
 		return fmt.Errorf("failed to create exporter: %w", err)
@@ -55,7 +61,7 @@ func (m *OTelManager) Initialize(ctx context.Context) error {
 		resource.WithAttributes(
 			semconv.ServiceName(m.config.ServiceName),
 			semconv.ServiceVersion(m.config.ServiceVersion),
-			semconv.DeploymentEnvironment(m.config.Environment),
+			attribute.String("deployment.environment", m.config.Environment),
 		),
 	)
 	if err != nil {

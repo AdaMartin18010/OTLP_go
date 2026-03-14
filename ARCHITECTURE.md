@@ -1,6 +1,6 @@
 # OTLP_go 项目架构详解
 
-**版本**: v2.0.0  
+**版本**: v2.0.0
 **日期**: 2025-10-02
 
 ---
@@ -46,7 +46,7 @@ graph TB
         D[External Choice]
         E[Parallel Composition]
     end
-    
+
     subgraph "Go 实现"
         F[Goroutine]
         G[Channel 操作]
@@ -54,7 +54,7 @@ graph TB
         I[Select 语句]
         J[并发 Goroutine]
     end
-    
+
     subgraph "OTLP 语义"
         K[Span 跨度]
         L[Span Event]
@@ -62,19 +62,19 @@ graph TB
         N[Span Branching]
         O[Sibling Spans]
     end
-    
+
     A -->|映射| F
     B -->|映射| G
     C -->|同构| M
     D -->|对应| I
     E -->|对应| J
-    
+
     F -->|追踪| K
     G -->|记录| L
     H -->|形成| M
     I -->|分支| N
     J -->|并行| O
-    
+
     style C fill:#f9f,stroke:#333,stroke-width:4px
     style M fill:#f9f,stroke:#333,stroke-width:4px
 ```
@@ -169,22 +169,22 @@ graph LR
         B[go.opentelemetry.io/otel/sdk v1.28.0]
         C[go.opentelemetry.io/otel/exporters/otlp v1.28.0]
     end
-    
+
     subgraph "传输层"
         D[grpc]
         E[http]
     end
-    
+
     subgraph "应用层"
         F[patterns/]
         G[microservices/]
         H[optimization/]
     end
-    
+
     F --> A
     G --> A
     H --> B
-    
+
     A --> B
     B --> C
     C --> D
@@ -267,40 +267,40 @@ Task Queue (Buffered Channel)
 ```mermaid
 graph TB
     Client[客户端]
-    
+
     subgraph "API 层"
         GW[API Gateway<br/>:8080]
     end
-    
+
     subgraph "业务服务层"
         US[User Service<br/>:8081]
         OS[Order Service<br/>:8082]
         PS[Payment Service<br/>:8083]
     end
-    
+
     subgraph "可观测性层"
         OC[OTLP Collector<br/>:4317]
         JA[Jaeger<br/>:16686]
         PR[Prometheus<br/>:9090]
     end
-    
+
     Client --> GW
-    
+
     GW -->|1. 验证用户| US
     GW -->|2. 创建订单| OS
     GW -->|3. 处理支付| PS
-    
+
     OS -->|检查库存| OS
     PS -->|风险检查| PS
-    
+
     GW -.->|Traces| OC
     US -.->|Traces| OC
     OS -.->|Traces| OC
     PS -.->|Traces| OC
-    
+
     OC -->|导出| JA
     OC -->|导出| PR
-    
+
     style GW fill:#f9f,stroke:#333,stroke-width:2px
     style OC fill:#bbf,stroke:#333,stroke-width:2px
 ```
@@ -418,12 +418,12 @@ flags:     8 bits (sampled flag)
     │
     ├─ 正常请求 → 5% 采样
     └─ 错误请求 → 100% 采样
-    
+
 中 QPS (1K-10K)
     │
     ├─ 正常请求 → 20% 采样
     └─ 错误请求 → 100% 采样
-    
+
 低 QPS (< 1K)
     │
     ├─ 正常请求 → 100% 采样
@@ -464,23 +464,23 @@ flags:     8 bits (sampled flag)
 ```mermaid
 stateDiagram-v2
     [*] --> Closed
-    
+
     Closed --> Open: 连续失败 >= 阈值
     Open --> HalfOpen: 超时后尝试恢复
     HalfOpen --> Closed: 成功请求
     HalfOpen --> Open: 失败请求
-    
+
     note right of Closed
         正常状态
         允许所有请求
     end note
-    
+
     note right of Open
         熔断状态
         拒绝所有请求
         快速失败
     end note
-    
+
     note right of HalfOpen
         半开状态
         允许部分请求
@@ -706,31 +706,31 @@ Grafana Dashboard
 ```mermaid
 graph TB
     Start[开始] --> Quick[快速入门<br/>2 小时]
-    
+
     Quick --> Theory[理论基础<br/>2 天]
     Quick --> Practice[实践入门<br/>1 天]
-    
+
     Theory --> CSP[CSP 语义]
     Theory --> OTLP[OTLP 规范]
     Theory --> Dist[分布式理论]
-    
+
     Practice --> Pattern[CSP 模式]
     Practice --> Micro[微服务]
     Practice --> Perf[性能优化]
-    
+
     CSP --> Advanced[深度研究<br/>1 周]
     OTLP --> Advanced
     Dist --> Advanced
     Pattern --> Advanced
     Micro --> Advanced
     Perf --> Advanced
-    
+
     Advanced --> Formal[形式化验证]
     Advanced --> Prod[生产实践]
-    
+
     Formal --> Expert[专家级<br/>持续]
     Prod --> Expert
-    
+
     style Start fill:#9f9
     style Quick fill:#ff9
     style Advanced fill:#f99
@@ -865,6 +865,6 @@ CMD ["/app"]
 
 ---
 
-**文档版本**: v2.0.0  
-**最后更新**: 2025-10-02  
+**文档版本**: v2.0.0
+**最后更新**: 2025-10-02
 **维护者**: OTLP_go 项目组

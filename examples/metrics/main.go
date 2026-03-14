@@ -13,7 +13,8 @@ import (
 	"go.opentelemetry.io/otel/metric"
 	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/resource"
-	semconv "go.opentelemetry.io/otel/semconv/v1.21.0"
+	semconv "go.opentelemetry.io/otel/semconv/v1.30.0"
+	"google.golang.org/grpc/credentials"
 )
 
 func main() {
@@ -121,7 +122,7 @@ func initMeterProvider() (*sdkmetric.MeterProvider, error) {
 	// Create OTLP metric exporter
 	exporter, err := otlpmetricgrpc.New(ctx,
 		otlpmetricgrpc.WithEndpoint("localhost:4317"),
-		otlpmetricgrpc.WithInsecure(),
+		otlpmetricgrpc.WithTLSCredentials(credentials.NewClientTLSFromCert(nil, "")),
 	)
 	if err != nil {
 		return nil, err

@@ -13,7 +13,8 @@ import (
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
 	"go.opentelemetry.io/otel/sdk/resource"
 	"go.opentelemetry.io/otel/sdk/trace"
-	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
+	semconv "go.opentelemetry.io/otel/semconv/v1.30.0"
+	"google.golang.org/grpc/credentials"
 
 	pkgctx "OTLP_go/src/pkg/context"
 	pkgruntime "OTLP_go/src/pkg/runtime"
@@ -23,11 +24,16 @@ import (
 // newTracerProvider 创建 TracerProvider
 // 优化：添加更丰富的资源属性，使用非阻塞连接
 func newTracerProvider(ctx context.Context, endpoint string) (*trace.TracerProvider, error) {
-	// 使用非阻塞连接选项（Go 1.25.1 优化）
+	// 使用 TLS 安全连接（生产环境必须使用）
 	exp, err := otlptracegrpc.New(ctx,
 		otlptracegrpc.WithEndpoint(endpoint),
-		otlptracegrpc.WithInsecure(),
-		// 移除 WithBlock，使用非阻塞连接提高启动速度
+		otlptracegrpc.WithTLSCredentials(credentials.NewClientTLSFromCert(nil, "")),
+		otlptracegrpc.WithRetry(otlptracegrpc.RetryConfig{
+			Enabled:         true,
+			InitialInterval: 1 * time.Second,
+			MaxInterval:     10 * time.Second,
+			MaxElapsedTime:  30 * time.Second,
+		}),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create OTLP exporter: %w", err)
@@ -41,7 +47,7 @@ func newTracerProvider(ctx context.Context, endpoint string) (*trace.TracerProvi
 			// 服务信息
 			semconv.ServiceName("otlp-go-demo"),
 			semconv.ServiceVersion("2.1.0"),
-			semconv.DeploymentEnvironment("dev"),
+			attribute.String("deployment.environment", "dev"),
 
 			// 运行时信息（Go 1.25.1 特性）
 			attribute.String("runtime.go.version", "1.25.1"),
@@ -93,13 +99,9 @@ func main() {
 	shutdownMgr := shutdown.NewManager(30 * time.Second)
 
 	// 初始化日志（提前，用于记录启动过程）
-	logger := newSlog(ctx)
-	logger.Info("🚀 Starting OTLP Go Demo",
-		"version", "2.1.0",
-		"go_version", "1.25.1",
-		"otlp_endpoint", endpoint,
-		"port", port,
-	)
+	logger := log.New(os.Stdout, "[APP] ", log.LstdFlags)
+	logger.Printf("🚀 Starting OTLP Go Demo version=%s go_version=%s otlp_endpoint=%s port=%s",
+		"2.1.0", "1.25.1", endpoint, port)
 
 	// 阶段 1: 初始化追踪
 	tp, err := newTracerProvider(ctx, endpoint)
@@ -107,11 +109,11 @@ func main() {
 		log.Fatalf("❌ Failed to initialize tracer provider: %v", err)
 	}
 	otel.SetTracerProvider(tp)
-	logger.Info("✅ Tracer provider initialized")
+	logger.Println("✅ Tracer provider initialized")
 
 	// 注册追踪关闭
 	shutdownMgr.RegisterStage("telemetry", func(ctx context.Context) error {
-		logger.Info("🔄 Shutting down tracer provider...")
+		logger.Println("🔄 Shutting down tracer provider...")
 		return tp.Shutdown(ctx)
 	})
 
@@ -120,27 +122,26 @@ func main() {
 	if err != nil {
 		log.Fatalf("❌ Failed to initialize meter provider: %v", err)
 	}
-	logger.Info("✅ Meter provider initialized")
+	logger.Println("✅ Meter provider initialized")
 
 	// 启动指标循环
 	startCounterLoop(ctx)
 
 	// 注册指标关闭
 	shutdownMgr.RegisterStage("telemetry", func(ctx context.Context) error {
-		logger.Info("🔄 Shutting down meter provider...")
+		logger.Println("🔄 Shutting down meter provider...")
 		return mp.Shutdown(ctx)
 	})
 
 	// 阶段 3: 初始化业务组件
 	tr := otel.Tracer("demo/handler")
-	emitBootLog(logger)
 
 	// CSP × OTLP pipeline demo
 	p := newPipeline(64, 4)
 
 	// 注册 pipeline 关闭
 	shutdownMgr.RegisterStage("business", func(ctx context.Context) error {
-		logger.Info("🔄 Closing pipeline...")
+		logger.Println("🔄 Closing pipeline...")
 		p.close()
 		return nil
 	})
@@ -163,13 +164,8 @@ func main() {
 			attribute.String("request.id", pkgctx.GetRequestID(ctx)),
 		)
 
-		logger.Info("📨 Handling request",
-			"method", r.Method,
-			"path", r.URL.Path,
-			"remote", r.RemoteAddr,
-			"request_id", pkgctx.GetRequestID(ctx),
-			"trace_id", pkgctx.GetTraceID(ctx),
-		)
+		logger.Printf("📨 Handling request method=%s path=%s remote=%s request_id=%s trace_id=%s",
+			r.Method, r.URL.Path, r.RemoteAddr, pkgctx.GetRequestID(ctx), pkgctx.GetTraceID(ctx))
 
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte("hello otlp from Go 1.25.1\n"))
@@ -222,13 +218,13 @@ func main() {
 
 	// 注册服务器关闭
 	shutdownMgr.RegisterStage("http", func(ctx context.Context) error {
-		logger.Info("🔄 Shutting down HTTP server...")
+		logger.Println("🔄 Shutting down HTTP server...")
 		return server.Shutdown(ctx)
 	})
 
 	// 启动服务器
 	go func() {
-		logger.Info("🌐 Server listening", "addr", addr, "otlp", endpoint)
+		logger.Printf("🌐 Server listening addr=%s otlp=%s", addr, endpoint)
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatalf("❌ Server error: %v", err)
 		}
@@ -242,8 +238,8 @@ func main() {
 
 	// 执行优雅关闭
 	if err := shutdownMgr.Shutdown(); err != nil {
-		logger.Error("⚠️  Shutdown completed with errors", "error", err)
+		logger.Printf("⚠️  Shutdown completed with errors: %v", err)
 	} else {
-		logger.Info("✅ Shutdown completed successfully")
+		logger.Println("✅ Shutdown completed successfully")
 	}
 }

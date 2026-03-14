@@ -1,7 +1,7 @@
 # 🚀 OTLP 标准更新立即行动指南
 
-**制定日期**: 2026-03-15  
-**紧急程度**: 🔴 高  
+**制定日期**: 2026-03-15
+**紧急程度**: 🔴 高
 **预计完成**: 1-2周
 
 ---
@@ -68,7 +68,7 @@ import "google.golang.org/grpc/credentials"
 func getTLSCredentials() credentials.TransportCredentials {
     // 生产环境使用证书
     // return credentials.NewClientTLSFromFile("cert.pem", "")
-    
+
     // 开发环境使用系统证书池
     return credentials.NewClientTLSFromCert(nil, "")
 }
@@ -77,10 +77,10 @@ EOF
 # 批量替换 WithInsecure
 for file in $(cat /tmp/insecure_files.txt); do
     echo "处理: $file"
-    
+
     # 添加 import
     sed -i 's|"google.golang.org/grpc/credentials"|credentials "google.golang.org/grpc/credentials"|' "$file"
-    
+
     # 替换 WithInsecure
     sed -i 's/WithInsecure()/WithTLSCredentials(credentials.NewClientTLSFromCert(nil, ""))/' "$file"
 done
@@ -120,7 +120,7 @@ echo "🔄 开始添加重试配置..."
 # 在 otlptracegrpc.New 调用后添加重试配置
 find . -name "*.go" -exec sed -i '/otlptracegrpc.New/,/)/{
 /)/a\
-\	\totlptracegrpc.WithRetry(otlptracegrpc.RetryConfig{\
+\ \totlptracegrpc.WithRetry(otlptracegrpc.RetryConfig{\
 \t\t\tEnabled:         true,\
 \t\t\tInitialInterval: 1 * time.Second,\
 \t\t\tMaxInterval:     10 * time.Second,\
@@ -207,15 +207,15 @@ cat > /tmp/fix_examples.sh << 'SCRIPT'
 
 for file in examples/*/main.go; do
     echo "修复: $file"
-    
+
     # 升级 semconv
     sed -i 's|semconv/v1.26.0|semconv/v1.30.0|g' "$file"
-    
+
     # 如果存在 WithInsecure，添加 credentials import 并替换
     if grep -q "WithInsecure" "$file"; then
         # 添加 import
         sed -i '/"go.opentelemetry.io\/otel\/exporters\/otlp/a\\t"google.golang.org/grpc/credentials"' "$file"
-        
+
         # 替换 WithInsecure
         sed -i 's/WithInsecure()/WithTLSCredentials(credentials.NewClientTLSFromCert(nil, ""))/g' "$file"
     fi
@@ -355,11 +355,13 @@ go doc go.opentelemetry.io/otel/semconv/v1.30.0 | grep -i "deprecated"
 ## 📞 升级支持
 
 ### 内部资源
+
 - 技术负责人: @tech-lead
 - OTLP 专家: @otlp-expert
 - 安全专员: @security-lead
 
 ### 外部资源
+
 - [OTLP v1.5.0 迁移指南](https://opentelemetry.io/docs/specs/otlp/migration/)
 - [Go SDK 升级指南](https://github.com/open-telemetry/opentelemetry-go/blob/main/VERSIONING.md)
 - [Semantic Conventions 变更日志](https://github.com/open-telemetry/semantic-conventions/blob/main/CHANGELOG.md)
@@ -385,8 +387,8 @@ go doc go.opentelemetry.io/otel/semconv/v1.30.0 | grep -i "deprecated"
 
 ---
 
-**开始时间**: ____-____-____  
-**预计完成**: ____-____-____  
+**开始时间**: ****-****-____
+**预计完成**: ****-****-____
 **负责人**: ________________
 
 🚀 **准备好了吗？开始行动！**
