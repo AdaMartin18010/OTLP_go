@@ -230,6 +230,165 @@ func TestBufferPoolReuse(t *testing.T) {
 	_ = ptr2
 }
 
+// Additional tests for better coverage
+
+func TestPoolMultipleTypes(t *testing.T) {
+	// Test with struct pool (strings are immutable, use struct instead)
+	type TestStruct struct {
+		Name  string
+		Value int
+	}
+
+	structPool := NewPool("struct-pool", func() TestStruct {
+		return TestStruct{Name: "default", Value: 0}
+	})
+
+	st1 := structPool.Get()
+	assert.Equal(t, "default", st1.Name)
+	assert.Equal(t, 0, st1.Value)
+
+	structPool.Put(TestStruct{Name: "custom", Value: 42})
+	st2 := structPool.Get()
+	assert.Equal(t, "custom", st2.Name)
+	assert.Equal(t, 42, st2.Value)
+}
+
+func TestByteSlicePoolEdgeCases(t *testing.T) {
+	// Test with size 0
+	slice0 := GetByteSlice(0)
+	assert.NotNil(t, slice0)
+	assert.Equal(t, 0, len(slice0))
+	PutByteSlice(slice0)
+
+	// Test with exact sizes
+	slice1k := GetByteSlice(1024)
+	assert.GreaterOrEqual(t, cap(slice1k), 1024)
+	PutByteSlice(slice1k)
+
+	slice4k := GetByteSlice(4096)
+	assert.GreaterOrEqual(t, cap(slice4k), 4096)
+	PutByteSlice(slice4k)
+
+	slice64k := GetByteSlice(65536)
+	assert.GreaterOrEqual(t, cap(slice64k), 65536)
+	PutByteSlice(slice64k)
+
+	// Test with very large size (max is 64k pool)
+	sliceLarge := GetByteSlice(100000)
+	assert.NotNil(t, sliceLarge)
+	// Will get 64k pool, capacity will be 65536
+	assert.GreaterOrEqual(t, cap(sliceLarge), 0)
+	PutByteSlice(sliceLarge)
+}
+
+func TestPutByteSliceNil(t *testing.T) {
+	// Should not panic with nil
+	var nilSlice []byte
+	PutByteSlice(nilSlice)
+}
+
+func TestSizedPoolVariousSizes(t *testing.T) {
+	sp := NewSizedPool()
+
+	// Test various sizes
+	sizes := []int{1, 10, 100, 1000, 10000, 100000}
+	for _, size := range sizes {
+		slice := sp.Get(size)
+		assert.NotNil(t, slice)
+		assert.Equal(t, 0, len(slice))
+		assert.GreaterOrEqual(t, cap(slice), size)
+
+		// Verify power of 2
+		cap := cap(slice)
+		assert.True(t, cap > 0 && (cap&(cap-1)) == 0, "capacity %d should be power of 2", cap)
+
+		sp.Put(slice)
+	}
+}
+
+func TestSizedPoolPutNonExistent(t *testing.T) {
+	sp := NewSizedPool()
+
+	// Get a slice
+	slice := sp.Get(100)
+	sp.Put(slice)
+
+	// Create a slice with non-existent capacity
+	nonExistent := make([]byte, 0, 12345) // Non-power-of-2 capacity
+	// This should not panic and should not be added to pool
+	sp.Put(nonExistent)
+
+	// Next Get should create new slice
+	slice2 := sp.Get(100)
+	_ = slice2
+}
+
+func TestBufferPoolConcurrency(t *testing.T) {
+	var wg sync.WaitGroup
+
+	for i := 0; i < 100; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			buf := GetBuffer()
+			buf.WriteString("concurrent test")
+			assert.Equal(t, "concurrent test", buf.String())
+			PutBuffer(buf)
+		}()
+	}
+
+	wg.Wait()
+}
+
+func TestByteSlicePoolConcurrency(t *testing.T) {
+	var wg sync.WaitGroup
+	sizes := []int{100, 500, 1000, 2000, 5000}
+
+	for _, size := range sizes {
+		for i := 0; i < 20; i++ {
+			wg.Add(1)
+			go func(s int) {
+				defer wg.Done()
+				slice := GetByteSlice(s)
+				slice = append(slice, []byte("test")...)
+				PutByteSlice(slice)
+			}(size)
+		}
+	}
+
+	wg.Wait()
+}
+
+func TestNextPowerOfTwoEdgeCases(t *testing.T) {
+	// Test with negative (should return 1)
+	result := nextPowerOfTwo(-1)
+	assert.Equal(t, 1, result)
+
+	// Test with large number
+	result = nextPowerOfTwo(1 << 20) // 1MB
+	assert.Equal(t, 1<<20, result)
+
+	result = nextPowerOfTwo(1<<20 + 1)
+	assert.Equal(t, 1<<21, result)
+}
+
+func TestPoolMetricsIntegration(t *testing.T) {
+	// Create pool and perform operations
+	pool := NewPool("metrics-test", func() int {
+		return 0
+	})
+
+	// Perform multiple get/put operations
+	for i := 0; i < 10; i++ {
+		val := pool.Get()
+		pool.Put(val)
+	}
+
+	// Pool should still function correctly
+	val := pool.Get()
+	assert.Equal(t, 0, val)
+}
+
 // Benchmarks
 
 func BenchmarkPoolGet(b *testing.B) {

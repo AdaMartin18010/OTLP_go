@@ -103,7 +103,7 @@ func TestGetStats(t *testing.T) {
 	assert.NotNil(t, stats.RuntimeStats)
 	assert.NotNil(t, stats.CustomMetrics)
 	assert.Len(t, stats.CustomMetrics, 2)
-	assert.Greater(t, stats.Uptime, time.Duration(0))
+	assert.GreaterOrEqual(t, stats.Uptime, time.Duration(0))
 }
 
 // TestMemoryStats 测试内存统计

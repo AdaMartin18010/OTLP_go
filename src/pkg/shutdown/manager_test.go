@@ -3,6 +3,7 @@ package shutdown
 import (
 	"context"
 	"errors"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -127,19 +128,26 @@ func TestRegisterStageOrder(t *testing.T) {
 	manager := NewManager(5 * time.Second)
 
 	var callOrder []string
+	var mu sync.Mutex
 
 	manager.RegisterStage("stage1", func(ctx context.Context) error {
+		mu.Lock()
 		callOrder = append(callOrder, "stage1-1")
+		mu.Unlock()
 		return nil
 	})
 
 	manager.RegisterStage("stage2", func(ctx context.Context) error {
+		mu.Lock()
 		callOrder = append(callOrder, "stage2-1")
+		mu.Unlock()
 		return nil
 	})
 
 	manager.RegisterStage("stage1", func(ctx context.Context) error {
+		mu.Lock()
 		callOrder = append(callOrder, "stage1-2")
+		mu.Unlock()
 		return nil
 	})
 
@@ -148,6 +156,8 @@ func TestRegisterStageOrder(t *testing.T) {
 		t.Errorf("Shutdown() returned error: %v", err)
 	}
 
+	mu.Lock()
+	defer mu.Unlock()
 	if len(callOrder) != 3 {
 		t.Fatalf("Expected 3 calls, got %d", len(callOrder))
 	}
