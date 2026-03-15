@@ -235,17 +235,17 @@ func (c *ConnectionConfig) Validate() error {
 // DefaultExporterConfig returns the default exporter configuration.
 func DefaultExporterConfig() *ExporterConfig {
 	return &ExporterConfig{
-		BaseConfig:        *DefaultBaseConfig(),
-		Protocol:          ProtocolGRPC,
-		Encoding:          EncodingProtobuf,
-		ExporterType:      ExporterTypeTrace,
-		URLPath:           "",
-		MaxAttempts:       3,
-		QueueConfig:       DefaultQueueConfig(),
-		ConnectionConfig:  DefaultConnectionConfig(),
-		ProxyURL:          "",
-		UserAgent:         "OTLP-Go-SDK/1.0",
-		DisableKeepAlive:  false,
+		BaseConfig:       *DefaultBaseConfig(),
+		Protocol:         ProtocolGRPC,
+		Encoding:         EncodingProtobuf,
+		ExporterType:     ExporterTypeTrace,
+		URLPath:          "",
+		MaxAttempts:      3,
+		QueueConfig:      DefaultQueueConfig(),
+		ConnectionConfig: DefaultConnectionConfig(),
+		ProxyURL:         "",
+		UserAgent:        "OTLP-Go-SDK/1.0",
+		DisableKeepAlive: false,
 	}
 }
 

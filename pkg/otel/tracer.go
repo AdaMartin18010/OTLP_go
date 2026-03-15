@@ -33,11 +33,11 @@ func (tw *TracerWrapper) Start(ctx context.Context, spanName string, opts ...tra
 
 // SpanBuilder 用于构建和管理 Span
 type SpanBuilder struct {
-	tracer    *TracerWrapper
-	name      string
-	options   []trace.SpanStartOption
+	tracer     *TracerWrapper
+	name       string
+	options    []trace.SpanStartOption
 	attributes []attribute.KeyValue
-	kind      trace.SpanKind
+	kind       trace.SpanKind
 }
 
 // NewSpanBuilder 创建一个新的 SpanBuilder
@@ -75,7 +75,6 @@ func (sb *SpanBuilder) WithAttributes(attrs map[string]interface{}) *SpanBuilder
 func (sb *SpanBuilder) WithParent(parent trace.SpanContext) *SpanBuilder {
 	sb.options = append(sb.options, trace.WithLinks(trace.Link{SpanContext: parent}))
 	return sb
-}
 }
 
 // Start 启动 Span 并返回上下文

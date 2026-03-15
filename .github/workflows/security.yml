@@ -1,0 +1,359 @@
+name: Security Scan
+
+on:
+  push:
+    branches: [ main, master, develop ]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+  pull_request:
+    branches: [ main, master, develop ]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+  schedule:
+    - cron: '0 6 * * *'  # Run daily at 6 AM UTC
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  security-events: write
+  actions: read
+
+env:
+  GO_VERSION: '1.26.x'
+
+jobs:
+  # ============================================================================
+  # Gosec Security Scanner
+  # ============================================================================
+  gosec:
+    name: Gosec Scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Set up Go ${{ env.GO_VERSION }}
+      uses: actions/setup-go@v5
+      with:
+        go-version: ${{ env.GO_VERSION }}
+        cache: true
+    
+    - name: Run Gosec Security Scanner
+      uses: securego/gosec@master
+      with:
+        args: '-no-fail -fmt sarif -out results.sarif -stdout ./...'
+    
+    - name: Upload SARIF file
+      uses: github/codeql-action/upload-sarif@v3
+      if: always()
+      with:
+        sarif_file: results.sarif
+        category: gosec
+    
+    - name: Upload results
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: gosec-results
+        path: results.sarif
+        retention-days: 30
+    
+    - name: Check for high severity issues
+      run: |
+        if [ -f results.sarif ]; then
+          HIGH_ISSUES=$(grep -c '"level": "error"' results.sarif || echo "0")
+          MEDIUM_ISSUES=$(grep -c '"level": "warning"' results.sarif || echo "0")
+          
+          echo "Security Issues Found:"
+          echo "  High: $HIGH_ISSUES"
+          echo "  Medium: $MEDIUM_ISSUES"
+          
+          if [ "$HIGH_ISSUES" -gt 0 ]; then
+            echo "::error::Found $HIGH_ISSUES high severity security issues"
+            exit 1
+          fi
+        fi
+      shell: bash
+      continue-on-error: true
+
+  # ============================================================================
+  # Nancy - Vulnerability Scanner for Dependencies
+  # ============================================================================
+  nancy:
+    name: Nancy Vulnerability Scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Set up Go ${{ env.GO_VERSION }}
+      uses: actions/setup-go@v5
+      with:
+        go-version: ${{ env.GO_VERSION }}
+        cache: true
+    
+    - name: Write Go package list
+      run: go list -json -deps ./... > go-deps.json
+    
+    - name: Run Nancy
+      uses: sonatypecommunity/nancy-github-action@main
+      continue-on-error: true
+    
+    - name: Run Nancy (CLI)
+      run: |
+        # Install nancy
+        curl -L https://github.com/sonatype-nexus-community/nancy/releases/latest/download/nancy-linux.amd64 -o nancy
+        chmod +x nancy
+        
+        # Run scan
+        ./nancy sleuth -p go-deps.json 2>&1 | tee nancy-report.txt || true
+      shell: bash
+      continue-on-error: true
+    
+    - name: Upload Nancy report
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: nancy-report
+        path: nancy-report.txt
+        retention-days: 30
+
+  # ============================================================================
+  # govulncheck - Go Vulnerability Check
+  # ============================================================================
+  govulncheck:
+    name: Govulncheck
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Set up Go ${{ env.GO_VERSION }}
+      uses: actions/setup-go@v5
+      with:
+        go-version: ${{ env.GO_VERSION }}
+        cache: true
+    
+    - name: Install govulncheck
+      run: go install golang.org/x/vuln/cmd/govulncheck@latest
+    
+    - name: Run govulncheck
+      run: |
+        govulncheck -format json ./... > govulncheck.json 2>&1 || true
+        govulncheck ./... 2>&1 | tee govulncheck.txt || true
+      shell: bash
+    
+    - name: Parse govulncheck results
+      run: |
+        if [ -f govulncheck.json ]; then
+          # Count vulnerabilities by severity
+          CRITICAL=$(grep -o '"OSV":[^}]*"id"' govulncheck.json | wc -l)
+          
+          echo "Vulnerabilities found: $CRITICAL"
+          
+          if [ "$CRITICAL" -gt 0 ]; then
+            echo "::warning::Found $CRITICAL potential vulnerabilities. Check the report."
+          fi
+        fi
+      shell: bash
+      continue-on-error: true
+    
+    - name: Upload govulncheck report
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: govulncheck-report
+        path: |
+          govulncheck.txt
+          govulncheck.json
+        retention-days: 30
+
+  # ============================================================================
+  # Trivy Container Scan
+  # ============================================================================
+  trivy:
+    name: Trivy Container Scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Build Docker image for scanning
+      run: |
+        if [ -f Dockerfile ]; then
+          docker build -t otlp-go:scan .
+        else
+          echo "No Dockerfile found, skipping container scan"
+          exit 0
+        fi
+      shell: bash
+    
+    - name: Run Trivy vulnerability scanner
+      uses: aquasecurity/trivy-action@master
+      if: hashFiles('Dockerfile') != ''
+      with:
+        image-ref: 'otlp-go:scan'
+        format: 'sarif'
+        output: 'trivy-results.sarif'
+        severity: 'CRITICAL,HIGH'
+        exit-code: '0'
+    
+    - name: Upload Trivy SARIF
+      uses: github/codeql-action/upload-sarif@v3
+      if: hashFiles('Dockerfile') != '' && always()
+      with:
+        sarif_file: trivy-results.sarif
+        category: trivy
+    
+    - name: Run Trivy (table format)
+      uses: aquasecurity/trivy-action@master
+      if: hashFiles('Dockerfile') != ''
+      with:
+        image-ref: 'otlp-go:scan'
+        format: 'table'
+        severity: 'CRITICAL,HIGH,MEDIUM'
+        exit-code: '0'
+
+  # ============================================================================
+  # Dependency Review (PR only)
+  # ============================================================================
+  dependency-review:
+    name: Dependency Review
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    if: github.event_name == 'pull_request'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Dependency Review
+      uses: actions/dependency-review-action@v4
+      with:
+        fail-on-severity: high
+        comment-summary-in-pr: always
+        show-openssf-scorecard: true
+
+  # ============================================================================
+  # Secret Detection
+  # ============================================================================
+  secret-scan:
+    name: Secret Detection
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    
+    - name: Secret Detection
+      uses: trufflesecurity/trufflehog@main
+      with:
+        path: ./
+        base: ${{ github.event.repository.default_branch }}
+        head: HEAD
+        extra_args: --debug --only-verified
+      continue-on-error: true
+
+  # ============================================================================
+  # OpenSSF Scorecard
+  # ============================================================================
+  scorecard:
+    name: OpenSSF Scorecard
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    if: github.event_name == 'schedule' || github.event_name == 'push'
+    
+    permissions:
+      security-events: write
+      id-token: write
+      actions: read
+      contents: read
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        persist-credentials: false
+    
+    - name: Run Scorecard
+      uses: ossf/scorecard-action@v2.3.1
+      with:
+        results_file: scorecard-results.sarif
+        results_format: sarif
+        publish_results: true
+    
+    - name: Upload Scorecard SARIF
+      uses: github/codeql-action/upload-sarif@v3
+      with:
+        sarif_file: scorecard-results.sarif
+        category: scorecard
+    
+    - name: Upload Scorecard results
+      uses: actions/upload-artifact@v4
+      with:
+        name: scorecard-results
+        path: scorecard-results.sarif
+        retention-days: 30
+
+  # ============================================================================
+  # Summary
+  # ============================================================================
+  summary:
+    name: Security Summary
+    runs-on: ubuntu-latest
+    needs: [gosec, nancy, govulncheck, trivy, dependency-review, secret-scan, scorecard]
+    if: always()
+    
+    steps:
+    - name: Generate summary
+      run: |
+        echo "# 🔒 Security Scan Summary" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "| Scanner | Status |" >> $GITHUB_STEP_SUMMARY
+        echo "|---------|--------|" >> $GITHUB_STEP_SUMMARY
+        
+        jobs=("gosec" "nancy" "govulncheck" "trivy" "dependency-review" "secret-scan" "scorecard")
+        for job in "${jobs[@]}"; do
+          case $job in
+            gosec) result="${{ needs.gosec.result }}" ;;
+            nancy) result="${{ needs.nancy.result }}" ;;
+            govulncheck) result="${{ needs.govulncheck.result }}" ;;
+            trivy) result="${{ needs.trivy.result }}" ;;
+            dependency-review) result="${{ needs.dependency-review.result }}" ;;
+            secret-scan) result="${{ needs.secret-scan.result }}" ;;
+            scorecard) result="${{ needs.scorecard.result }}" ;;
+          esac
+          
+          if [ "$result" == "success" ]; then
+            emoji="✅"
+          elif [ "$result" == "failure" ]; then
+            emoji="❌"
+          elif [ "$result" == "skipped" ]; then
+            emoji="⏭️"
+          else
+            emoji="⚠️"
+          fi
+          echo "| $job | $emoji $result |" >> $GITHUB_STEP_SUMMARY
+        done
+        
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**Note:** Some scans may be set to continue-on-error to prevent blocking the workflow." >> $GITHUB_STEP_SUMMARY
+        echo "Please review the security reports in the artifacts." >> $GITHUB_STEP_SUMMARY
+      shell: bash

@@ -94,7 +94,7 @@ func DefaultConfig() *Config {
 func QuickSetup(ctx context.Context, serviceName string, endpoint ...string) (*SDK, error) {
 	cfg := DefaultConfig()
 	cfg.ServiceName = serviceName
-	
+
 	if len(endpoint) > 0 && endpoint[0] != "" {
 		cfg.Exporter.Endpoint = endpoint[0]
 	}

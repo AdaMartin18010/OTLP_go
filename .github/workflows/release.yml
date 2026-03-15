@@ -1,29 +1,376 @@
-﻿name: Release
+name: Release
 
 on:
   push:
     tags:
       - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (e.g., v1.0.0)'
+        required: true
+        type: string
+      prerelease:
+        description: 'Is this a pre-release?'
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: write
+  packages: write
+
+env:
+  GO_VERSION: '1.26.x'
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
 
 jobs:
-  release:
+  # ============================================================================
+  # Verify Release Prerequisites
+  # ============================================================================
+  verify:
+    name: Verify Prerequisites
     runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v4
-    - uses: actions/setup-go@v5
-      with:
-        go-version: '1.26.x'
+    timeout-minutes: 10
     
-    - name: Build binaries
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Set up Go ${{ env.GO_VERSION }}
+      uses: actions/setup-go@v5
+      with:
+        go-version: ${{ env.GO_VERSION }}
+        cache: true
+    
+    - name: Verify version
       run: |
-        GOOS=linux GOARCH=amd64 go build -o bin/otlp-go-linux-amd64 ./src
-        GOOS=darwin GOARCH=amd64 go build -o bin/otlp-go-darwin-amd64 ./src
-        GOOS=windows GOARCH=amd64 go build -o bin/otlp-go-windows-amd64.exe ./src
+        if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+          VERSION="${{ github.event.inputs.version }}"
+        else
+          VERSION=${GITHUB_REF#refs/tags/}
+        fi
+        
+        echo "Version: $VERSION"
+        
+        # Validate version format
+        if [[ ! $VERSION =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.-]+)?(\+[a-zA-Z0-9.-]+)?$ ]]; then
+          echo "::error::Invalid version format: $VERSION"
+          exit 1
+        fi
+        
+        echo "version=$VERSION" >> $GITHUB_ENV
+      shell: bash
+    
+    - name: Run tests
+      run: |
+        go test -race -count=1 ./pkg/...
+      shell: bash
+
+  # ============================================================================
+  # Build Binaries
+  # ============================================================================
+  build-binaries:
+    name: Build Binaries
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: verify
+    strategy:
+      matrix:
+        include:
+          - goos: linux
+            goarch: amd64
+          - goos: linux
+            goarch: arm64
+          - goos: linux
+            goarch: arm
+            goarm: 7
+          - goos: darwin
+            goarch: amd64
+          - goos: darwin
+            goarch: arm64
+          - goos: windows
+            goarch: amd64
+            extension: .exe
+          - goos: freebsd
+            goarch: amd64
+          - goos: openbsd
+            goarch: amd64
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Set up Go ${{ env.GO_VERSION }}
+      uses: actions/setup-go@v5
+      with:
+        go-version: ${{ env.GO_VERSION }}
+        cache: true
+    
+    - name: Build binary
+      env:
+        GOOS: ${{ matrix.goos }}
+        GOARCH: ${{ matrix.goarch }}
+        GOARM: ${{ matrix.goarm }}
+      run: |
+        VERSION=${GITHUB_REF#refs/tags/}
+        if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+          VERSION="${{ github.event.inputs.version }}"
+        fi
+        
+        OUTPUT="otlp-go-${{ matrix.goos }}-${{ matrix.goarch }}${{ matrix.extension }}"
+        
+        ldflags="-s -w -X main.Version=$VERSION -X main.BuildTime=$(date -u +%Y-%m-%dT%H:%M:%SZ) -X main.GitCommit=${{ github.sha }}"
+        
+        mkdir -p dist
+        
+        if [ -d "./src" ] && [ -f "./src/main.go" ]; then
+          go build -ldflags "$ldflags" -o "dist/$OUTPUT" ./src
+        else
+          # Build examples or pkg as library
+          echo "No main.go found, skipping binary build for $OUTPUT"
+          touch "dist/$OUTPUT"
+        fi
+        
+        # Create checksum
+        if [ -s "dist/$OUTPUT" ]; then
+          sha256sum "dist/$OUTPUT" > "dist/$OUTPUT.sha256"
+        fi
+      shell: bash
+    
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: binaries-${{ matrix.goos }}-${{ matrix.goarch }}
+        path: dist/*
+        retention-days: 1
+
+  # ============================================================================
+  # Build Docker Image
+  # ============================================================================
+  build-docker:
+    name: Build Docker Image
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: verify
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Set up QEMU
+      uses: docker/setup-qemu-action@v3
+    
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+    
+    - name: Log in to Container Registry
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ env.REGISTRY }}
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: Extract metadata
+      id: meta
+      uses: docker/metadata-action@v5
+      with:
+        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+        tags: |
+          type=ref,event=tag
+          type=semver,pattern={{version}}
+          type=semver,pattern={{major}}.{{minor}}
+          type=sha
+    
+    - name: Build and push
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        platforms: linux/amd64,linux/arm64
+        push: true
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+        build-args: |
+          GO_VERSION=${{ env.GO_VERSION }}
+
+  # ============================================================================
+  # Generate Release Notes
+  # ============================================================================
+  release-notes:
+    name: Generate Release Notes
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: verify
+    
+    outputs:
+      notes: ${{ steps.generate.outputs.notes }}
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    
+    - name: Generate notes
+      id: generate
+      run: |
+        VERSION=${GITHUB_REF#refs/tags/}
+        if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+          VERSION="${{ github.event.inputs.version }}"
+        fi
+        
+        # Get previous tag
+        PREV_TAG=$(git describe --tags --abbrev=0 HEAD~1 2>/dev/null || echo "")
+        
+        echo "## Changes in $VERSION" > release-notes.md
+        echo "" >> release-notes.md
+        
+        if [ -n "$PREV_TAG" ]; then
+          echo "**Full Changelog**: $PREV_TAG...$VERSION" >> release-notes.md
+          echo "" >> release-notes.md
+          
+          # List commits
+          echo "### Commits" >> release-notes.md
+          echo "" >> release-notes.md
+          git log --pretty=format:"- %s (%h)" $PREV_TAG..HEAD >> release-notes.md
+        else
+          echo "### Commits" >> release-notes.md
+          echo "" >> release-notes.md
+          git log --pretty=format:"- %s (%h)" -20 >> release-notes.md
+        fi
+        
+        # Add contributor info
+        echo "" >> release-notes.md
+        echo "### Contributors" >> release-notes.md
+        echo "" >> release-notes.md
+        if [ -n "$PREV_TAG" ]; then
+          git log --pretty=format:"%an" $PREV_TAG..HEAD | sort | uniq | sed 's/^/- /' >> release-notes.md
+        else
+          git log --pretty=format:"%an" -20 | sort | uniq | sed 's/^/- /' >> release-notes.md
+        fi
+        
+        cat release-notes.md
+        
+        # Set output (handle multiline)
+        {
+          echo 'notes<<EOF'
+          cat release-notes.md
+          echo 'EOF'
+        } >> $GITHUB_OUTPUT
+      shell: bash
+    
+    - name: Upload notes
+      uses: actions/upload-artifact@v4
+      with:
+        name: release-notes
+        path: release-notes.md
+        retention-days: 1
+
+  # ============================================================================
+  # Create Release
+  # ============================================================================
+  create-release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: [build-binaries, build-docker, release-notes]
+    
+    steps:
+    - name: Download all artifacts
+      uses: actions/download-artifact@v4
+      with:
+        path: artifacts
+        pattern: binaries-*
+        merge-multiple: true
+    
+    - name: Download release notes
+      uses: actions/download-artifact@v4
+      with:
+        name: release-notes
+        path: artifacts
+    
+    - name: Prepare release assets
+      run: |
+        mkdir -p release-assets
+        
+        # Copy all binaries
+        find artifacts -type f \( -name "otlp-go-*" -o -name "*.sha256" \) -exec cp {} release-assets/ \;
+        
+        # Copy release notes
+        cp artifacts/release-notes.md release-assets/ || true
+        
+        # List assets
+        ls -la release-assets/
+      shell: bash
     
     - name: Create Release
       uses: softprops/action-gh-release@v2
       with:
-        files: bin/*
+        name: ${{ github.ref_name }}${{ github.event.inputs.version && format(' ({0})', github.event.inputs.version) || '' }}
+        body_path: artifacts/release-notes.md
+        files: release-assets/*
+        prerelease: ${{ github.event.inputs.prerelease || false }}
         generate_release_notes: true
+        fail_on_unmatched_files: false
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # ============================================================================
+  # Publish to Go Module Proxy
+  # ============================================================================
+  publish-module:
+    name: Publish to Go Module Proxy
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: create-release
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Publish to proxy
+      run: |
+        VERSION=${GITHUB_REF#refs/tags/}
+        if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+          VERSION="${{ github.event.inputs.version }}"
+        fi
+        
+        # Trigger Go module proxy to cache the new version
+        GOPROXY=https://proxy.golang.org GO111MODULE=on \
+          go list -m github.com/${{ github.repository }}@$VERSION 2>&1 || true
+        
+        echo "Go module published (or will be shortly)"
+      shell: bash
+      continue-on-error: true
+
+  # ============================================================================
+  # Notify
+  # ============================================================================
+  notify:
+    name: Notify
+    runs-on: ubuntu-latest
+    needs: [create-release, publish-module]
+    if: always()
+    
+    steps:
+    - name: Summary
+      run: |
+        VERSION=${GITHUB_REF#refs/tags/}
+        if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+          VERSION="${{ github.event.inputs.version }}"
+        fi
+        
+        echo "# 🎉 Release Complete" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**Version:** $VERSION" >> $GITHUB_STEP_SUMMARY
+        echo "**Status:** ${{ needs.create-release.result == 'success' && '✅ Success' || '❌ Failed' }}" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**Artifacts:**" >> $GITHUB_STEP_SUMMARY
+        echo "- Binaries for multiple platforms" >> $GITHUB_STEP_SUMMARY
+        echo "- Docker images: \`${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:$VERSION\`" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**Release URL:** https://github.com/${{ github.repository }}/releases/tag/$VERSION" >> $GITHUB_STEP_SUMMARY
+      shell: bash

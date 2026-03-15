@@ -149,15 +149,15 @@ func (b *BatchSpanProcessorConfig) Validate() error {
 // DefaultTracerConfig returns the default tracer configuration.
 func DefaultTracerConfig() *TracerConfig {
 	return &TracerConfig{
-		BaseConfig:            *DefaultBaseConfig(),
-		SamplerType:           SamplerParentBased,
-		SamplingRatio:         1.0,
-		SpanProcessorType:     SpanProcessorBatch,
-		BatchConfig:           DefaultBatchSpanProcessorConfig(),
-		MaxEventsPerSpan:      128,
-		MaxAttributesPerSpan:  128,
-		MaxLinksPerSpan:       32,
-		Attributes:            make(map[string]interface{}),
+		BaseConfig:           *DefaultBaseConfig(),
+		SamplerType:          SamplerParentBased,
+		SamplingRatio:        1.0,
+		SpanProcessorType:    SpanProcessorBatch,
+		BatchConfig:          DefaultBatchSpanProcessorConfig(),
+		MaxEventsPerSpan:     128,
+		MaxAttributesPerSpan: 128,
+		MaxLinksPerSpan:      32,
+		Attributes:           make(map[string]interface{}),
 	}
 }
 

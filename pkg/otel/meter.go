@@ -14,18 +14,18 @@ import (
 
 // MeterWrapper 是对 OpenTelemetry Meter 的包装，提供更便捷的 API
 type MeterWrapper struct {
-	meter  metric.Meter
-	name   string
-	mu     sync.RWMutex
-	counters   map[string]metric.Int64Counter
-	upDownCounters map[string]metric.Int64UpDownCounter
-	histograms map[string]metric.Int64Histogram
-	floatCounters map[string]metric.Float64Counter
+	meter               metric.Meter
+	name                string
+	mu                  sync.RWMutex
+	counters            map[string]metric.Int64Counter
+	upDownCounters      map[string]metric.Int64UpDownCounter
+	histograms          map[string]metric.Int64Histogram
+	floatCounters       map[string]metric.Float64Counter
 	floatUpDownCounters map[string]metric.Float64UpDownCounter
-	floatHistograms map[string]metric.Float64Histogram
-	gauges     map[string]metric.Int64Gauge
-	floatGauges map[string]metric.Float64Gauge
-	observables map[string]metric.Registration
+	floatHistograms     map[string]metric.Float64Histogram
+	gauges              map[string]metric.Int64Gauge
+	floatGauges         map[string]metric.Float64Gauge
+	observables         map[string]metric.Registration
 }
 
 // NewMeterWrapper 创建一个新的 MeterWrapper

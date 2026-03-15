@@ -45,11 +45,99 @@ go work sync
 ```
 
 **模块组成：**
+
 - 1个核心 SDK (根目录)
 - 16个独立子包 (`pkg/*`) - 可单独发布
 - 16个完整示例 (`examples/*`)
 
 📖 详细文档: [WORKSPACE.md](WORKSPACE.md)
+
+---
+
+## 📦 使用方法
+
+### 快速开始 (Quickstart)
+
+最简单的方式使用 OTLP Go SDK:
+
+```go
+package main
+
+import (
+    "context"
+    "log"
+    "time"
+
+    "github.com/OTLP_go/pkg/otel"
+)
+
+func main() {
+    ctx := context.Background()
+
+    // 一键初始化 OpenTelemetry
+    sdk, err := otel.QuickSetup(ctx, "my-service")
+    if err != nil {
+        log.Fatal(err)
+    }
+    defer sdk.Shutdown(ctx)
+
+    // 使用 Tracer
+    tracer := sdk.Tracer("my-service")
+    ctx, span := tracer.Start(ctx, "my-operation")
+    defer span.End()
+
+    // 你的业务逻辑...
+}
+```
+
+**运行快速开始示例：**
+
+```bash
+cd examples/quickstart
+go mod download
+go run main.go
+```
+
+### 完整示例
+
+展示 SDK 所有功能的完整示例:
+
+```bash
+cd examples/complete
+go run main.go
+```
+
+这个示例包含:
+
+- ✅ OpenTelemetry 完整配置 (Traces + Metrics + Logs)
+- ✅ 资源检测与自定义属性
+- ✅ 错误处理与重试机制
+- ✅ 性能优化与对象池
+- ✅ 优雅关闭与信号处理
+
+### 主演示程序
+
+交互式的命令行演示程序:
+
+```bash
+# 运行基本演示
+go run ./cmd/otlp-demo
+
+# 指定 OTLP Collector 端点
+OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317 go run ./cmd/otlp-demo
+
+# 使用命令行参数
+go run ./cmd/otlp-demo --endpoint=http://localhost:4317 --workers=5 --duration=60s
+```
+
+**命令行参数:**
+
+| 参数 | 说明 | 默认值 |
+|------|------|--------|
+| `--endpoint` | OTLP Collector 端点 | `http://localhost:4317` |
+| `--service` | 服务名称 | `otlp-demo` |
+| `--duration` | 演示运行时长 | `30s` |
+| `--workers` | 并发工作线程数 | `3` |
 
 ---
 
@@ -79,45 +167,45 @@ go work sync
 
 ---
 
-## 🚀 快速开始
+## 🛠️ 开发工具链
 
-### 前置要求
+### 推荐IDE配置
 
-- **Go**: 1.25.1+
-- **Kubernetes**: 1.31+ （可选，用于生产部署）
-- **Docker**: 27+ （可选，用于容器化）
-- **操作系统**: Linux/WSL2 （eBPF部分需要）
+- **VSCode** + Go扩展
+- **GoLand** (JetBrains)
 
-### 30分钟快速入门
+### 代码质量工具
 
-1. **克隆项目**
-   ```bash
-   git clone <repository-url>
-   cd OTLP_go
-   ```
+```bash
+# 格式化
+gofmt -w .
 
-2. **阅读快速启动指南**
-   ```bash
-   # 查看快速启动文档
-   cat 标准深度梳理_2025_10/🚀_Go语言快速启动指南_eBPF_OTLP_集成.md
-   ```
+# 静态检查
+golangci-lint run
 
-3. **运行示例代码**
-   ```bash
-   # 进入示例目录
-   cd examples/otlp-basic
-   
-   # 安装依赖
-   go mod download
-   
-   # 运行示例
-   go run main.go
-   ```
+# 竞态检测
+go test -race ./...
 
-4. **部署OTLP Collector**（可选）
-   ```bash
-   kubectl apply -f kubernetes/otlp-collector/
-   ```
+# 覆盖率
+go test -coverprofile=coverage.out ./...
+go tool cover -html=coverage.out
+```
+
+### 本地开发环境
+
+```bash
+# 安装依赖
+go mod download
+
+# 运行测试
+go test ./...
+
+# 构建
+go build -o bin/myapp ./cmd/myapp
+
+# Docker构建
+docker build -t myapp:latest .
+```
 
 ---
 
@@ -137,24 +225,24 @@ go work sync
 
 ### 进阶路径（2-4周）
 
-3. **性能分析与优化** → [🔥 Go Profiling完整指南](标准深度梳理_2025_10/🔥_Go_Profiling完整指南_性能分析与优化.md)
+1. **性能分析与优化** → [🔥 Go Profiling完整指南](标准深度梳理_2025_10/🔥_Go_Profiling完整指南_性能分析与优化.md)
    - CPU/内存Profiling
    - Flame Graph解读
    - 性能优化实战
 
-4. **服务网格实战** → [🕸️ Go服务网格集成实战](标准深度梳理_2025_10/🕸️_Go服务网格集成实战_Istio_Linkerd_全面指南.md)
+2. **服务网格实战** → [🕸️ Go服务网格集成实战](标准深度梳理_2025_10/🕸️_Go服务网格集成实战_Istio_Linkerd_全面指南.md)
    - Istio深度集成
    - Linkerd实战
    - 流量管理与安全
 
 ### 高级路径（4-8周）
 
-5. **eBPF零侵入可观测性** → [🐝 Go + eBPF深度集成指南](标准深度梳理_2025_10/🐝_Go_eBPF深度集成指南_零侵入式可观测性.md)
+1. **eBPF零侵入可观测性** → [🐝 Go + eBPF深度集成指南](标准深度梳理_2025_10/🐝_Go_eBPF深度集成指南_零侵入式可观测性.md)
    - Go Runtime追踪
    - 微服务全链路追踪
    - eBPF Profiling
 
-6. **生产环境部署** → [🚀 Go生产环境部署运维指南](标准深度梳理_2025_10/🚀_Go生产环境部署运维指南_企业级实战.md)
+2. **生产环境部署** → [🚀 Go生产环境部署运维指南](标准深度梳理_2025_10/🚀_Go生产环境部署运维指南_企业级实战.md)
    - Kubernetes完整编排
    - 安全加固
    - CI/CD流水线
@@ -174,7 +262,8 @@ go work sync
 ### 技术覆盖
 
 #### Go语言核心
-- ✅ Go 1.25.1 最新特性
+
+- ✅ Go 1.26 最新特性
 - ✅ Goroutine（GMP调度模型）
 - ✅ Channel（CSP模式）
 - ✅ Context传播
@@ -183,6 +272,7 @@ go work sync
 - ✅ atomic 无锁编程
 
 #### 云原生生态
+
 - ✅ Kubernetes 1.31+ (Deployment、StatefulSet、DaemonSet)
 - ✅ Istio 1.24+ (服务网格)
 - ✅ Linkerd 2.16+ (轻量级网格)
@@ -190,12 +280,14 @@ go work sync
 - ✅ Docker 多阶段构建
 
 #### eBPF生态
+
 - ✅ cilium/ebpf (Go eBPF库)
 - ✅ bpf2go (代码生成)
 - ✅ kprobe/uprobe/tracepoint
 - ✅ Ring Buffer/Perf Event Array
 
 #### 可观测性
+
 - ✅ OpenTelemetry (Traces + Metrics + Logs + Profiles)
 - ✅ OTLP Collector
 - ✅ Jaeger (分布式追踪)
@@ -220,7 +312,7 @@ import (
 func handleRequest(ctx context.Context) {
     ctx, span := otel.Tracer("myapp").Start(ctx, "handleRequest")
     defer span.End()
-    
+
     // 业务逻辑...
 }
 ```
@@ -270,48 +362,6 @@ type ShardedCache struct {
 | RWMutex vs Mutex | **4x**（读多场景） | P1-2 第3章 |
 | Lock-Free Stack | **2.7x** | P1-2 第4章 |
 | Profile优化（订单服务） | **4x QPS, 5x延迟** | P0-3 第7章 |
-
----
-
-## 🛠️ 开发工具链
-
-### 推荐IDE配置
-
-- **VSCode** + Go扩展
-- **GoLand** (JetBrains)
-
-### 代码质量工具
-
-```bash
-# 格式化
-gofmt -w .
-
-# 静态检查
-golangci-lint run
-
-# 竞态检测
-go test -race ./...
-
-# 覆盖率
-go test -coverprofile=coverage.out ./...
-go tool cover -html=coverage.out
-```
-
-### 本地开发环境
-
-```bash
-# 安装依赖
-go mod download
-
-# 运行测试
-go test ./...
-
-# 构建
-go build -o bin/myapp ./cmd/myapp
-
-# Docker构建
-docker build -t myapp:latest .
-```
 
 ---
 
@@ -413,8 +463,8 @@ docker build -t myapp:latest .
 
 ---
 
-**最后更新**: 2025-10-17  
-**文档版本**: v1.0  
-**总行数**: 12,804行  
-**代码示例**: 108个  
+**最后更新**: 2025-10-17
+**文档版本**: v1.0
+**总行数**: 12,804行
+**代码示例**: 108个
 **维护者**: 平台工程团队

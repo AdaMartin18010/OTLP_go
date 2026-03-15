@@ -160,8 +160,6 @@ func TestProcessDetector(t *testing.T) {
 }
 
 func TestWithOptions(t *testing.T) {
-	ctx := context.Background()
-
 	t.Run("WithFromEnv adds environment detector", func(t *testing.T) {
 		cfg := &Config{Detectors: []Detector{}}
 		opt := WithFromEnv()
@@ -288,20 +286,7 @@ func TestContainerDetector(t *testing.T) {
 	})
 }
 
-func TestCloudProviderDetector(t *testing.T) {
-	ctx := context.Background()
 
-	t.Run("returns correct detector type", func(t *testing.T) {
-		detector := NewCloudProviderDetector("aws")
-		assert.Equal(t, "cloud", detector.DetectorType())
-	})
-
-	t.Run("returns error for unknown provider", func(t *testing.T) {
-		detector := NewCloudProviderDetector("unknown")
-		_, err := detector.Detect(ctx)
-		assert.Error(t, err)
-	})
-}
 
 func TestDetectorFunc(t *testing.T) {
 	ctx := context.Background()

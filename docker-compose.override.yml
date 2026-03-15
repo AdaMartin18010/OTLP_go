@@ -1,0 +1,22 @@
+# ============================================
+# Docker Compose Override for Local Development
+# 本地开发环境的默认覆盖配置
+# ============================================
+
+version: '3.8'
+
+services:
+  app:
+    build:
+      target: debug
+    ports:
+      - "8080:8080"
+      - "2345:2345"  # Delve debugger
+    environment:
+      - GO_ENV=development
+      - LOG_LEVEL=debug
+    volumes:
+      - ./src:/app/src:ro
+      - ./pkg:/app/pkg:ro
+      - ./configs:/app/configs:ro
+    command: ["dlv", "exec", "/app/server", "--headless", "--listen=:2345", "--api-version=2", "--accept-multiclient", "--continue"]

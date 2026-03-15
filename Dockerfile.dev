@@ -1,0 +1,127 @@
+# syntax=docker/dockerfile:1
+# OTLP Go - Development Dockerfile
+# 支持热重载、调试和快速开发迭代
+
+FROM golang:1.26-alpine
+
+# 安装开发依赖和工具
+RUN apk add --no-cache \
+    git \
+    ca-certificates \
+    curl \
+    wget \
+    vim \
+    jq \
+    make \
+    gcc \
+    g++ \
+    libc-dev \
+    bash \
+    htop \
+    inotify-tools
+
+# 安装 air（热重载工具）
+RUN go install github.com/air-verse/air@latest
+
+# 安装 delve（调试器）
+RUN go install github.com/go-delve/delve/cmd/dlv@latest
+
+# 安装 golangci-lint（代码检查）
+RUN wget -O- -nv https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b /usr/local/bin v1.61.0
+
+# 安装 goimports
+RUN go install golang.org/x/tools/cmd/goimports@latest
+
+# 设置工作目录
+WORKDIR /app
+
+# 创建非 root 用户用于开发
+RUN adduser -D -u 1000 devuser && \
+    chown -R devuser:devuser /app && \
+    chown -R devuser:devuser /go
+
+# 复制依赖文件（优化缓存）
+COPY --chown=devuser:devuser go.mod go.sum go.work go.work.sum ./
+COPY --chown=devuser:devuser pkg/ ./pkg/
+
+# 预下载依赖
+RUN go mod download && go work sync
+
+# 复制源代码
+COPY --chown=devuser:devuser src/ ./src/
+COPY --chown=devuser:devuser examples/ ./examples/
+COPY --chown=devuser:devuser configs/ ./configs/
+
+# 创建 air 配置文件
+RUN cat > /app/.air.toml << 'EOF'
+root = "."
+testdata_dir = "testdata"
+tmp_dir = "tmp"
+
+[build]
+args_bin = ["-dev"]
+bin = "./tmp/main"
+cmd = "go build -gcflags='all=-N -l' -o ./tmp/main ./src"
+delay = 1000
+exclude_dir = ["assets", "tmp", "vendor", "testdata", "bin", "build", "docs"]
+exclude_file = []
+exclude_regex = ["_test.go", "_templ.go"]
+exclude_unchanged = false
+follow_symlink = false
+full_bin = ""
+include_dir = []
+include_ext = ["go", "tpl", "tmpl", "html"]
+kill_delay = "0s"
+log = "build-errors.log"
+send_interrupt = false
+stop_on_root = false
+
+[color]
+app = ""
+build = "yellow"
+main = "magenta"
+runner = "green"
+watcher = "cyan"
+
+[log]
+time = false
+
+[misc]
+clean_on_exit = false
+
+[proxy]
+app_port = 0
+enabled = false
+proxy_port = 0
+
+[screen]
+clear_on_rebuild = false
+keep_scroll = true
+EOF
+
+# 设置环境变量
+ENV GO_ENV=development \
+    CGO_ENABLED=0 \
+    GOOS=linux \
+    GOPROXY=https://proxy.golang.org,direct \
+    GOSUMDB=sum.golang.org \
+    AIR_CONF=/app/.air.toml
+
+# 暴露应用端口和调试端口
+EXPOSE 8080
+EXPOSE 2345
+
+# 健康检查
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+    CMD wget --spider -q http://localhost:8080/health || exit 1
+
+# 切换到开发用户
+USER devuser
+
+# 默认命令：使用 air 进行热重载
+CMD ["air", "-c", "/app/.air.toml"]
+
+# 备用命令说明：
+# 调试模式: dlv debug ./src --headless --listen=:2345 --api-version=2 --accept-multiclient
+# 直接运行: go run ./src
+# 测试模式: go test -v ./...

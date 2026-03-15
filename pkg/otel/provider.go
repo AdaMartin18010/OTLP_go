@@ -254,7 +254,7 @@ func (s *SDK) setupPropagator() error {
 	}
 
 	s.Propagator = propagation.NewCompositeTextMapPropagator(propagatorList...)
-otel.SetTextMapPropagator(s.Propagator)
+	otel.SetTextMapPropagator(s.Propagator)
 
 	return nil
 }
