@@ -1,4 +1,4 @@
-﻿// Package performance provides advanced concurrency optimization patterns and utilities.
+// Package performance provides advanced concurrency optimization patterns and utilities.
 // This file focuses on high-performance concurrency patterns, lock-free data structures,
 // and advanced synchronization primitives for OTLP Go applications.
 package performance

@@ -1,4 +1,4 @@
-﻿// Package main demonstrates zero-allocation optimization techniques
+// Package main demonstrates zero-allocation optimization techniques
 package main
 
 import (

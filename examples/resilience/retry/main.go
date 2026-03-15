@@ -1,4 +1,4 @@
-﻿// Package main demonstrates retry mechanism with exponential backoff
+// Package main demonstrates retry mechanism with exponential backoff
 package main
 
 import (

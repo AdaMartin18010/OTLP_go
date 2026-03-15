@@ -30,7 +30,7 @@ func (e *ConsoleExporter) Export(ctx context.Context, records []*LogRecord) erro
 	e.mu.RUnlock()
 
 	for _, r := range records {
-		fmt.Printf("[%s] %-5s %s", 
+		fmt.Printf("[%s] %-5s %s",
 			r.Timestamp.Format("15:04:05.000"),
 			r.SeverityText,
 			r.Body)

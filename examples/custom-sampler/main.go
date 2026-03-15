@@ -1,4 +1,4 @@
-﻿// Package main demonstrates custom sampling strategies
+// Package main demonstrates custom sampling strategies
 package main
 
 import (
@@ -216,4 +216,3 @@ func simulateRequest(tracer trace.Tracer, requestID int) {
 		),
 	)
 }
-

@@ -1,4 +1,4 @@
-﻿// Package examples provides comprehensive usage examples for OTLP Go project.
+// Package examples provides comprehensive usage examples for OTLP Go project.
 // This file demonstrates basic usage patterns and best practices.
 package main
 

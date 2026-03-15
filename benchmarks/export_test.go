@@ -14,6 +14,83 @@ import (
 	semconv "go.opentelemetry.io/otel/semconv/v1.21.0"
 )
 
+// TestExportFunctionality tests basic export functionality
+func TestExportFunctionality(t *testing.T) {
+	tp := setupTracerProviderWithBatchSize(t, 100)
+	defer tp.Shutdown(context.Background())
+
+	tracer := otel.Tracer("test")
+	ctx := context.Background()
+
+	_, span := tracer.Start(ctx, "test-operation")
+	span.SetAttributes(attribute.String("key", "value"))
+	span.End()
+
+	// Force flush to ensure export
+	err := tp.ForceFlush(ctx)
+	if err != nil {
+		t.Errorf("ForceFlush failed: %v", err)
+	}
+}
+
+// TestBatchSizes tests different batch sizes
+func TestBatchSizes(t *testing.T) {
+	batchSizes := []int{1, 10, 100}
+
+	for _, size := range batchSizes {
+		t.Run(fmt.Sprintf("batch-%d", size), func(t *testing.T) {
+			tp := setupTracerProviderWithBatchSize(t, size)
+			defer tp.Shutdown(context.Background())
+
+			tracer := otel.Tracer("test")
+			ctx := context.Background()
+
+			// Create multiple spans
+			for i := 0; i < size*2; i++ {
+				_, span := tracer.Start(ctx, fmt.Sprintf("operation-%d", i))
+				span.End()
+			}
+
+			err := tp.ForceFlush(ctx)
+			if err != nil {
+				t.Errorf("ForceFlush failed: %v", err)
+			}
+		})
+	}
+}
+
+// setupTracerProviderWithBatchSizeT creates a tracer provider with custom batch size (for tests)
+func setupTracerProviderWithBatchSize(t testing.TB, batchSize int) *sdktrace.TracerProvider {
+	t.Helper()
+
+	exporter, err := stdouttrace.New(
+		stdouttrace.WithWriter(io.Discard),
+	)
+	if err != nil {
+		t.Fatalf("Failed to create exporter: %v", err)
+	}
+
+	res, err := resource.New(context.Background(),
+		resource.WithAttributes(
+			semconv.ServiceName("test"),
+		),
+	)
+	if err != nil {
+		t.Fatalf("Failed to create resource: %v", err)
+	}
+
+	tp := sdktrace.NewTracerProvider(
+		sdktrace.WithBatcher(exporter,
+			sdktrace.WithMaxExportBatchSize(batchSize),
+		),
+		sdktrace.WithResource(res),
+		sdktrace.WithSampler(sdktrace.AlwaysSample()),
+	)
+
+	otel.SetTracerProvider(tp)
+	return tp
+}
+
 // BenchmarkBatchExport benchmarks batch export with different batch sizes
 func BenchmarkBatchExport(b *testing.B) {
 	batchSizes := []int{100, 512, 1024, 2048}
@@ -164,37 +241,4 @@ func BenchmarkMemoryUsage(b *testing.B) {
 		span.AddEvent("event2")
 		span.End()
 	}
-}
-
-// setupTracerProviderWithBatchSize creates a tracer provider with custom batch size
-func setupTracerProviderWithBatchSize(b *testing.B, batchSize int) *sdktrace.TracerProvider {
-	b.Helper()
-
-	// Use stdout exporter that discards output for benchmarking
-	exporter, err := stdouttrace.New(
-		stdouttrace.WithWriter(io.Discard),
-	)
-	if err != nil {
-		b.Fatalf("Failed to create exporter: %v", err)
-	}
-
-	res, err := resource.New(context.Background(),
-		resource.WithAttributes(
-			semconv.ServiceName("benchmark"),
-		),
-	)
-	if err != nil {
-		b.Fatalf("Failed to create resource: %v", err)
-	}
-
-	tp := sdktrace.NewTracerProvider(
-		sdktrace.WithBatcher(exporter,
-			sdktrace.WithMaxExportBatchSize(batchSize),
-		),
-		sdktrace.WithResource(res),
-		sdktrace.WithSampler(sdktrace.AlwaysSample()),
-	)
-
-	otel.SetTracerProvider(tp)
-	return tp
 }

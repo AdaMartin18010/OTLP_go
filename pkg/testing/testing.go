@@ -1,4 +1,4 @@
-﻿// Package testing provides comprehensive testing utilities for OTLP Go applications.
+// Package testing provides comprehensive testing utilities for OTLP Go applications.
 // It includes test suites, mock services, integration testing tools, performance testing,
 // security testing, and various testing helpers for comprehensive test coverage.
 //

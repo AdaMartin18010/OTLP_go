@@ -15,12 +15,12 @@ import (
 type SeverityNumber int32
 
 const (
-	SeverityTrace  SeverityNumber = 1
-	SeverityDebug  SeverityNumber = 5
-	SeverityInfo   SeverityNumber = 9
-	SeverityWarn   SeverityNumber = 13
-	SeverityError  SeverityNumber = 17
-	SeverityFatal  SeverityNumber = 21
+	SeverityTrace SeverityNumber = 1
+	SeverityDebug SeverityNumber = 5
+	SeverityInfo  SeverityNumber = 9
+	SeverityWarn  SeverityNumber = 13
+	SeverityError SeverityNumber = 17
+	SeverityFatal SeverityNumber = 21
 )
 
 // String returns the string representation of severity

@@ -1,4 +1,4 @@
-﻿// Package main demonstrates the most basic OTLP tracing example
+// Package main demonstrates the most basic OTLP tracing example
 package main
 
 import (
@@ -188,4 +188,3 @@ func processData(ctx context.Context, tracer trace.Tracer) {
 
 	log.Println("Data processing completed")
 }
-

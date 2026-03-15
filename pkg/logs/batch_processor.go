@@ -14,11 +14,11 @@ type BatchProcessor struct {
 	flushInterval time.Duration
 	exportTimeout time.Duration
 
-	queue     []*LogRecord
-	mu        sync.Mutex
-	ticker    *time.Ticker
-	stopCh    chan struct{}
-	wg        sync.WaitGroup
+	queue  []*LogRecord
+	mu     sync.Mutex
+	ticker *time.Ticker
+	stopCh chan struct{}
+	wg     sync.WaitGroup
 }
 
 // BatchProcessorOptions configures the batch processor

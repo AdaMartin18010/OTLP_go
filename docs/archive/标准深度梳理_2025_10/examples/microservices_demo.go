@@ -1,4 +1,4 @@
-﻿// Package examples provides microservices demonstration for OTLP Go project.
+// Package examples provides microservices demonstration for OTLP Go project.
 // This file demonstrates microservices architecture with OpenTelemetry integration.
 package main
 

@@ -1,4 +1,4 @@
-﻿// Package constants provides common constants used across the OTLP SDK.
+// Package constants provides common constants used across the OTLP SDK.
 package constants
 
 import "time"

@@ -10,6 +10,86 @@ import (
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 )
 
+// TestSpanCreationBasic tests basic span creation
+func TestSpanCreationBasic(t *testing.T) {
+	tp := trace.NewTracerProvider(
+		trace.WithSpanProcessor(trace.NewSimpleSpanProcessor(&noopExporter{})),
+	)
+	defer tp.Shutdown(context.Background())
+
+	tracer := tp.Tracer("test")
+	ctx := context.Background()
+
+	_, span := tracer.Start(ctx, "test-operation")
+	if span == nil {
+		t.Error("Expected non-nil span")
+	}
+	span.End()
+}
+
+// TestSpanWithSampling tests span with sampling
+func TestSpanWithSampling(t *testing.T) {
+	tp := trace.NewTracerProvider(
+		trace.WithSpanProcessor(trace.NewBatchSpanProcessor(&noopExporter{})),
+		trace.WithSampler(trace.TraceIDRatioBased(0.5)),
+	)
+	defer tp.Shutdown(context.Background())
+
+	tracer := tp.Tracer("test")
+	ctx := context.Background()
+
+	for i := 0; i < 10; i++ {
+		_, span := tracer.Start(ctx, "test-operation")
+		span.End()
+	}
+}
+
+// TestSpanAttributes tests span attributes
+func TestSpanAttributes(t *testing.T) {
+	tp := trace.NewTracerProvider(
+		trace.WithSpanProcessor(trace.NewBatchSpanProcessor(&noopExporter{})),
+	)
+	defer tp.Shutdown(context.Background())
+
+	tracer := tp.Tracer("test")
+	ctx := context.Background()
+
+	_, span := tracer.Start(ctx, "test-operation")
+	span.SetAttributes(
+		attribute.String("http.method", "GET"),
+		attribute.String("http.url", "/api/test"),
+		attribute.Int("http.status_code", 200),
+	)
+	span.End()
+}
+
+// TestNestedSpanCreation tests nested spans
+func TestNestedSpanCreation(t *testing.T) {
+	tp := trace.NewTracerProvider()
+	defer tp.Shutdown(context.Background())
+
+	tracer := tp.Tracer("test")
+	ctx := context.Background()
+
+	ctx1, span1 := tracer.Start(ctx, "level-1")
+	ctx2, span2 := tracer.Start(ctx1, "level-2")
+	_, span3 := tracer.Start(ctx2, "level-3")
+	span3.End()
+	span2.End()
+	span1.End()
+}
+
+// noopExporter is a no-op exporter for testing
+type noopExporter struct{}
+
+func (e *noopExporter) ExportSpans(ctx context.Context, spans []sdktrace.ReadOnlySpan) error {
+	return nil
+}
+
+func (e *noopExporter) Shutdown(ctx context.Context) error {
+	return nil
+}
+
 // BenchmarkSpanCreation Span 创建基准测试
 func BenchmarkSpanCreation(b *testing.B) {
 	ctx := context.Background()
@@ -310,17 +390,6 @@ func processNoContext() {
 
 func processWithContext(ctx context.Context) {
 	_ = ctx
-}
-
-// noopExporter 测试用的空 Exporter
-type noopExporter struct{}
-
-func (e *noopExporter) ExportSpans(ctx context.Context, spans []sdktrace.ReadOnlySpan) error {
-	return nil
-}
-
-func (e *noopExporter) Shutdown(ctx context.Context) error {
-	return nil
 }
 
 // BenchmarkWorkerPool Worker Pool 基准测试

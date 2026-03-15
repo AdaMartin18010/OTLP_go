@@ -1,4 +1,4 @@
-﻿// Package main demonstrates a complete distributed tracing example
+// Package main demonstrates a complete distributed tracing example
 package main
 
 import (
@@ -286,4 +286,3 @@ func initTracerProvider(serviceName string) (*sdktrace.TracerProvider, error) {
 
 	return tp, nil
 }
-

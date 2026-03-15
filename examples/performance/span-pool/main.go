@@ -1,4 +1,4 @@
-﻿// Package main demonstrates Span pooling for zero-allocation optimization
+// Package main demonstrates Span pooling for zero-allocation optimization
 package main
 
 import (

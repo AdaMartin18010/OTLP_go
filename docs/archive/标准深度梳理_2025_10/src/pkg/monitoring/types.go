@@ -85,15 +85,15 @@ type Alert struct {
 
 // DashboardConfig 仪表板配置
 type DashboardConfig struct {
-	Port        int               `json:"port"`        // 端口
-	Title       string            `json:"title"`       // 标题
-	Description string            `json:"description"` // 描述
-	RefreshRate time.Duration     `json:"refresh_rate"` // 刷新率
-	Theme       string            `json:"theme"`       // 主题
-	Layout      string            `json:"layout"`      // 布局
-	Widgets     []WidgetConfig    `json:"widgets"`     // 组件配置
-	Enabled     bool              `json:"enabled"`     // 是否启用
-	Auth        DashboardAuth     `json:"auth"`        // 认证配置
+	Port        int            `json:"port"`         // 端口
+	Title       string         `json:"title"`        // 标题
+	Description string         `json:"description"`  // 描述
+	RefreshRate time.Duration  `json:"refresh_rate"` // 刷新率
+	Theme       string         `json:"theme"`        // 主题
+	Layout      string         `json:"layout"`       // 布局
+	Widgets     []WidgetConfig `json:"widgets"`      // 组件配置
+	Enabled     bool           `json:"enabled"`      // 是否启用
+	Auth        DashboardAuth  `json:"auth"`         // 认证配置
 }
 
 // DashboardAuth 仪表板认证配置
@@ -105,14 +105,14 @@ type DashboardAuth struct {
 
 // WidgetConfig 组件配置
 type WidgetConfig struct {
-	ID          string            `json:"id"`          // 组件ID
-	Type        string            `json:"type"`        // 组件类型
-	Title       string            `json:"title"`       // 标题
-	Description string            `json:"description"` // 描述
-	Position    WidgetPosition    `json:"position"`    // 位置
-	Size        WidgetSize        `json:"size"`        // 大小
-	Config      map[string]interface{} `json:"config"`  // 配置
-	Enabled     bool              `json:"enabled"`     // 是否启用
+	ID          string                 `json:"id"`          // 组件ID
+	Type        string                 `json:"type"`        // 组件类型
+	Title       string                 `json:"title"`       // 标题
+	Description string                 `json:"description"` // 描述
+	Position    WidgetPosition         `json:"position"`    // 位置
+	Size        WidgetSize             `json:"size"`        // 大小
+	Config      map[string]interface{} `json:"config"`      // 配置
+	Enabled     bool                   `json:"enabled"`     // 是否启用
 }
 
 // WidgetPosition 组件位置
@@ -129,52 +129,52 @@ type WidgetSize struct {
 
 // DashboardData 仪表板数据
 type DashboardData struct {
-	Title       string                 `json:"title"`       // 标题
-	Description string                 `json:"description"` // 描述
-	Timestamp   time.Time              `json:"timestamp"`   // 时间戳
-	Metrics     map[string][]MetricValue `json:"metrics"`   // 指标数据
-	Alerts      []*Alert               `json:"alerts"`      // 告警数据
-	Widgets     []WidgetData           `json:"widgets"`     // 组件数据
-	Stats       DashboardStats         `json:"stats"`       // 统计信息
+	Title       string                   `json:"title"`       // 标题
+	Description string                   `json:"description"` // 描述
+	Timestamp   time.Time                `json:"timestamp"`   // 时间戳
+	Metrics     map[string][]MetricValue `json:"metrics"`     // 指标数据
+	Alerts      []*Alert                 `json:"alerts"`      // 告警数据
+	Widgets     []WidgetData             `json:"widgets"`     // 组件数据
+	Stats       DashboardStats           `json:"stats"`       // 统计信息
 }
 
 // WidgetData 组件数据
 type WidgetData struct {
-	ID          string                 `json:"id"`          // 组件ID
-	Type        string                 `json:"type"`        // 组件类型
-	Title       string                 `json:"title"`       // 标题
-	Data        map[string]interface{} `json:"data"`       // 数据
+	ID          string                 `json:"id"`           // 组件ID
+	Type        string                 `json:"type"`         // 组件类型
+	Title       string                 `json:"title"`        // 标题
+	Data        map[string]interface{} `json:"data"`         // 数据
 	LastUpdated time.Time              `json:"last_updated"` // 最后更新时间
-	Status      string                 `json:"status"`      // 状态
+	Status      string                 `json:"status"`       // 状态
 }
 
 // DashboardStats 仪表板统计信息
 type DashboardStats struct {
-	TotalMetrics    int `json:"total_metrics"`    // 总指标数
-	ActiveAlerts    int `json:"active_alerts"`    // 活跃告警数
-	TotalAlerts     int `json:"total_alerts"`     // 总告警数
-	WidgetsCount    int `json:"widgets_count"`    // 组件数量
-	LastUpdateTime  time.Time `json:"last_update_time"` // 最后更新时间
+	TotalMetrics   int       `json:"total_metrics"`    // 总指标数
+	ActiveAlerts   int       `json:"active_alerts"`    // 活跃告警数
+	TotalAlerts    int       `json:"total_alerts"`     // 总告警数
+	WidgetsCount   int       `json:"widgets_count"`    // 组件数量
+	LastUpdateTime time.Time `json:"last_update_time"` // 最后更新时间
 }
 
 // MonitoringConfig 监控配置
 type MonitoringConfig struct {
-	Enabled     bool              `json:"enabled"`     // 是否启用监控
-	Interval    time.Duration     `json:"interval"`    // 收集间隔
-	Dashboard   DashboardConfig   `json:"dashboard"`   // 仪表板配置
-	Collectors  []MetricConfig   `json:"collectors"`  // 收集器配置
-	AlertRules  []AlertRule       `json:"alert_rules"` // 告警规则配置
-	Retention   time.Duration     `json:"retention"`   // 数据保留时间
-	Labels      map[string]string `json:"labels"`      // 全局标签
+	Enabled    bool              `json:"enabled"`     // 是否启用监控
+	Interval   time.Duration     `json:"interval"`    // 收集间隔
+	Dashboard  DashboardConfig   `json:"dashboard"`   // 仪表板配置
+	Collectors []MetricConfig    `json:"collectors"`  // 收集器配置
+	AlertRules []AlertRule       `json:"alert_rules"` // 告警规则配置
+	Retention  time.Duration     `json:"retention"`   // 数据保留时间
+	Labels     map[string]string `json:"labels"`      // 全局标签
 }
 
 // MonitoringStats 监控统计信息
 type MonitoringStats struct {
-	StartTime        time.Time `json:"start_time"`        // 启动时间
-	LastUpdateTime   time.Time `json:"last_update_time"`  // 最后更新时间
-	MetricsCollected int64     `json:"metrics_collected"` // 收集的指标数
-	AlertsGenerated  int64     `json:"alerts_generated"` // 生成的告警数
-	AlertsResolved   int64     `json:"alerts_resolved"`  // 解决的告警数
-	ErrorsCount      int64     `json:"errors_count"`      // 错误数
-	Uptime           time.Duration `json:"uptime"`       // 运行时间
+	StartTime        time.Time     `json:"start_time"`        // 启动时间
+	LastUpdateTime   time.Time     `json:"last_update_time"`  // 最后更新时间
+	MetricsCollected int64         `json:"metrics_collected"` // 收集的指标数
+	AlertsGenerated  int64         `json:"alerts_generated"`  // 生成的告警数
+	AlertsResolved   int64         `json:"alerts_resolved"`   // 解决的告警数
+	ErrorsCount      int64         `json:"errors_count"`      // 错误数
+	Uptime           time.Duration `json:"uptime"`            // 运行时间
 }

@@ -12,6 +12,123 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
+// TestSpanCreation tests basic span creation
+func TestSpanCreation(t *testing.T) {
+	tp := setupTracerProvider(t)
+	defer tp.Shutdown(context.Background())
+
+	tracer := otel.Tracer("test")
+	ctx := context.Background()
+
+	_, span := tracer.Start(ctx, "test-operation")
+	if span == nil {
+		t.Error("Expected non-nil span")
+	}
+	span.End()
+}
+
+// TestSpanWithAttributes tests span with attributes
+func TestSpanWithAttributes(t *testing.T) {
+	tp := setupTracerProvider(t)
+	defer tp.Shutdown(context.Background())
+
+	tracer := otel.Tracer("test")
+	ctx := context.Background()
+
+	_, span := tracer.Start(ctx, "test-operation",
+		trace.WithAttributes(
+			attribute.String("key1", "value1"),
+			attribute.Int("key2", 42),
+		),
+	)
+	span.End()
+}
+
+// TestNestedSpans tests nested span creation
+func TestNestedSpans(t *testing.T) {
+	tp := setupTracerProvider(t)
+	defer tp.Shutdown(context.Background())
+
+	tracer := otel.Tracer("test")
+	ctx := context.Background()
+
+	ctx1, span1 := tracer.Start(ctx, "parent")
+	ctx2, span2 := tracer.Start(ctx1, "child1")
+	_, span3 := tracer.Start(ctx2, "child2")
+	span3.End()
+	span2.End()
+	span1.End()
+}
+
+// TestSpanSampling tests different sampling rates
+func TestSpanSampling(t *testing.T) {
+	samplers := []struct {
+		name    string
+		sampler sdktrace.Sampler
+	}{
+		{"AlwaysSample", sdktrace.AlwaysSample()},
+		{"NeverSample", sdktrace.NeverSample()},
+		{"TraceIDRatio_50%", sdktrace.TraceIDRatioBased(0.5)},
+	}
+
+	for _, s := range samplers {
+		t.Run(s.name, func(t *testing.T) {
+			tp := setupTracerProviderWithSampler(t, s.sampler)
+			defer tp.Shutdown(context.Background())
+
+			tracer := otel.Tracer("test")
+			ctx := context.Background()
+
+			_, span := tracer.Start(ctx, "test-operation")
+			span.End()
+		})
+	}
+}
+
+// setupTracerProvider creates a tracer provider for testing
+func setupTracerProvider(t testing.TB) *sdktrace.TracerProvider {
+	t.Helper()
+
+	res, err := resource.New(context.Background(),
+		resource.WithAttributes(
+			semconv.ServiceName("test"),
+		),
+	)
+	if err != nil {
+		t.Fatalf("Failed to create resource: %v", err)
+	}
+
+	tp := sdktrace.NewTracerProvider(
+		sdktrace.WithResource(res),
+		sdktrace.WithSampler(sdktrace.AlwaysSample()),
+	)
+
+	otel.SetTracerProvider(tp)
+	return tp
+}
+
+// setupTracerProviderWithSampler creates a tracer provider with custom sampler
+func setupTracerProviderWithSampler(t testing.TB, sampler sdktrace.Sampler) *sdktrace.TracerProvider {
+	t.Helper()
+
+	res, err := resource.New(context.Background(),
+		resource.WithAttributes(
+			semconv.ServiceName("test"),
+		),
+	)
+	if err != nil {
+		t.Fatalf("Failed to create resource: %v", err)
+	}
+
+	tp := sdktrace.NewTracerProvider(
+		sdktrace.WithResource(res),
+		sdktrace.WithSampler(sampler),
+	)
+
+	otel.SetTracerProvider(tp)
+	return tp
+}
+
 // BenchmarkSpanCreation benchmarks basic span creation
 func BenchmarkSpanCreation(b *testing.B) {
 	tp := setupTracerProvider(b)
@@ -165,49 +282,4 @@ func BenchmarkSpanWithSampling(b *testing.B) {
 			}
 		})
 	}
-}
-
-// setupTracerProvider creates a tracer provider for benchmarking
-func setupTracerProvider(b *testing.B) *sdktrace.TracerProvider {
-	b.Helper()
-
-	res, err := resource.New(context.Background(),
-		resource.WithAttributes(
-			semconv.ServiceName("benchmark"),
-		),
-	)
-	if err != nil {
-		b.Fatalf("Failed to create resource: %v", err)
-	}
-
-	// Use a no-op exporter for pure span creation benchmarks
-	tp := sdktrace.NewTracerProvider(
-		sdktrace.WithResource(res),
-		sdktrace.WithSampler(sdktrace.AlwaysSample()),
-	)
-
-	otel.SetTracerProvider(tp)
-	return tp
-}
-
-// setupTracerProviderWithSampler creates a tracer provider with custom sampler
-func setupTracerProviderWithSampler(b *testing.B, sampler sdktrace.Sampler) *sdktrace.TracerProvider {
-	b.Helper()
-
-	res, err := resource.New(context.Background(),
-		resource.WithAttributes(
-			semconv.ServiceName("benchmark"),
-		),
-	)
-	if err != nil {
-		b.Fatalf("Failed to create resource: %v", err)
-	}
-
-	tp := sdktrace.NewTracerProvider(
-		sdktrace.WithResource(res),
-		sdktrace.WithSampler(sampler),
-	)
-
-	otel.SetTracerProvider(tp)
-	return tp
 }

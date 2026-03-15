@@ -1,4 +1,4 @@
-﻿// Package main demonstrates custom span processor implementation
+// Package main demonstrates custom span processor implementation
 package main
 
 import (

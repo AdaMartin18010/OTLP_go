@@ -1,4 +1,4 @@
-﻿// Package performance provides performance optimization utilities for OTLP Go applications.
+// Package performance provides performance optimization utilities for OTLP Go applications.
 // It includes memory allocation optimization, concurrency patterns, string operations,
 // object pooling, benchmarking, and performance monitoring capabilities.
 package performance

@@ -1,4 +1,4 @@
-﻿// Package main demonstrates OTLP metrics collection
+// Package main demonstrates OTLP metrics collection
 package main
 
 import (

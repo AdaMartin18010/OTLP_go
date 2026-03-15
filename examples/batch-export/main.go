@@ -1,4 +1,4 @@
-﻿// Package main demonstrates batch export optimization
+// Package main demonstrates batch export optimization
 package main
 
 import (

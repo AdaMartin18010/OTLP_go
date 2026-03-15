@@ -1,4 +1,4 @@
-﻿// Package main demonstrates circuit breaker pattern for fault tolerance
+// Package main demonstrates circuit breaker pattern for fault tolerance
 package main
 
 import (
