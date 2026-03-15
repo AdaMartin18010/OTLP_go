@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"sync"
+	"sync/atomic"
 )
 
 var (
@@ -237,6 +238,12 @@ func (f *FanOut[T]) Shutdown(ctx context.Context) error {
 		close(f.stopCh)
 		close(f.input)
 	})
+
+	// If workers were never started, close doneCh here
+	if !f.started.Load() {
+		close(f.doneCh)
+		return nil
+	}
 
 	select {
 	case <-f.doneCh:

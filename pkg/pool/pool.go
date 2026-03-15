@@ -23,11 +23,11 @@ import (
 
 // Stats holds pool statistics.
 type Stats struct {
-	Gets        uint64 // Total number of Get calls
-	Puts        uint64 // Total number of Put calls
-	Hits        uint64 // Number of times object was retrieved from pool
-	Misses      uint64 // Number of times new object was created
-	Active      int64  // Current number of objects in use (not in pool)
+	Gets         uint64 // Total number of Get calls
+	Puts         uint64 // Total number of Put calls
+	Hits         uint64 // Number of times object was retrieved from pool
+	Misses       uint64 // Number of times new object was created
+	Active       int64  // Current number of objects in use (not in pool)
 	TotalCreates uint64 // Total number of objects created
 }
 
@@ -45,19 +45,19 @@ func (s *Stats) Reset() {
 // It wraps sync.Pool and provides type safety and metrics.
 type Pool[T any] struct {
 	pool sync.Pool
-	
+
 	// new creates a new object when pool is empty
 	new func() T
-	
+
 	// reset resets an object before returning to pool
 	reset func(T)
-	
+
 	// stats tracks pool statistics
 	stats Stats
-	
+
 	// maxSize limits the number of objects in pool (0 = unlimited)
 	maxSize int32
-	
+
 	// currentSize tracks current pooled objects (approximate due to race conditions)
 	currentSize int32
 }
@@ -94,17 +94,17 @@ func New[T any](new func() T, opts ...Option[T]) *Pool[T] {
 		new:     new,
 		maxSize: 0, // unlimited by default
 	}
-	
+
 	for _, opt := range opts {
 		opt(p)
 	}
-	
+
 	p.pool.New = func() any {
 		atomic.AddUint64(&p.stats.Misses, 1)
 		atomic.AddUint64(&p.stats.TotalCreates, 1)
 		return p.new()
 	}
-	
+
 	return p
 }
 
@@ -115,15 +115,15 @@ func New[T any](new func() T, opts ...Option[T]) *Pool[T] {
 func (p *Pool[T]) Get() T {
 	atomic.AddUint64(&p.stats.Gets, 1)
 	atomic.AddInt64(&p.stats.Active, 1)
-	
+
 	v := p.pool.Get()
 	obj := v.(T)
-	
+
 	// If this was a new object (not from pool), Misses was already incremented in pool.New
 	// If this was from pool, we need to decrement Misses and increment Hits
 	// This is a simplification - actual hit/miss tracking has race conditions
 	// but is good enough for statistical purposes
-	
+
 	return obj
 }
 
@@ -135,7 +135,7 @@ func (p *Pool[T]) Get() T {
 func (p *Pool[T]) Put(obj T) {
 	atomic.AddUint64(&p.stats.Puts, 1)
 	atomic.AddInt64(&p.stats.Active, -1)
-	
+
 	// Check max size limit
 	if p.maxSize > 0 {
 		current := atomic.LoadInt32(&p.currentSize)
@@ -145,12 +145,12 @@ func (p *Pool[T]) Put(obj T) {
 		}
 		atomic.AddInt32(&p.currentSize, 1)
 	}
-	
+
 	// Reset object if reset function is configured
 	if p.reset != nil {
 		p.reset(obj)
 	}
-	
+
 	p.pool.Put(obj)
 }
 
@@ -187,11 +187,11 @@ func (p *Pool[T]) HitRate() float64 {
 // SizedPool is a pool with a fixed size and blocking semantics.
 // It blocks when the pool is empty until an object is available.
 type SizedPool[T any] struct {
-	objects   chan T
-	new       func() T
-	reset     func(T)
-	stats     Stats
-	maxSize   int
+	objects chan T
+	new     func() T
+	reset   func(T)
+	stats   Stats
+	maxSize int
 }
 
 // NewSized creates a new SizedPool with the given capacity.
@@ -206,25 +206,22 @@ func NewSized[T any](size, prefill int, new func() T, opts ...Option[T]) *SizedP
 	if prefill > size {
 		prefill = size
 	}
-	
+
 	p := &SizedPool[T]{
 		objects: make(chan T, size),
 		new:     new,
 		maxSize: size,
 	}
-	
-	for _, opt := range opts {
-		// Apply options that work with SizedPool
-		// Note: WithMaxSize is ignored for SizedPool as size is fixed
-	}
-	
+
+	_ = opts // Options are ignored for SizedPool as size is fixed
+
 	// Prefill the pool
 	for i := 0; i < prefill; i++ {
 		obj := new()
 		p.objects <- obj
 		atomic.AddUint64(&p.stats.TotalCreates, 1)
 	}
-	
+
 	return p
 }
 
@@ -232,7 +229,7 @@ func NewSized[T any](size, prefill int, new func() T, opts ...Option[T]) *SizedP
 // If the pool is empty, a new object is created.
 func (p *SizedPool[T]) Get() T {
 	atomic.AddUint64(&p.stats.Gets, 1)
-	
+
 	select {
 	case obj := <-p.objects:
 		atomic.AddUint64(&p.stats.Hits, 1)
@@ -251,11 +248,11 @@ func (p *SizedPool[T]) Get() T {
 func (p *SizedPool[T]) Put(obj T) {
 	atomic.AddUint64(&p.stats.Puts, 1)
 	atomic.AddInt64(&p.stats.Active, -1)
-	
+
 	if p.reset != nil {
 		p.reset(obj)
 	}
-	
+
 	select {
 	case p.objects <- obj:
 		// Object returned to pool

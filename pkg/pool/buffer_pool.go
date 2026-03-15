@@ -20,14 +20,14 @@ const MaxBufferSize = 1024 * 1024 // 1MB
 //	bp := pool.NewBufferPool(100, DefaultBufferSize)
 //	buf := bp.Get()
 //	defer bp.Put(buf)
-//	
+//
 //	// Use buffer
 //	buf.WriteString("hello world")
 //	data := buf.Bytes()
 type BufferPool struct {
-	pool      *Pool[*bytes.Buffer]
-	poolSize  int32
-	bufSize   int
+	pool     *Pool[*bytes.Buffer]
+	poolSize int32
+	bufSize  int
 }
 
 // NewBufferPool creates a new BufferPool.
@@ -43,17 +43,17 @@ func NewBufferPool(maxSize int32, bufSize int) *BufferPool {
 	if bufSize <= 0 {
 		bufSize = DefaultBufferSize
 	}
-	
+
 	bp := &BufferPool{
 		poolSize: maxSize,
 		bufSize:  bufSize,
 	}
-	
+
 	bp.pool = New(
 		func() *bytes.Buffer {
 			return bytes.NewBuffer(make([]byte, 0, bufSize))
 		},
-		WithMaxSize(maxSize),
+		WithMaxSize[*bytes.Buffer](maxSize),
 		WithReset(func(b *bytes.Buffer) {
 			if b.Cap() > MaxBufferSize {
 				// Discard oversized buffers
@@ -62,7 +62,7 @@ func NewBufferPool(maxSize int32, bufSize int) *BufferPool {
 			b.Reset()
 		}),
 	)
-	
+
 	return bp
 }
 
@@ -78,12 +78,12 @@ func (bp *BufferPool) Put(buf *bytes.Buffer) {
 	if buf == nil {
 		return
 	}
-	
+
 	// Discard oversized buffers to prevent memory bloat
 	if buf.Cap() > MaxBufferSize {
 		return
 	}
-	
+
 	bp.pool.Put(buf)
 }
 
@@ -119,8 +119,8 @@ func PutBuffer(buf *bytes.Buffer) {
 // SizedBufferPool is a buffer pool with a fixed maximum size.
 // When the pool is empty, Get() blocks until a buffer is available.
 type SizedBufferPool struct {
-	pool     *SizedPool[*bytes.Buffer]
-	bufSize  int
+	pool    *SizedPool[*bytes.Buffer]
+	bufSize int
 }
 
 // NewSizedBufferPool creates a new SizedBufferPool.
@@ -133,7 +133,7 @@ func NewSizedBufferPool(size, prefill, bufSize int) *SizedBufferPool {
 	if bufSize <= 0 {
 		bufSize = DefaultBufferSize
 	}
-	
+
 	return &SizedBufferPool{
 		pool: NewSized(
 			size,
@@ -156,11 +156,11 @@ func (sbp *SizedBufferPool) Put(buf *bytes.Buffer) {
 	if buf == nil {
 		return
 	}
-	
+
 	if buf.Cap() > MaxBufferSize {
 		return
 	}
-	
+
 	buf.Reset()
 	sbp.pool.Put(buf)
 }

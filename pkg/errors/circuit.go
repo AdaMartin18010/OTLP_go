@@ -73,14 +73,14 @@ func DefaultConfig() Config {
 // CircuitBreaker implements the circuit breaker pattern.
 type CircuitBreaker struct {
 	config Config
-	
+
 	// State
-	state      atomic.Int32
-	failures   atomic.Uint32
-	successes  atomic.Uint32
-	halfOpenCalls atomic.Uint32
+	state           atomic.Int32
+	failures        atomic.Uint32
+	successes       atomic.Uint32
+	halfOpenCalls   atomic.Uint32
 	lastFailureTime atomic.Int64 // Unix nano
-	
+
 	mu sync.RWMutex
 }
 
@@ -122,24 +122,24 @@ func (cb *CircuitBreaker) Successes() uint32 {
 // Allow checks if a request is allowed to pass through.
 func (cb *CircuitBreaker) Allow() error {
 	state := cb.State()
-	
+
 	switch state {
 	case StateClosed:
 		return nil
-		
+
 	case StateOpen:
 		// Check if we should transition to half-open
 		lastFailure := time.Unix(0, cb.lastFailureTime.Load())
 		if time.Since(lastFailure) > cb.config.ResetTimeout {
 			if cb.transitionTo(StateHalfOpen) {
-				cb.halfOpenCalls.Store(0)
+				cb.halfOpenCalls.Store(1) // First call is being counted
 				cb.failures.Store(0)
 				cb.successes.Store(0)
 			}
 			return nil
 		}
 		return fmt.Errorf("%w: circuit has been open since %v", ErrCircuitOpen, lastFailure)
-		
+
 	case StateHalfOpen:
 		calls := cb.halfOpenCalls.Add(1)
 		if calls > cb.config.HalfOpenMaxCalls {
@@ -148,22 +148,22 @@ func (cb *CircuitBreaker) Allow() error {
 		}
 		return nil
 	}
-	
+
 	return nil
 }
 
 // RecordSuccess records a successful call.
 func (cb *CircuitBreaker) RecordSuccess() {
 	state := cb.State()
-	
+
 	switch state {
 	case StateClosed:
 		cb.failures.Store(0)
-		
+
 	case StateHalfOpen:
 		successes := cb.successes.Add(1)
 		cb.failures.Store(0)
-		
+
 		if successes >= cb.config.SuccessThreshold {
 			cb.transitionTo(StateClosed)
 			cb.halfOpenCalls.Store(0)
@@ -176,16 +176,16 @@ func (cb *CircuitBreaker) RecordSuccess() {
 func (cb *CircuitBreaker) RecordFailure() {
 	cb.lastFailureTime.Store(time.Now().UnixNano())
 	state := cb.State()
-	
+
 	switch state {
 	case StateClosed:
 		cb.successes.Store(0)
 		failures := cb.failures.Add(1)
-		
+
 		if failures >= cb.config.MaxFailures {
 			cb.transitionTo(StateOpen)
 		}
-		
+
 	case StateHalfOpen:
 		cb.transitionTo(StateOpen)
 		cb.halfOpenCalls.Store(0)
@@ -216,7 +216,7 @@ func (cb *CircuitBreaker) Execute(fn func() error) error {
 	if err := cb.Allow(); err != nil {
 		return err
 	}
-	
+
 	err := fn()
 	cb.RecordResult(err)
 	return err
@@ -227,7 +227,7 @@ func (cb *CircuitBreaker) ExecuteWithContext(ctx context.Context, fn func(contex
 	if err := cb.Allow(); err != nil {
 		return err
 	}
-	
+
 	err := fn(ctx)
 	cb.RecordResult(err)
 	return err
@@ -240,7 +240,7 @@ func (cb *CircuitBreaker) transitionTo(newState State) bool {
 	if oldState == newState {
 		return false
 	}
-	
+
 	if cb.state.CompareAndSwap(int32(oldState), int32(newState)) {
 		if cb.config.OnStateChange != nil {
 			cb.config.OnStateChange(oldState, newState)
@@ -262,9 +262,9 @@ func (cb *CircuitBreaker) Reset() {
 // Metrics returns current metrics for the circuit breaker.
 func (cb *CircuitBreaker) Metrics() CircuitBreakerMetrics {
 	return CircuitBreakerMetrics{
-		State:      cb.State(),
-		Failures:   cb.Failures(),
-		Successes:  cb.Successes(),
+		State:       cb.State(),
+		Failures:    cb.Failures(),
+		Successes:   cb.Successes(),
 		LastFailure: time.Unix(0, cb.lastFailureTime.Load()),
 	}
 }
@@ -279,7 +279,7 @@ type CircuitBreakerMetrics struct {
 
 // CircuitGroup manages multiple circuit breakers by key.
 type CircuitGroup struct {
-	config Config
+	config   Config
 	breakers map[string]*CircuitBreaker
 	mu       sync.RWMutex
 }
@@ -297,19 +297,19 @@ func (cg *CircuitGroup) Get(key string) *CircuitBreaker {
 	cg.mu.RLock()
 	cb, exists := cg.breakers[key]
 	cg.mu.RUnlock()
-	
+
 	if exists {
 		return cb
 	}
-	
+
 	cg.mu.Lock()
 	defer cg.mu.Unlock()
-	
+
 	// Double-check after acquiring write lock
 	if cb, exists := cg.breakers[key]; exists {
 		return cb
 	}
-	
+
 	cb = NewCircuitBreaker(cg.config)
 	cg.breakers[key] = cb
 	return cb
@@ -336,7 +336,7 @@ func (cg *CircuitGroup) Remove(key string) {
 func (cg *CircuitGroup) Keys() []string {
 	cg.mu.RLock()
 	defer cg.mu.RUnlock()
-	
+
 	keys := make([]string, 0, len(cg.breakers))
 	for k := range cg.breakers {
 		keys = append(keys, k)
@@ -359,7 +359,7 @@ func (cg *CircuitGroup) ResetAll() {
 		breakers = append(breakers, cb)
 	}
 	cg.mu.RUnlock()
-	
+
 	for _, cb := range breakers {
 		cb.Reset()
 	}
@@ -383,18 +383,18 @@ func (cm *CircuitManager) GetGroup(name string, config Config) *CircuitGroup {
 	cm.mu.RLock()
 	group, exists := cm.groups[name]
 	cm.mu.RUnlock()
-	
+
 	if exists {
 		return group
 	}
-	
+
 	cm.mu.Lock()
 	defer cm.mu.Unlock()
-	
+
 	if group, exists := cm.groups[name]; exists {
 		return group
 	}
-	
+
 	group = NewCircuitGroup(config)
 	cm.groups[name] = group
 	return group
@@ -416,7 +416,7 @@ func (cm *CircuitManager) RemoveGroup(name string) {
 func (cm *CircuitManager) ServiceNames() []string {
 	cm.mu.RLock()
 	defer cm.mu.RUnlock()
-	
+
 	names := make([]string, 0, len(cm.groups))
 	for name := range cm.groups {
 		names = append(names, name)
@@ -463,12 +463,12 @@ func (e *TimeoutError) Error() string {
 func WithTimeout(fn func() error, timeout time.Duration) error {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
-	
+
 	done := make(chan error, 1)
 	go func() {
 		done <- fn()
 	}()
-	
+
 	select {
 	case err := <-done:
 		return err

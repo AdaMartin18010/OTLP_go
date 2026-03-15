@@ -33,7 +33,7 @@ type BackoffStrategy interface {
 type ExponentialBackoff struct {
 	InitialDelay time.Duration
 	Multiplier   float64
-	MaxDelay     time.Duration
+	maxDelay     time.Duration
 	Jitter       bool
 	JitterFactor float64
 }
@@ -43,7 +43,7 @@ func NewExponentialBackoff(initialDelay time.Duration) *ExponentialBackoff {
 	return &ExponentialBackoff{
 		InitialDelay: initialDelay,
 		Multiplier:   2.0,
-		MaxDelay:     30 * time.Second,
+		maxDelay:     30 * time.Second,
 		Jitter:       true,
 		JitterFactor: 0.1,
 	}
@@ -57,7 +57,7 @@ func (eb *ExponentialBackoff) WithMultiplier(multiplier float64) *ExponentialBac
 
 // WithMaxDelay sets the maximum delay.
 func (eb *ExponentialBackoff) WithMaxDelay(maxDelay time.Duration) *ExponentialBackoff {
-	eb.MaxDelay = maxDelay
+	eb.maxDelay = maxDelay
 	return eb
 }
 
@@ -73,19 +73,24 @@ func (eb *ExponentialBackoff) WithJitterFactor(factor float64) *ExponentialBacko
 	return eb
 }
 
+// MaxDelay returns the maximum delay allowed.
+func (eb *ExponentialBackoff) MaxDelay() time.Duration {
+	return eb.maxDelay
+}
+
 // Calculate returns the delay for a given attempt.
 func (eb *ExponentialBackoff) Calculate(attempt int) time.Duration {
 	if attempt <= 0 {
 		return eb.InitialDelay
 	}
-	
+
 	delay := float64(eb.InitialDelay) * math.Pow(eb.Multiplier, float64(attempt-1))
 	result := time.Duration(delay)
-	
-	if result > eb.MaxDelay {
-		result = eb.MaxDelay
+
+	if result > eb.maxDelay {
+		result = eb.maxDelay
 	}
-	
+
 	if eb.Jitter {
 		jitterRange := float64(result) * eb.JitterFactor
 		jitter := time.Duration(rand.Float64() * jitterRange)
@@ -95,22 +100,27 @@ func (eb *ExponentialBackoff) Calculate(attempt int) time.Duration {
 			result -= jitter
 		}
 	}
-	
+
 	return result
 }
 
 // FixedBackoff implements fixed interval backoff.
 type FixedBackoff struct {
 	Delay    time.Duration
-	MaxDelay time.Duration
+	maxDelay time.Duration
 }
 
 // NewFixedBackoff creates a new fixed backoff strategy.
 func NewFixedBackoff(delay time.Duration) *FixedBackoff {
 	return &FixedBackoff{
 		Delay:    delay,
-		MaxDelay: delay,
+		maxDelay: delay,
 	}
+}
+
+// MaxDelay returns the maximum delay allowed.
+func (fb *FixedBackoff) MaxDelay() time.Duration {
+	return fb.maxDelay
 }
 
 // Calculate returns the fixed delay.
@@ -123,7 +133,7 @@ func (fb *FixedBackoff) Calculate(attempt int) time.Duration {
 type LinearBackoff struct {
 	InitialDelay time.Duration
 	Increment    time.Duration
-	MaxDelay     time.Duration
+	maxDelay     time.Duration
 }
 
 // NewLinearBackoff creates a new linear backoff strategy.
@@ -131,8 +141,19 @@ func NewLinearBackoff(initialDelay, increment time.Duration) *LinearBackoff {
 	return &LinearBackoff{
 		InitialDelay: initialDelay,
 		Increment:    increment,
-		MaxDelay:     30 * time.Second,
+		maxDelay:     30 * time.Second,
 	}
+}
+
+// MaxDelay returns the maximum delay allowed.
+func (lb *LinearBackoff) MaxDelay() time.Duration {
+	return lb.maxDelay
+}
+
+// WithMaxDelay sets the maximum delay.
+func (lb *LinearBackoff) WithMaxDelay(maxDelay time.Duration) *LinearBackoff {
+	lb.maxDelay = maxDelay
+	return lb
 }
 
 // Calculate returns the linearly increasing delay.
@@ -140,10 +161,10 @@ func (lb *LinearBackoff) Calculate(attempt int) time.Duration {
 	if attempt <= 0 {
 		return lb.InitialDelay
 	}
-	
+
 	result := lb.InitialDelay + lb.Increment*time.Duration(attempt-1)
-	if result > lb.MaxDelay {
-		result = lb.MaxDelay
+	if result > lb.maxDelay {
+		result = lb.maxDelay
 	}
 	return result
 }
@@ -172,9 +193,9 @@ func NewDecorrelatedJitterBackoff(baseDelay, maxDelay time.Duration) *Decorrelat
 func (djb *DecorrelatedJitterBackoff) Calculate(attempt int) time.Duration {
 	djb.mu.Lock()
 	defer djb.mu.Unlock()
-	
+
 	_ = attempt // Decorrelated jitter doesn't use attempt number directly
-	
+
 	// Calculate next delay with decorrelated jitter
 	maxDelay := time.Duration(float64(djb.lastDelay) * djb.Multiplier)
 	if maxDelay > djb.MaxDelay {
@@ -183,14 +204,14 @@ func (djb *DecorrelatedJitterBackoff) Calculate(attempt int) time.Duration {
 	if maxDelay < djb.BaseDelay {
 		maxDelay = djb.BaseDelay
 	}
-	
+
 	// Random delay between base and max
 	delayRange := maxDelay - djb.BaseDelay
 	if delayRange <= 0 {
 		djb.lastDelay = djb.BaseDelay
 		return djb.BaseDelay
 	}
-	
+
 	djb.lastDelay = djb.BaseDelay + time.Duration(rand.Float64()*float64(delayRange))
 	return djb.lastDelay
 }
@@ -253,10 +274,10 @@ func (rp *StandardRetryPolicy) IsRetryable(err error) bool {
 	if err == nil {
 		return false
 	}
-	
+
 	rp.mu.RLock()
 	defer rp.mu.RUnlock()
-	
+
 	// Check retryable codes
 	code := GetCode(err)
 	for _, retryableCode := range rp.retryableCodes {
@@ -264,20 +285,20 @@ func (rp *StandardRetryPolicy) IsRetryable(err error) bool {
 			return true
 		}
 	}
-	
+
 	// Check custom functions
 	for _, fn := range rp.retryableFuncs {
 		if fn(err) {
 			return true
 		}
 	}
-	
+
 	// Check if it's an OTLPError with retryable flag
 	var otlpErr *OTLPError
 	if As(err, &otlpErr) {
 		return otlpErr.IsRetryable()
 	}
-	
+
 	return false
 }
 
@@ -305,18 +326,18 @@ func Retry(policy RetryPolicy, fn RetryableFunc) (*RetryResult, error) {
 func RetryWithContext(ctx context.Context, policy RetryPolicy, fn RetryableFuncWithContext) (*RetryResult, error) {
 	result := &RetryResult{}
 	startTime := time.Now()
-	
+
 	for attempt := 0; attempt < policy.MaxAttempts(); attempt++ {
 		result.Attempts = attempt + 1
-		
+
 		err := fn(ctx)
 		if err == nil {
 			result.Duration = time.Since(startTime)
 			return result, nil
 		}
-		
+
 		result.LastErr = err
-		
+
 		// Check if we should retry this error
 		if standardPolicy, ok := policy.(*StandardRetryPolicy); ok {
 			if !standardPolicy.IsRetryable(err) {
@@ -324,19 +345,19 @@ func RetryWithContext(ctx context.Context, policy RetryPolicy, fn RetryableFuncW
 				return result, err
 			}
 		}
-		
+
 		// Check if this is the last attempt
 		if attempt == policy.MaxAttempts()-1 {
 			break
 		}
-		
+
 		// Calculate next delay
 		delay, shouldRetry := policy.NextDelay(attempt + 1)
 		if !shouldRetry {
 			result.Duration = time.Since(startTime)
 			return result, err
 		}
-		
+
 		// Wait for next attempt or context cancellation
 		select {
 		case <-ctx.Done():
@@ -346,7 +367,7 @@ func RetryWithContext(ctx context.Context, policy RetryPolicy, fn RetryableFuncW
 			// Continue to next attempt
 		}
 	}
-	
+
 	result.Duration = time.Since(startTime)
 	return result, result.LastErr
 }
@@ -377,7 +398,7 @@ func (rc *RetryConfig) BuildPolicy() RetryPolicy {
 		WithMultiplier(rc.Multiplier).
 		WithMaxDelay(rc.MaxDelay).
 		WithJitter(rc.UseJitter)
-	
+
 	return NewRetryPolicy(rc.MaxAttempts, backoff)
 }
 
@@ -417,7 +438,7 @@ func Do(fn RetryableFunc, opts ...func(*RetryConfig)) error {
 	for _, opt := range opts {
 		opt(config)
 	}
-	
+
 	_, err := Retry(config.BuildPolicy(), fn)
 	return err
 }
@@ -428,7 +449,7 @@ func DoWithContext(ctx context.Context, fn RetryableFuncWithContext, opts ...fun
 	for _, opt := range opts {
 		opt(config)
 	}
-	
+
 	_, err := RetryWithContext(ctx, config.BuildPolicy(), fn)
 	return err
 }

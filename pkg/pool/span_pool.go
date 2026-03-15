@@ -13,40 +13,40 @@ import (
 type Span struct {
 	// TraceID is the trace identifier
 	TraceID [16]byte
-	
+
 	// SpanID is the span identifier
 	SpanID [8]byte
-	
+
 	// ParentSpanID is the parent span identifier (optional)
 	ParentSpanID [8]byte
-	
+
 	// Name is the span name
 	Name string
-	
+
 	// StartTime is when the span started
 	StartTime time.Time
-	
+
 	// EndTime is when the span ended (zero if not ended)
 	EndTime time.Time
-	
+
 	// Attributes are key-value pairs attached to the span
 	Attributes map[string]any
-	
+
 	// Events are timed events recorded during the span
 	Events []SpanEvent
-	
+
 	// Links are references to other spans
 	Links []SpanLink
-	
+
 	// StatusCode indicates the span status (Unset, Ok, Error)
 	StatusCode uint32
-	
+
 	// StatusMessage provides additional status information
 	StatusMessage string
-	
+
 	// Kind indicates the type of span (Internal, Server, Client, Producer, Consumer)
 	Kind SpanKind
-	
+
 	// flags for internal state management
 	ended bool
 }
@@ -96,7 +96,7 @@ func (s *Span) Reset() {
 	for i := range s.ParentSpanID {
 		s.ParentSpanID[i] = 0
 	}
-	
+
 	// Reset basic fields
 	s.Name = ""
 	s.StartTime = time.Time{}
@@ -105,15 +105,15 @@ func (s *Span) Reset() {
 	s.StatusMessage = ""
 	s.Kind = SpanKindUnspecified
 	s.ended = false
-	
+
 	// Clear attributes while preserving map
 	for k := range s.Attributes {
 		delete(s.Attributes, k)
 	}
-	
+
 	// Clear events while preserving slice capacity
 	s.Events = s.Events[:0]
-	
+
 	// Clear links while preserving slice capacity
 	s.Links = s.Links[:0]
 }
@@ -128,18 +128,18 @@ func (s *Span) End(options ...SpanEndOption) {
 	if s.ended {
 		return
 	}
-	
+
 	cfg := &spanEndConfig{}
 	for _, opt := range options {
 		opt(cfg)
 	}
-	
+
 	if cfg.timestamp.IsZero() {
 		s.EndTime = time.Now()
 	} else {
 		s.EndTime = cfg.timestamp
 	}
-	
+
 	s.ended = true
 }
 
@@ -169,20 +169,20 @@ func WithTimestamp(t time.Time) SpanEndOption {
 //	    span.End()
 //	    sp.Put(span)
 //	}()
-//	
+//
 //	span.Name = "my-operation"
 //	span.StartTime = time.Now()
 //	// ... record span data ...
 type SpanPool struct {
-	pool      *Pool[*Span]
-	maxSize   int32
-	
+	pool    *Pool[*Span]
+	maxSize int32
+
 	// attributePool is a pool for attribute maps
 	attributePool sync.Pool
-	
+
 	// eventPool is a pool for event slices
 	eventPool sync.Pool
-	
+
 	// linkPool is a pool for link slices
 	linkPool sync.Pool
 }
@@ -211,7 +211,7 @@ func NewSpanPool(maxSize int32) *SpanPool {
 	sp := &SpanPool{
 		maxSize: maxSize,
 	}
-	
+
 	sp.pool = New(
 		func() *Span {
 			return &Span{
@@ -220,31 +220,31 @@ func NewSpanPool(maxSize int32) *SpanPool {
 				Links:      make([]SpanLink, 0, MaxLinks),
 			}
 		},
-		WithMaxSize(maxSize),
+		WithMaxSize[*Span](maxSize),
 		WithReset(func(s *Span) {
 			s.Reset()
 		}),
 	)
-	
+
 	// Initialize sub-pools
 	sp.attributePool = sync.Pool{
 		New: func() any {
 			return make(map[string]any, MaxAttributes)
 		},
 	}
-	
+
 	sp.eventPool = sync.Pool{
 		New: func() any {
 			return make([]SpanEvent, 0, MaxEvents)
 		},
 	}
-	
+
 	sp.linkPool = sync.Pool{
 		New: func() any {
 			return make([]SpanLink, 0, MaxLinks)
 		},
 	}
-	
+
 	return sp
 }
 
@@ -260,13 +260,13 @@ func (sp *SpanPool) Put(span *Span) {
 	if span == nil {
 		return
 	}
-	
+
 	// Validate span state
 	if !span.ended && !span.StartTime.IsZero() {
 		// Span was started but not ended - end it now
 		span.End()
 	}
-	
+
 	sp.pool.Put(span)
 }
 
@@ -306,9 +306,9 @@ func (sp *SpanPool) ReleaseAttributes(m map[string]any) {
 	if m == nil {
 		return
 	}
-	
+
 	// Only pool reasonably sized maps
-	if cap(m) <= MaxAttributes*2 {
+	if len(m) <= MaxAttributes*2 {
 		// Clear the map before returning
 		for k := range m {
 			delete(m, k)
@@ -331,7 +331,7 @@ func (sp *SpanPool) ReleaseEvents(e []SpanEvent) {
 	if e == nil {
 		return
 	}
-	
+
 	if cap(e) <= MaxEvents*2 {
 		sp.eventPool.Put(e[:0])
 	}
@@ -351,7 +351,7 @@ func (sp *SpanPool) ReleaseLinks(l []SpanLink) {
 	if l == nil {
 		return
 	}
-	
+
 	if cap(l) <= MaxLinks*2 {
 		sp.linkPool.Put(l[:0])
 	}
@@ -380,12 +380,12 @@ func SpanPoolStats() Stats {
 type ConcurrentSpanPool struct {
 	shards    []*SpanPool
 	shardMask uint32
-	
-	// stats aggregate stats from all shards
-	totalGets   uint64
-	totalPuts   uint64
-	totalHits   uint64
-	totalMisses uint64
+
+	// stats aggregate stats from all shards (use uint32 for atomic operations)
+	totalGets   uint32
+	totalPuts   uint32
+	totalHits   uint32
+	totalMisses uint32
 }
 
 // NewConcurrentSpanPool creates a new ConcurrentSpanPool with the given number of shards.
@@ -403,16 +403,16 @@ func NewConcurrentSpanPool(shards int, shardSize int32) *ConcurrentSpanPool {
 		// Not a power of 2, round up
 		shards = 1 << (32 - bitsLen(uint32(shards-1)))
 	}
-	
+
 	csp := &ConcurrentSpanPool{
 		shards:    make([]*SpanPool, shards),
 		shardMask: uint32(shards - 1),
 	}
-	
+
 	for i := range csp.shards {
 		csp.shards[i] = NewSpanPool(shardSize)
 	}
-	
+
 	return csp
 }
 
