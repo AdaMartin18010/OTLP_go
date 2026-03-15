@@ -1,7 +1,7 @@
 # OTLP 系统综合分析报告
 
-**版本**: 3.2.0  
-**日期**: 2025-10-06  
+**版本**: 3.2.0
+**日期**: 2025-10-06
 **状态**: ✅ 完整
 
 ---
@@ -469,14 +469,14 @@ Required_Storage = Predicted_Data_Volume * Retention_Days
 ```tla
 MODULE OTLPPipeline
   VARIABLES queue, exported, retryCount, pipelineState
-  
-  TypeOK == 
+
+  TypeOK ==
     /\ queue \in Seq(Items)
     /\ exported \subseteq Items
     /\ retryCount \in [Items -> 0..MaxRetries]
-  
+
   Spec == Init /\ [][Next]_vars
-  
+
   Safety == TypeOK
   Liveness == EventuallyExported
 ```
@@ -840,7 +840,7 @@ OTLP 参数:
 
 **报告结束**-
 
-**版本**: 3.2.0  
-**日期**: 2025-10-06  
-**作者**: OTLP 项目团队  
+**版本**: 3.2.0
+**日期**: 2025-10-06
+**作者**: OTLP 项目团队
 **许可**: 遵循项目根目录的 LICENSE 文件
