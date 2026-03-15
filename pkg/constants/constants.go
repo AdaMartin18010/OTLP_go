@@ -1,25 +1,14 @@
-// Package constants provides common constants used across the OTLP SDK.
+// Package constants provides commonly used constants for the OTLP Go SDK.
+//
+// This package defines:
+//   - Default timeout values
+//   - Header names
+//   - Environment variable names
+//   - Error codes
+//
+// Usage:
+//
+//	ctx, cancel := context.WithTimeout(ctx, constants.DefaultTimeout)
+//	defer cancel()
 package constants
 
-import "time"
-
-// Common timeout values
-const (
-	DefaultTimeout    = 30 * time.Second
-	ShortTimeout      = 5 * time.Second
-	ConnectionTimeout = 10 * time.Second
-)
-
-// Common sizes
-const (
-	DefaultBatchSize  = 512
-	DefaultQueueSize  = 2048
-	DefaultBufferSize = 1024
-)
-
-// Common retry settings
-const (
-	DefaultMaxRetries = 3
-	DefaultRetryDelay = 1 * time.Second
-	MaxRetryDelay     = 10 * time.Second
-)
