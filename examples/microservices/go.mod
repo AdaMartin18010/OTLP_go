@@ -3,4 +3,4 @@
 
 module OTLP_go/examples/microservices
 
-go 1.25.0
+go 1.26

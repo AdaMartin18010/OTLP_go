@@ -3,7 +3,7 @@
 
 module OTLP_go/examples/context-propagation
 
-go 1.25.0
+go 1.26
 
 require (
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.46.1

@@ -1,6 +1,6 @@
 module OTLP_go/pkg/runtime
 
-go 1.23
+go 1.26
 require go.uber.org/automaxprocs v1.6.0
 
 require (

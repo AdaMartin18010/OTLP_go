@@ -3,7 +3,7 @@
 
 module OTLP_go/examples/distributed-tracing
 
-go 1.25.0
+go 1.26
 
 require (
 	go.opentelemetry.io/otel v1.42.0
