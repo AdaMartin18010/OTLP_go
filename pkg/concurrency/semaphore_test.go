@@ -432,14 +432,21 @@ func TestAdaptiveRateLimiter(t *testing.T) {
 	})
 
 	t.Run("adjusts rate on failure", func(t *testing.T) {
-		arl := NewAdaptiveRateLimiter(5, 10, time.Second)
+		arl := NewAdaptiveRateLimiter(1, 10, time.Second)
 		defer arl.Stop()
+
+		// First increase the rate
+		for i := 0; i < 5; i++ {
+			arl.Success()
+		}
+		initialRate := arl.CurrentRate()
+		assert.Greater(t, initialRate, 1)
 
 		// Report failure
 		arl.Failure()
 
 		// Rate should have decreased
-		assert.Less(t, arl.CurrentRate(), 5)
+		assert.Less(t, arl.CurrentRate(), initialRate)
 	})
 
 	t.Run("respects min rate", func(t *testing.T) {

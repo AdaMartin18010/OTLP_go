@@ -16,22 +16,8 @@ var (
 	ErrStageError = errors.New("pipeline stage error")
 )
 
-// Stage represents a single stage in a processing pipeline.
-//
-// A Stage transforms input of type I to output of type O.
-// Implementations should be thread-safe and handle context cancellation.
-type Stage[I, O any] interface {
-	// Process transforms the input to output.
-	Process(ctx context.Context, input I) (O, error)
-}
-
-// StageFunc is an adapter to allow the use of ordinary functions as Stage.
+// StageFunc is a pipeline stage function.
 type StageFunc[I, O any] func(ctx context.Context, input I) (O, error)
-
-// Process implements the Stage interface.
-func (f StageFunc[I, O]) Process(ctx context.Context, input I) (O, error) {
-	return f(ctx, input)
-}
 
 // Pipeline represents a multi-stage concurrent processing pipeline.
 //
@@ -63,7 +49,7 @@ func (f StageFunc[I, O]) Process(ctx context.Context, input I) (O, error) {
 //	// Receive results
 //	result := <-pipeline.Receive()
 type Pipeline[T, R any] struct {
-	stages     []stageInfo
+	stages     []stageInfo[T, R]
 	bufferSize int
 
 	input    chan T
@@ -79,8 +65,8 @@ type Pipeline[T, R any] struct {
 }
 
 // stageInfo holds runtime information about a pipeline stage.
-type stageInfo struct {
-	processFn func(context.Context, any) (any, error)
+type stageInfo[T, R any] struct {
+	processFn func(context.Context, T) (R, error)
 	workers   int
 }
 
@@ -90,26 +76,12 @@ type PipelineResult[R any] struct {
 	Error error
 }
 
-// PipelineOption configures a Pipeline.
-type PipelineOption func(*Pipeline[any, any])
-
-// WithBufferSize sets the channel buffer size for the pipeline.
-func WithBufferSize(size int) PipelineOption {
-	return func(p *Pipeline[any, any]) {
-		p.bufferSize = size
-	}
-}
-
-// NewPipeline creates a new pipeline with the given stages.
+// NewPipeline creates a new pipeline with the given single stage.
 //
-// Each stage function transforms input to output. The pipeline
-// creates goroutines for each stage to enable concurrent processing.
-//
-// Type parameters flow through stages:
-//   - T -> intermediate type 1 -> ... -> intermediate type N -> R
+// For simple single-stage pipelines. For multi-stage pipelines,
+// chain stages manually or use multiple pipelines.
 func NewPipeline[T, R any](
-	firstStage StageFunc[T, any],
-	stages ...StageFunc[any, any],
+	stage StageFunc[T, R],
 ) *Pipeline[T, R] {
 	ctx, cancel := context.WithCancel(context.Background())
 
@@ -121,46 +93,26 @@ func NewPipeline[T, R any](
 		cancel:     cancel,
 	}
 
-	// Build stage chain
-	p.stages = append(p.stages, stageInfo{
-		processFn: wrapFirstStage(firstStage),
+	p.stages = append(p.stages, stageInfo[T, R]{
+		processFn: stage,
 		workers:   1,
 	})
-
-	for _, s := range stages {
-		p.stages = append(p.stages, stageInfo{
-			processFn: s,
-			workers:   1,
-		})
-	}
 
 	return p
 }
 
-// wrapFirstStage adapts the first stage to the common stage signature.
-func wrapFirstStage[T any](fn StageFunc[T, any]) func(context.Context, any) (any, error) {
-	return func(ctx context.Context, input any) (any, error) {
-		return fn(ctx, input.(T))
-	}
-}
-
-// NewPipelineWithWorkers creates a pipeline with configurable workers per stage.
+// NewPipelineWithWorkers creates a pipeline with configurable workers.
 //
-// workers specifies the number of goroutines for each stage.
-// The length of workers must match the number of stages.
+// workers specifies the number of goroutines for the stage.
 func NewPipelineWithWorkers[T, R any](
-	workers []int,
-	firstStage StageFunc[T, any],
-	stages ...StageFunc[any, any],
+	workers int,
+	stage StageFunc[T, R],
 ) *Pipeline[T, R] {
-	p := NewPipeline[T, R](firstStage, stages...)
-
-	for i, w := range workers {
-		if i < len(p.stages) && w > 0 {
-			p.stages[i].workers = w
-		}
+	if workers <= 0 {
+		workers = 1
 	}
-
+	p := NewPipeline(stage)
+	p.stages[0].workers = workers
 	return p
 }
 
@@ -174,50 +126,15 @@ func (p *Pipeline[T, R]) Start(ctx context.Context) {
 	p.input = make(chan T, p.bufferSize)
 	p.output = make(chan PipelineResult[R], p.bufferSize)
 
-	// Create channels between stages
-	stageChannels := make([]chan any, len(p.stages)+1)
-	stageChannels[0] = castToAnyChannel(p.input)
-	for i := 1; i < len(stageChannels); i++ {
-		stageChannels[i] = make(chan any, p.bufferSize)
-	}
-	// Last channel is actually the output
-	lastIdx := len(stageChannels) - 1
-	close(stageChannels[lastIdx]) // We don't use this
-	stageChannels[lastIdx] = nil  // Mark as output stage
-
-	// Start workers for each stage
-	for i, stage := range p.stages {
-		isLastStage := i == len(p.stages)-1
-
-		for w := 0; w < stage.workers; w++ {
-			p.wg.Add(1)
-			if isLastStage {
-				go p.runLastStage(stage.processFn, stageChannels[i])
-			} else {
-				go p.runStage(stage.processFn, stageChannels[i], stageChannels[i+1])
-			}
-		}
+	// Start workers for the stage
+	for w := 0; w < p.stages[0].workers; w++ {
+		p.wg.Add(1)
+		go p.runWorker(p.stages[0].processFn)
 	}
 }
 
-// castToAnyChannel casts a typed channel to any channel.
-func castToAnyChannel[T any](ch <-chan T) chan any {
-	out := make(chan any, cap(ch))
-	go func() {
-		for v := range ch {
-			out <- v
-		}
-		close(out)
-	}()
-	return out
-}
-
-// runStage runs a single pipeline stage worker (intermediate stage).
-func (p *Pipeline[T, R]) runStage(
-	fn func(context.Context, any) (any, error),
-	input <-chan any,
-	output chan<- any,
-) {
+// runWorker runs a single pipeline worker.
+func (p *Pipeline[T, R]) runWorker(fn func(context.Context, T) (R, error)) {
 	defer p.wg.Done()
 
 	for {
@@ -226,44 +143,7 @@ func (p *Pipeline[T, R]) runStage(
 			return
 		case <-p.stopCh:
 			return
-		case val, ok := <-input:
-			if !ok {
-				return
-			}
-
-			result, err := fn(p.ctx, val)
-			if err != nil {
-				select {
-				case p.errCh <- err:
-				case <-p.ctx.Done():
-					return
-				}
-				continue
-			}
-
-			select {
-			case output <- result:
-			case <-p.ctx.Done():
-				return
-			}
-		}
-	}
-}
-
-// runLastStage runs the final pipeline stage worker.
-func (p *Pipeline[T, R]) runLastStage(
-	fn func(context.Context, any) (any, error),
-	input <-chan any,
-) {
-	defer p.wg.Done()
-
-	for {
-		select {
-		case <-p.ctx.Done():
-			return
-		case <-p.stopCh:
-			return
-		case val, ok := <-input:
+		case val, ok := <-p.input:
 			if !ok {
 				return
 			}
@@ -280,7 +160,7 @@ func (p *Pipeline[T, R]) runLastStage(
 			}
 
 			select {
-			case p.output <- PipelineResult[R]{Value: result.(R)}:
+			case p.output <- PipelineResult[R]{Value: result}:
 			case <-p.ctx.Done():
 				return
 			}
@@ -339,8 +219,19 @@ func (p *Pipeline[T, R]) Stop() {
 
 	p.wg.Wait()
 
-	close(p.output)
-	close(p.errCh)
+	// Close output channels once
+	select {
+	case <-p.output:
+		// Already closed
+	default:
+		close(p.output)
+	}
+	select {
+	case <-p.errCh:
+		// Already closed
+	default:
+		close(p.errCh)
+	}
 }
 
 // StopContext stops the pipeline with context timeout.
@@ -360,31 +251,6 @@ func (p *Pipeline[T, R]) StopContext(ctx context.Context) error {
 	case <-ctx.Done():
 		return ctx.Err()
 	}
-}
-
-// StageBuilder helps build pipelines with a fluent API.
-// Note: This is a simplified builder that uses any types internally.
-type StageBuilder struct {
-	firstStage StageFunc[any, any]
-	stages     []StageFunc[any, any]
-}
-
-// NewStageBuilder creates a new pipeline stage builder.
-func NewStageBuilder[T any](first StageFunc[T, any]) *StageBuilder {
-	return &StageBuilder{
-		firstStage: wrapFirstStage(first),
-	}
-}
-
-// Then adds a stage to the pipeline.
-func (b *StageBuilder) Then(next StageFunc[any, any]) *StageBuilder {
-	b.stages = append(b.stages, next)
-	return b
-}
-
-// Build creates the pipeline.
-func (b *StageBuilder) Build() *Pipeline[any, any] {
-	return NewPipeline[any, any](b.firstStage, b.stages...)
 }
 
 // Map applies a transformation function to each element in a slice concurrently.
