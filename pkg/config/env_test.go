@@ -365,8 +365,8 @@ func TestEnvSource_Watch(t *testing.T) {
 
 func TestEnvKeyToConfigKey(t *testing.T) {
 	tests := []struct {
-		envKey string
-		prefix string
+		envKey   string
+		prefix   string
 		expected string
 	}{
 		{"TEST_KEY", "TEST", "key"},
@@ -397,7 +397,7 @@ func TestSetFieldFromEnv_InvalidType(t *testing.T) {
 
 func TestEnvLoader_LoadInto_InvalidTarget(t *testing.T) {
 	loader := NewEnvLoader("")
-	
+
 	// 测试 nil 指针
 	var nilPtr *struct{}
 	err := loader.LoadInto(nilPtr)
