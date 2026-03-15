@@ -51,9 +51,10 @@ func NewSecureString(value string) *SecureString {
 // String returns a masked representation of the secure string.
 func (s *SecureString) String() string {
 	if len(s.value) <= 4 {
-		return "****"
+		return strings.Repeat("*", len(s.value))
 	}
-	return s.value[:2] + "****" + s.value[len(s.value)-2:]
+	// Show first 2 and last 2 characters, mask the rest
+	return s.value[:2] + strings.Repeat("*", len(s.value)-4) + s.value[len(s.value)-2:]
 }
 
 // Value returns the actual value. Use with caution.
@@ -134,10 +135,10 @@ func (a *APIKeyAuth) GetHeaderKey() string {
 
 // BearerAuth implements Bearer token authentication.
 type BearerAuth struct {
-	token      *SecureString
-	provider   TokenProvider
-	mu         sync.RWMutex
-	expiresAt  time.Time
+	token     *SecureString
+	provider  TokenProvider
+	mu        sync.RWMutex
+	expiresAt time.Time
 }
 
 // NewBearerAuth creates a new Bearer token authentication provider with a static token.

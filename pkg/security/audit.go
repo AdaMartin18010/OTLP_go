@@ -345,7 +345,7 @@ func (l *AuditLogger) sanitizeEvent(event *AuditEvent) *AuditEvent {
 	sanitized.Error = l.sanitizer.Sanitize(event.Error)
 
 	if event.Details != nil {
-		sanitized.Details = l.sanitizer.SanitizeMap(event.Details)
+		sanitized.Details = l.sanitizer.SanitizeInterfaceMap(event.Details)
 	}
 
 	return &sanitized

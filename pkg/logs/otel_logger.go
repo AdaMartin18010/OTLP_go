@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"go.opentelemetry.io/otel/trace"
@@ -230,8 +231,8 @@ type CorrelatedLogRecord struct {
 
 // LogCorrelator correlates logs with traces.
 type LogCorrelator struct {
-	mu       sync.RWMutex
-	logs     map[trace.TraceID][]*CorrelatedLogRecord
+	mu          sync.RWMutex
+	logs        map[trace.TraceID][]*CorrelatedLogRecord
 	maxPerTrace int
 }
 
@@ -339,7 +340,7 @@ func (s *SpanEventLogger) Error(err error, opts ...trace.EventOption) {
 }
 
 // SetStatus sets the span status.
-func (s *SpanEventLogger) SetStatus(code trace.StatusCode, description string) {
+func (s *SpanEventLogger) SetStatus(code codes.Code, description string) {
 	if s.span != nil {
 		s.span.SetStatus(code, description)
 	}
@@ -463,6 +464,9 @@ func FromContext(ctx context.Context) TraceContext {
 		return TraceContext{}
 	}
 	spanCtx := span.SpanContext()
+	if !spanCtx.IsValid() {
+		return TraceContext{}
+	}
 	return TraceContext{
 		TraceID: spanCtx.TraceID().String(),
 		SpanID:  spanCtx.SpanID().String(),
@@ -538,7 +542,8 @@ func NewCompositeSampler(mode CompositeMode, samplers ...Sampler) *CompositeSamp
 // ShouldSample implements Sampler.
 func (c *CompositeSampler) ShouldSample(record *LogRecord) bool {
 	if len(c.samplers) == 0 {
-		return true
+		// Empty AND returns true (identity), empty OR returns false
+		return c.mode == CompositeAnd
 	}
 
 	if c.mode == CompositeAnd {
@@ -577,8 +582,8 @@ func (l *LevelSampler) ShouldSample(record *LogRecord) bool {
 // ConfigurableOTelLogger is an OTelLogger with dynamic configuration.
 type ConfigurableOTelLogger struct {
 	*OTelLogger
-	config    OTelLoggerConfig
-	configMu  sync.RWMutex
+	config         OTelLoggerConfig
+	configMu       sync.RWMutex
 	onConfigChange func(OTelLoggerConfig)
 }
 
@@ -663,10 +668,10 @@ func WithOTelResource(r *resource.Resource) OTelLoggerOption {
 
 // TraceSpanEvent is an event associated with a trace span.
 type TraceSpanEvent struct {
-	Timestamp time.Time
-	Name      string
+	Timestamp  time.Time
+	Name       string
 	Attributes []attribute.KeyValue
-	Level     Level
+	Level      Level
 }
 
 // ToLogRecord converts the event to a log record.
@@ -752,9 +757,7 @@ func ParseTraceID(id string) (trace.TraceID, error) {
 	if !IsValidTraceID(id) {
 		return trace.TraceID{}, fmt.Errorf("invalid trace ID: %s", id)
 	}
-	var tid trace.TraceID
-	_, err := fmt.Sscanf(id, "%032x", &tid)
-	return tid, err
+	return trace.TraceIDFromHex(id)
 }
 
 // ParseSpanID parses a span ID from string.
@@ -762,7 +765,5 @@ func ParseSpanID(id string) (trace.SpanID, error) {
 	if !IsValidSpanID(id) {
 		return trace.SpanID{}, fmt.Errorf("invalid span ID: %s", id)
 	}
-	var sid trace.SpanID
-	_, err := fmt.Sscanf(id, "%016x", &sid)
-	return sid, err
+	return trace.SpanIDFromHex(id)
 }

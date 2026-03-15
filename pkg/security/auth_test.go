@@ -23,12 +23,12 @@ func TestSecureString(t *testing.T) {
 		{
 			name:     "normal value",
 			value:    "secret-password-123",
-			expected: "se****23",
+			expected: "se***************23",
 		},
 		{
 			name:     "short value",
 			value:    "ab",
-			expected: "****",
+			expected: "**",
 		},
 		{
 			name:     "exactly 4 chars",
@@ -38,12 +38,12 @@ func TestSecureString(t *testing.T) {
 		{
 			name:     "5 chars",
 			value:    "abcde",
-			expected: "ab*de",
+			expected: "ab*de", // show first 2, last 2, mask 1 in middle
 		},
 		{
 			name:     "empty value",
 			value:    "",
-			expected: "****",
+			expected: "",
 		},
 	}
 
@@ -346,7 +346,7 @@ func TestValidateAPIKey(t *testing.T) {
 	}{
 		{
 			name:    "valid key",
-			key:     "a-very-long-and-secure-api-key-123456",
+			key:     "xJ9mK2pL5vN8qR4wT7yZ0bE1cF3hG6jI",
 			wantErr: false,
 		},
 		{

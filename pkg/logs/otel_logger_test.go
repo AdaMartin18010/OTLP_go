@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"go.opentelemetry.io/otel/trace"
@@ -89,6 +90,13 @@ func TestNewOTelLogger(t *testing.T) {
 }
 
 func TestOTelLogger_WithTrace(t *testing.T) {
+	// Create a real tracer provider and span
+	tp := sdktrace.NewTracerProvider()
+	defer tp.Shutdown(context.Background())
+	tracer := tp.Tracer("test")
+	ctx, span := tracer.Start(context.Background(), "test-span")
+	defer span.End()
+
 	config := OTelLoggerConfig{
 		Config: Config{
 			Level: LevelInfo,
@@ -96,20 +104,12 @@ func TestOTelLogger_WithTrace(t *testing.T) {
 	}
 	logger := NewOTelLogger(config)
 
-	// Create a mock span context
-	traceID, _ := trace.TraceIDFromHex("0123456789abcdef0123456789abcdef")
-	spanID, _ := trace.SpanIDFromHex("0123456789abcdef")
-	spanCtx := trace.NewSpanContext(trace.SpanContextConfig{
-		TraceID: traceID,
-		SpanID:  spanID,
-	})
-
-	mockSpan := &mockSpan{spanContext: spanCtx}
-	tracedLogger := logger.WithTrace(mockSpan)
+	tracedLogger := logger.WithTrace(span)
 
 	if tracedLogger == nil {
 		t.Error("WithTrace() returned nil")
 	}
+	_ = ctx
 }
 
 func TestOTelLogger_WithSpanContext(t *testing.T) {
@@ -444,7 +444,7 @@ func TestSpanEventLogger_SetStatus(t *testing.T) {
 	})
 
 	spanLogger := NewSpanEventLogger(logger, nil)
-	spanLogger.SetStatus(trace.StatusCodeError, "error occurred")
+	spanLogger.SetStatus(codes.Error, "error occurred")
 
 	output := buf.String()
 	if !strings.Contains(output, "error occurred") {
@@ -843,9 +843,9 @@ func TestIsValidTraceID(t *testing.T) {
 	}{
 		{"0123456789abcdef0123456789abcdef", true},
 		{"0123456789ABCDEF0123456789ABCDEF", true},
-		{"0123456789abcdef", false},                    // Too short
-		{"0123456789abcdef0123456789abcdef00", false},  // Too long
-		{"0123456789abcdef0123456789abcdeg", false},    // Invalid char
+		{"0123456789abcdef", false},                   // Too short
+		{"0123456789abcdef0123456789abcdef00", false}, // Too long
+		{"0123456789abcdef0123456789abcdeg", false},   // Invalid char
 		{"", false},
 	}
 
@@ -915,17 +915,18 @@ type mockSpan struct {
 	spanContext trace.SpanContext
 }
 
-func (m *mockSpan) SpanContext() trace.SpanContext { return m.spanContext }
-func (m *mockSpan) IsRecording() bool              { return true }
-func (m *mockSpan) End(...trace.SpanEndOption)     {}
-func (m *mockSpan) SetError(bool)                  {}
+func (m *mockSpan) SpanContext() trace.SpanContext          { return m.spanContext }
+func (m *mockSpan) IsRecording() bool                       { return true }
+func (m *mockSpan) End(...trace.SpanEndOption)              {}
+func (m *mockSpan) SetError(bool)                           {}
 func (m *mockSpan) RecordError(error, ...trace.EventOption) {}
 func (m *mockSpan) AddEvent(string, ...trace.EventOption)   {}
 func (m *mockSpan) AddLink(trace.Link)                      {}
-func (m *mockSpan) SetStatus(trace.StatusCode, string)      {}
+func (m *mockSpan) SetStatus(codes.Code, string)            {}
 func (m *mockSpan) SetName(string)                          {}
 func (m *mockSpan) SetAttributes(...attribute.KeyValue)     {}
 func (m *mockSpan) TracerProvider() trace.TracerProvider    { return nil }
+func (m *mockSpan) span(trace.Span)                         {}
 
 // testError is a simple error type for testing
 type testError struct {

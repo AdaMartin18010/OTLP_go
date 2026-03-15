@@ -110,7 +110,7 @@ func TestField_ToAttribute(t *testing.T) {
 			if got.Key != tt.expected.Key {
 				t.Errorf("Key = %v, want %v", got.Key, tt.expected.Key)
 			}
-			if string(got.Value.Type()) != string(tt.expected.Value.Type()) {
+			if got.Value.Type() != tt.expected.Value.Type() {
 				t.Errorf("Value.Type() = %v, want %v", got.Value.Type(), tt.expected.Value.Type())
 			}
 		})

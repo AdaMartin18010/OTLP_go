@@ -22,13 +22,13 @@ const (
 
 // TLSConfig holds configuration options for TLS connections.
 type TLSConfig struct {
-	CertFile       string
-	KeyFile        string
-	CAFile         string
-	MinVersion     TLSVersion
-	InsecureSkip   bool
-	ServerName     string
-	CipherSuites   []uint16
+	CertFile     string
+	KeyFile      string
+	CAFile       string
+	MinVersion   TLSVersion
+	InsecureSkip bool
+	ServerName   string
+	CipherSuites []uint16
 }
 
 // TLSOption is a functional option for configuring TLS.
@@ -113,8 +113,10 @@ func NewTLSConfig(opts ...TLSOption) (*tls.Config, error) {
 		ServerName:         config.ServerName,
 	}
 
-	// Set secure cipher suites if not provided and using TLS 1.2
-	if config.MinVersion == TLSVersion1_2 && len(config.CipherSuites) == 0 {
+	// Set cipher suites - use custom if provided, otherwise use secure defaults for TLS 1.2
+	if len(config.CipherSuites) > 0 {
+		tlsConfig.CipherSuites = config.CipherSuites
+	} else if config.MinVersion == TLSVersion1_2 {
 		tlsConfig.CipherSuites = getSecureCipherSuites()
 	}
 

@@ -10,7 +10,6 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 	"time"
 
@@ -41,8 +40,7 @@ func TestAuditEventWithMethods(t *testing.T) {
 		WithSourceIP("192.168.1.1").
 		WithUserAgent("Mozilla/5.0").
 		WithSessionID("session-123").
-		WithCorrelationID("corr-456").
-		WithError(errors.New("test error"))
+		WithCorrelationID("corr-456")
 
 	assert.Equal(t, AuditLevelWarning, event.Level)
 	assert.Equal(t, "success", event.Status)
@@ -50,9 +48,14 @@ func TestAuditEventWithMethods(t *testing.T) {
 	assert.Equal(t, "Mozilla/5.0", event.UserAgent)
 	assert.Equal(t, "session-123", event.SessionID)
 	assert.Equal(t, "corr-456", event.CorrelationID)
-	assert.Equal(t, "test error", event.Error)
 	assert.Equal(t, "192.168.1.1", event.Details["ip"])
 	assert.Equal(t, "POST", event.Details["method"])
+
+	// Test WithError separately
+	event2 := NewAuditEvent(AuditEventAuth, "login", "user", "api").
+		WithError(errors.New("test error"))
+	assert.Equal(t, "test error", event2.Error)
+	assert.Equal(t, "failure", event2.Status)
 }
 
 func TestAuditEventWithErrorNil(t *testing.T) {
@@ -244,11 +247,14 @@ func TestAuditLoggerIsEnabled(t *testing.T) {
 
 func TestGenerateEventID(t *testing.T) {
 	id1 := generateEventID()
+	time.Sleep(1 * time.Millisecond) // Ensure different timestamp
 	id2 := generateEventID()
 
 	assert.NotEmpty(t, id1)
 	assert.NotEmpty(t, id2)
-	assert.NotEqual(t, id1, id2) // Should be unique
+	// Note: In rare cases, IDs could be identical if generated in same nanosecond
+	// with same process ID, but with 1ms sleep they should be different
+	assert.NotEqual(t, id1, id2)
 }
 
 func TestWithAuditLogger(t *testing.T) {

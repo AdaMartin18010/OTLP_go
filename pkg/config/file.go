@@ -3,6 +3,7 @@ package config
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -14,12 +15,12 @@ import (
 
 // FileSource 文件配置源
 type FileSource struct {
-	Path     string
-	AutoReload bool
+	Path           string
+	AutoReload     bool
 	ReloadInterval time.Duration
-	mu       sync.RWMutex
-	lastMod  time.Time
-	watcher  *fileWatcher
+	mu             sync.RWMutex
+	lastMod        time.Time
+	watcher        *fileWatcher
 }
 
 // NewFileSource 创建文件配置源
@@ -64,10 +65,10 @@ func (f *FileSource) Watch(ctx context.Context, onChange func()) error {
 	}
 
 	f.watcher = &fileWatcher{
-		path:      f.Path,
-		interval:  f.ReloadInterval,
-		onChange:  onChange,
-		lastMod:   f.lastMod,
+		path:     f.Path,
+		interval: f.ReloadInterval,
+		onChange: onChange,
+		lastMod:  f.lastMod,
 	}
 
 	return f.watcher.Start(ctx)
@@ -218,7 +219,7 @@ func (m *MultiFileSource) Load(ctx context.Context) (map[string]interface{}, err
 		data, err := source.Load(ctx)
 		if err != nil {
 			// 文件不存在时跳过
-			if os.IsNotExist(err) {
+			if errors.Is(err, os.ErrNotExist) || os.IsNotExist(err) {
 				continue
 			}
 			return nil, fmt.Errorf("failed to load %s: %w", path, err)
@@ -272,57 +273,57 @@ func SaveToFile(config map[string]interface{}, path string) error {
 // LoadConfigFile 加载配置文件（便捷函数）
 func LoadConfigFile(path string) (Config, error) {
 	ctx := context.Background()
-	
+
 	manager := New()
 	manager.AddSource(NewFileSource(path))
-	
+
 	if err := manager.Load(ctx); err != nil {
 		return nil, err
 	}
-	
+
 	return manager, nil
 }
 
 // LoadConfigFiles 加载多个配置文件（便捷函数）
 func LoadConfigFiles(paths ...string) (Config, error) {
 	ctx := context.Background()
-	
+
 	manager := New()
-	
+
 	for _, path := range paths {
 		manager.AddSource(NewFileSource(path))
 	}
-	
+
 	if err := manager.Load(ctx); err != nil {
 		return nil, err
 	}
-	
+
 	return manager, nil
 }
 
 // LoadConfigWithEnv 加载配置文件和环境变量（便捷函数）
 func LoadConfigWithEnv(filePath, envPrefix string) (Config, error) {
 	ctx := context.Background()
-	
+
 	manager := New().
 		WithEnvPrefix(envPrefix).
 		AddSource(NewFileSource(filePath)).
 		AddSource(NewEnvSource(envPrefix))
-	
+
 	if err := manager.Load(ctx); err != nil {
 		return nil, err
 	}
-	
+
 	return manager, nil
 }
 
 // ConfigFileInfo 配置文件信息
 type ConfigFileInfo struct {
-	Path       string
-	Format     string
-	LastMod    time.Time
-	Size       int64
-	Exists     bool
+	Path    string
+	Format  string
+	LastMod time.Time
+	Size    int64
+	Exists  bool
 }
 
 // GetConfigFileInfo 获取配置文件信息

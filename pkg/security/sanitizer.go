@@ -59,7 +59,7 @@ var defaultPatterns = map[PIIType]*regexp.Regexp{
 	PIITypeSSN:        regexp.MustCompile(`\b\d{3}[-.\s]?\d{2}[-.\s]?\d{4}\b`),
 	PIITypeCreditCard: regexp.MustCompile(`\b(?:\d{4}[-.\s]?){3}\d{4}\b`),
 	PIITypeIP:         regexp.MustCompile(`\b(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\b`),
-	PIITypeMAC:        regexp.MustCompile(`\b([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})\b`),
+	PIITypeMAC:        regexp.MustCompile(`(?i)\b([0-9a-f]{2}[:-]){5}([0-9a-f]{2})\b`),
 }
 
 // SanitizerConfig holds configuration for the data sanitizer.
@@ -184,6 +184,36 @@ func (s *Sanitizer) SanitizeMap(data map[string]string) map[string]string {
 			result[key] = s.sanitizeSensitiveValue(value)
 		} else {
 			result[key] = s.Sanitize(value)
+		}
+	}
+
+	return result
+}
+
+// SanitizeInterfaceMap sanitizes map[string]interface{} values.
+// This is useful for sanitizing event details that contain mixed types.
+func (s *Sanitizer) SanitizeInterfaceMap(data map[string]interface{}) map[string]interface{} {
+	if data == nil {
+		return nil
+	}
+
+	result := make(map[string]interface{}, len(data))
+	for key, value := range data {
+		// Check if field name indicates sensitive data
+		if s.isSensitiveField(key) {
+			// Convert value to string and sanitize
+			if str, ok := value.(string); ok {
+				result[key] = s.sanitizeSensitiveValue(str)
+			} else {
+				result[key] = "[REDACTED]"
+			}
+		} else {
+			// Convert value to string and sanitize if it's a string
+			if str, ok := value.(string); ok {
+				result[key] = s.Sanitize(str)
+			} else {
+				result[key] = value
+			}
 		}
 	}
 

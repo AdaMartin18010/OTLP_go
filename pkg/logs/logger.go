@@ -216,7 +216,8 @@ type RateLimiter struct {
 // NewRateLimiter creates a new rate limiter.
 func NewRateLimiter(interval time.Duration) *RateLimiter {
 	rl := &RateLimiter{interval: interval}
-	rl.lastLog.Store(time.Now().UnixNano())
+	// Initialize to 0 to allow first log
+	rl.lastLog.Store(0)
 	return rl
 }
 
@@ -256,77 +257,69 @@ type Encoder interface {
 	Encode(record *LogRecord, fields Fields) ([]byte, error)
 }
 
-// JSONEncoder encodes log records as JSON.
-type JSONEncoder struct {
-	pool sync.Pool
+// LogJSONEncoder encodes log records as JSON.
+type LogJSONEncoder struct {
+	enc JSONEncoder
 }
 
 // NewJSONLogEncoder creates a new JSON encoder for log records.
-func NewJSONLogEncoder() *JSONEncoder {
-	return &JSONEncoder{
-		pool: sync.Pool{
-			New: func() interface{} {
-				return NewJSONEncoder()
-			},
-		},
-	}
+func NewJSONLogEncoder() *LogJSONEncoder {
+	return &LogJSONEncoder{}
 }
 
 // Encode encodes a log record as JSON.
-func (e *JSONEncoder) Encode(record *LogRecord, fields Fields) ([]byte, error) {
-	enc := e.pool.Get().(*JSONEncoder)
-	defer e.pool.Put(enc)
-	enc.Reset()
+func (e *LogJSONEncoder) Encode(record *LogRecord, fields Fields) ([]byte, error) {
+	e.enc.Reset()
 
-	enc.buffer = append(enc.buffer, '{')
+	e.enc.buffer = append(e.enc.buffer, '{')
 
 	// Timestamp
-	enc.EncodeTime("timestamp", record.Timestamp)
+	e.enc.EncodeTime("timestamp", record.Timestamp)
 
 	// Level
-	enc.EncodeString("level", record.Severity.String())
+	e.enc.EncodeString("level", record.Severity.String())
 
 	// Message
-	enc.EncodeString("message", record.Body)
+	e.enc.EncodeString("message", record.Body)
 
 	// Logger name (if any)
 	// (Would be added via fields)
 
 	// Trace context
 	if record.TraceID.IsValid() {
-		enc.EncodeString("trace_id", record.TraceID.String())
+		e.enc.EncodeString("trace_id", record.TraceID.String())
 	}
 	if record.SpanID.IsValid() {
-		enc.EncodeString("span_id", record.SpanID.String())
+		e.enc.EncodeString("span_id", record.SpanID.String())
 	}
 
 	// Fields
-	enc.EncodeFields(fields)
+	e.enc.EncodeFields(fields)
 
 	// Attributes
 	for _, attr := range record.Attributes {
-		enc.EncodeAttribute(attr)
+		e.encodeAttribute(&e.enc, attr)
 	}
 
-	enc.buffer = append(enc.buffer, '}')
-	result := make([]byte, len(enc.buffer))
-	copy(result, enc.buffer)
+	e.enc.buffer = append(e.enc.buffer, '}')
+	result := make([]byte, len(e.enc.buffer))
+	copy(result, e.enc.buffer)
 	return result, nil
 }
 
-// EncodeAttribute encodes an OpenTelemetry attribute.
-func (e *JSONEncoder) EncodeAttribute(attr attribute.KeyValue) {
+// encodeAttribute encodes an OpenTelemetry attribute.
+func (e *LogJSONEncoder) encodeAttribute(enc *JSONEncoder, attr attribute.KeyValue) {
 	switch attr.Value.Type() {
 	case attribute.BOOL:
-		e.EncodeBool(string(attr.Key), attr.Value.AsBool())
+		enc.EncodeBool(string(attr.Key), attr.Value.AsBool())
 	case attribute.INT64:
-		e.EncodeInt64(string(attr.Key), attr.Value.AsInt64())
+		enc.EncodeInt64(string(attr.Key), attr.Value.AsInt64())
 	case attribute.FLOAT64:
-		e.EncodeFloat64(string(attr.Key), attr.Value.AsFloat64())
+		enc.EncodeFloat64(string(attr.Key), attr.Value.AsFloat64())
 	case attribute.STRING:
-		e.EncodeString(string(attr.Key), attr.Value.AsString())
+		enc.EncodeString(string(attr.Key), attr.Value.AsString())
 	default:
-		e.EncodeString(string(attr.Key), attr.Value.AsString())
+		enc.EncodeString(string(attr.Key), attr.Value.AsString())
 	}
 }
 
@@ -610,8 +603,8 @@ func (l *Logger) Emit(ctx context.Context, severity SeverityNumber, body string,
 	fields := make(Fields, len(attrs))
 	for i, attr := range attrs {
 		fields[i] = Field{
-			Key:  string(attr.Key),
-			Type: AnyType,
+			Key:   string(attr.Key),
+			Type:  AnyType,
 			Value: attr.Value,
 		}
 	}

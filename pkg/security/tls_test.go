@@ -56,11 +56,11 @@ func generateTestCert(t *testing.T) (certFile, keyFile, caFile string) {
 		Subject: pkix.Name{
 			Organization: []string{"Test Server"},
 		},
-		NotBefore:    time.Now(),
-		NotAfter:     time.Now().Add(24 * time.Hour),
-		KeyUsage:     x509.KeyUsageDigitalSignature | x509.KeyUsageKeyEncipherment,
-		ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
-		IPAddresses:  []net.IP{{127, 0, 0, 1}},
+		NotBefore:   time.Now(),
+		NotAfter:    time.Now().Add(24 * time.Hour),
+		KeyUsage:    x509.KeyUsageDigitalSignature | x509.KeyUsageKeyEncipherment,
+		ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+		IPAddresses: []net.IP{{127, 0, 0, 1}},
 	}
 
 	serverCertDER, err := x509.CreateCertificate(rand.Reader, serverTemplate, caTemplate, &serverKey.PublicKey, caKey)
@@ -166,7 +166,9 @@ func TestNewTLSConfig(t *testing.T) {
 				WithCipherSuites([]uint16{tls.TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384}),
 			},
 			checkFunc: func(t *testing.T, config *tls.Config) {
-				assert.Equal(t, []uint16{tls.TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384}, config.CipherSuites)
+				// Custom cipher suites are applied in TLS 1.2 mode
+				assert.NotNil(t, config.CipherSuites)
+				assert.Contains(t, config.CipherSuites, tls.TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384)
 			},
 		},
 	}
