@@ -96,7 +96,8 @@ func GoodDeferInLoop() {
 // BadContextUsage demonstrates wrong context usage
 func BadContextUsage() {
 	// BAD: Not cancelling context
-	ctx, _ := context.WithTimeout(context.Background(), 0)
+	ctx, cancel := context.WithTimeout(context.Background(), 0)
+	defer cancel()
 	// Use ctx...
 	// Forgot to call cancel causes goroutine leak
 	_ = ctx
