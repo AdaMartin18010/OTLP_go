@@ -1,4 +1,4 @@
-name: CI
+﻿name: CI
 
 on:
   push:
@@ -11,16 +11,16 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        go-version: ['1.23.x']
-
+        go-version: ['1.26.x']
+    
     steps:
     - uses: actions/checkout@v4
-
+    
     - name: Set up Go
       uses: actions/setup-go@v5
       with:
         go-version: ${{ matrix.go-version }}
-
+    
     - name: Cache Go modules
       uses: actions/cache@v4
       with:
@@ -28,54 +28,84 @@ jobs:
         key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
         restore-keys: |
           ${{ runner.os }}-go-
-
-    - name: Sync workspace
-      run: go work sync
-
-    - name: Download dependencies
-      run: go mod download
-
-    - name: Build all modules
-      run: go build ./...
-
-    - name: Run tests
-      run: go test -race ./...
-
-    - name: Run tests (pkg modules)
-      run: go test -race OTLP_go/pkg/...
+    
+    - name: Verify go.mod
+      run: |
+        go mod verify
+        go work sync
+    
+    - name: Check formatting
+      run: |
+        if [ "$(gofmt -s -l . | wc -l)" -gt 0 ]; then
+          echo "Code needs formatting:"
+          gofmt -s -l .
+          exit 1
+        fi
+    
+    - name: Run go vet
+      run: go vet ./...
+    
+    - name: Build
+      run: |
+        go build -v ./...
+        go build -v OTLP_go/...
+    
+    - name: Test
+      run: |
+        go test -race -v ./...
+        go test -race -v OTLP_go/...
+    
+    - name: Test Coverage
+      run: |
+        go test -race -coverprofile=coverage.out ./...
+        go tool cover -func=coverage.out
+    
+    - name: Upload coverage
+      uses: codecov/codecov-action@v4
+      with:
+        files: ./coverage.out
+        fail_ci_if_error: false
 
   lint:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
-
-    - name: Set up Go
-      uses: actions/setup-go@v5
+    - uses: actions/setup-go@v5
       with:
-        go-version: '1.23.x'
-
+        go-version: '1.26.x'
     - name: golangci-lint
       uses: golangci/golangci-lint-action@v6
       with:
         version: latest
-        args: --timeout=5m
+        args: --timeout=5m --skip-dirs=docs,archive
 
-  coverage:
+  security:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
-
-    - name: Set up Go
-      uses: actions/setup-go@v5
+    - uses: actions/setup-go@v5
       with:
-        go-version: '1.23.x'
-
-    - name: Run coverage
-      run: go test -race -coverprofile=coverage.out ./...
-
-    - name: Upload coverage to Codecov
-      uses: codecov/codecov-action@v4
+        go-version: '1.26.x'
+    - name: Run Gosec Security Scanner
+      uses: securego/gosec@master
       with:
-        files: ./coverage.out
-        flags: unittests
-        name: codecov-umbrella
+        args: '-no-fail -fmt sarif -out results.sarif ./...'
+    - name: Upload SARIF file
+      uses: github/codeql-action/upload-sarif@v3
+      with:
+        sarif_file: results.sarif
+
+  benchmark:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-go@v5
+      with:
+        go-version: '1.26.x'
+    - name: Run benchmarks
+      run: go test -bench=. -benchmem ./pkg/... | tee benchmark.txt
+    - name: Upload benchmark results
+      uses: actions/upload-artifact@v4
+      with:
+        name: benchmark-results
+        path: benchmark.txt

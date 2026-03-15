@@ -1,3 +1,4 @@
+// Package main provides functionality for src operations.
 package main
 
 import (
