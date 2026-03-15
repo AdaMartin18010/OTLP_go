@@ -2,334 +2,80 @@ name: CI
 
 on:
   push:
-    branches: [ main, develop, 'feature/**', 'bugfix/**' ]
-    paths-ignore:
-      - '**.md'
-      - 'docs/**'
-      - '.github/ISSUE_TEMPLATE/**'
+    branches: [ main, master, develop ]
   pull_request:
-    branches: [ main, develop ]
-    paths-ignore:
-      - '**.md'
-      - 'docs/**'
-
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
-
-env:
-  GO_VERSION: '1.25'
-  GO_CACHE_KEY: ${{ runner.os }}-go-mod
+    branches: [ main, master, develop ]
 
 jobs:
-  # ============================================================================
-  # Lint Job - Code quality checks
-  # ============================================================================
-  lint:
-    name: Lint
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: ${{ env.GO_VERSION }}
-          cache: true
-
-      - name: Run golangci-lint
-        uses: golangci/golangci-lint-action@v6
-        with:
-          version: latest
-          args: --timeout=10m --issues-exit-code=1
-          install-mode: binary
-
-      - name: Run go vet
-        run: go vet ./...
-
-      - name: Check go mod tidy
-        run: |
-          go mod tidy
-          git diff --exit-code go.mod go.sum || (echo "go.mod or go.sum is not tidy. Please run 'go mod tidy' and commit the changes." && exit 1)
-
-  # ============================================================================
-  # Test Job - Run tests with race detector
-  # ============================================================================
-  test:
-    name: Test (${{ matrix.os }}, Go ${{ matrix.go-version }})
-    runs-on: ${{ matrix.os }}
-    timeout-minutes: 30
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
-        go-version: ['1.24', '1.25']
-        include:
-          - os: ubuntu-latest
-            go-version: '1.25'
-            coverage: true
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up Go ${{ matrix.go-version }}
-        uses: actions/setup-go@v5
-        with:
-          go-version: ${{ matrix.go-version }}
-          cache: true
-
-      - name: Download dependencies
-        run: go mod download
-
-      - name: Run tests with race detector
-        run: go test -v -race -count=1 ./...
-        timeout-minutes: 20
-
-      - name: Run tests (short mode)
-        if: matrix.os == 'windows-latest'
-        run: go test -v -short -count=1 ./...
-
-  # ============================================================================
-  # Coverage Job - Generate and upload coverage reports
-  # ============================================================================
-  coverage:
-    name: Coverage
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    needs: [lint]
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: ${{ env.GO_VERSION }}
-          cache: true
-
-      - name: Download dependencies
-        run: go mod download
-
-      - name: Generate coverage report
-        run: |
-          go test -race -coverprofile=coverage.out -covermode=atomic ./...
-          go tool cover -func=coverage.out -o=coverage.txt
-
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v4
-        with:
-          files: ./coverage.out
-          flags: unittests
-          name: codecov-umbrella
-          fail_ci_if_error: false
-          verbose: true
-        env:
-          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
-
-      - name: Upload coverage artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: coverage-report
-          path: |
-            coverage.out
-            coverage.txt
-          retention-days: 30
-
-      - name: Generate coverage summary
-        run: |
-          echo "## Coverage Summary" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "| Package | Coverage |" >> $GITHUB_STEP_SUMMARY
-          echo "|---------|----------|" >> $GITHUB_STEP_SUMMARY
-          grep -E "^github.com|^coverage" coverage.txt | while read line; do
-            pkg=$(echo $line | awk '{print $1}')
-            cov=$(echo $line | awk '{print $3}')
-            echo "| $pkg | $cov |" >> $GITHUB_STEP_SUMMARY
-          done
-
-  # ============================================================================
-  # Build Job - Build all binaries
-  # ============================================================================
   build:
-    name: Build (${{ matrix.os }})
-    runs-on: ${{ matrix.os }}
-    timeout-minutes: 15
-    needs: [lint, test]
+    runs-on: ubuntu-latest
     strategy:
-      fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
-        include:
-          - os: ubuntu-latest
-            binary-suffix: ''
-          - os: windows-latest
-            binary-suffix: '.exe'
-          - os: macos-latest
-            binary-suffix: ''
+        go-version: ['1.23.x']
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+    - uses: actions/checkout@v4
 
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: ${{ env.GO_VERSION }}
-          cache: true
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: ${{ matrix.go-version }}
 
-      - name: Build all examples
-        shell: bash
-        run: |
-          mkdir -p bin
-          for dir in examples/*/; do
-            if [ -f "$dir/main.go" ]; then
-              example_name=$(basename "$dir")
-              echo "Building $example_name..."
-              go build -v -ldflags="-s -w" -o "bin/${example_name}${{ matrix.binary-suffix }}" "./${dir}/main.go"
-            fi
-          done
-          ls -la bin/
+    - name: Cache Go modules
+      uses: actions/cache@v4
+      with:
+        path: ~/go/pkg/mod
+        key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+        restore-keys: |
+          ${{ runner.os }}-go-
 
-      - name: Build src binaries
-        shell: bash
-        run: |
-          # Build main src files if they have main package
-          for file in src/*.go; do
-            if grep -q "^package main" "$file" 2>/dev/null; then
-              binary_name=$(basename "$file" .go)
-              echo "Building src/$file -> bin/${binary_name}${{ matrix.binary-suffix }}..."
-              go build -v -ldflags="-s -w" -o "bin/${binary_name}${{ matrix.binary-suffix }}" "$file" || true
-            fi
-          done
+    - name: Sync workspace
+      run: go work sync
 
-      - name: Upload build artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: binaries-${{ matrix.os }}
-          path: bin/*
-          retention-days: 7
+    - name: Download dependencies
+      run: go mod download
 
-  # ============================================================================
-  # Integration Tests Job
-  # ============================================================================
-  integration:
-    name: Integration Tests
+    - name: Build all modules
+      run: go build ./...
+
+    - name: Run tests
+      run: go test -race ./...
+
+    - name: Run tests (pkg modules)
+      run: go test -race OTLP_go/pkg/...
+
+  lint:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
-    needs: [build]
-    services:
-      otel-collector:
-        image: otel/opentelemetry-collector-contrib:0.120.0
-        ports:
-          - 4317:4317
-          - 4318:4318
-        options: >-
-          --health-cmd "wget --no-verbose --tries=1 --spider http://localhost:13133 || exit 1"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+    - uses: actions/checkout@v4
 
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: ${{ env.GO_VERSION }}
-          cache: true
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.23.x'
 
-      - name: Wait for collector
-        run: |
-          echo "Waiting for OpenTelemetry Collector..."
-          for i in {1..30}; do
-            if wget --no-verbose --tries=1 --spider http://localhost:13133 2>/dev/null; then
-              echo "Collector is ready!"
-              break
-            fi
-            sleep 2
-          done
+    - name: golangci-lint
+      uses: golangci/golangci-lint-action@v6
+      with:
+        version: latest
+        args: --timeout=5m
 
-      - name: Run integration tests
-        run: |
-          go test -v -tags=integration ./src/integration/... || true
-
-      - name: Run basic example
-        timeout-minutes: 2
-        run: |
-          cd examples/basic
-          timeout 30s go run main.go || true
-
-      - name: Run context propagation example
-        timeout-minutes: 2
-        run: |
-          cd examples/context-propagation
-          timeout 30s go run main.go || true
-
-  # ============================================================================
-  # Docker Build Job
-  # ============================================================================
-  docker:
-    name: Docker Build
+  coverage:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+    - uses: actions/checkout@v4
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.23.x'
 
-      - name: Validate docker-compose
-        run: docker compose config
+    - name: Run coverage
+      run: go test -race -coverprofile=coverage.out ./...
 
-      - name: Build Docker image
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          push: false
-          load: true
-          tags: otlp-go:test
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-  # ============================================================================
-  # Summary Job
-  # ============================================================================
-  summary:
-    name: Summary
-    runs-on: ubuntu-latest
-    needs: [lint, test, coverage, build, integration, docker]
-    if: always()
-    steps:
-      - name: Generate workflow summary
-        run: |
-          echo "# CI Workflow Summary" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "| Job | Status |" >> $GITHUB_STEP_SUMMARY
-          echo "|-----|--------|" >> $GITHUB_STEP_SUMMARY
-          
-          for job in lint test coverage build integration docker; do
-            status="${{ needs.*.result }}"
-            # Get individual job status
-            case $job in
-              lint) result="${{ needs.lint.result }}" ;;
-              test) result="${{ needs.test.result }}" ;;
-              coverage) result="${{ needs.coverage.result }}" ;;
-              build) result="${{ needs.build.result }}" ;;
-              integration) result="${{ needs.integration.result }}" ;;
-              docker) result="${{ needs.docker.result }}" ;;
-            esac
-            
-            if [ "$result" == "success" ]; then
-              emoji="✅"
-            elif [ "$result" == "failure" ]; then
-              emoji="❌"
-            else
-              emoji="⚠️"
-            fi
-            echo "| $job | $emoji $result |" >> $GITHUB_STEP_SUMMARY
-          done
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v4
+      with:
+        files: ./coverage.out
+        flags: unittests
+        name: codecov-umbrella

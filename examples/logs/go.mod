@@ -3,7 +3,8 @@
 
 module OTLP_go/examples/logs
 
-go 1.23
+go 1.25.0
+
 require go.opentelemetry.io/otel v1.42.0
 
 require (

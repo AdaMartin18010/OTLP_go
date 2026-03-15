@@ -1,6 +1,7 @@
 module OTLP_go/pkg/pool
 
-go 1.23
+go 1.25.0
+
 require (
 	github.com/stretchr/testify v1.11.1
 	go.opentelemetry.io/otel v1.42.0
