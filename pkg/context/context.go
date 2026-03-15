@@ -10,8 +10,7 @@
 //
 //	// Create context with baggage
 //	ctx := context.WithBaggage(ctx, "user-id", "12345")
-//	
+//
 //	// Extract baggage
 //	value := context.GetBaggage(ctx, "user-id")
 package context
-

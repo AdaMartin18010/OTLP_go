@@ -12,10 +12,9 @@
 //	tp := sdktrace.NewTracerProvider(
 //	    sdktrace.WithSyncer(exporter),
 //	)
-//	
+//
 //	// Run code...
-//	
+//
 //	spans := exporter.GetSpans()
 //	assert.Len(t, spans, 1)
 package testing
-

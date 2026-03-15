@@ -19,4 +19,3 @@
 //	}
 //	defer otelSDK.Shutdown(ctx)
 package otel
-

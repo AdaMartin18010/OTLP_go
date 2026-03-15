@@ -12,9 +12,8 @@
 //	type MyProcessor struct {
 //	    types.ProcessorBase
 //	}
-//	
+//
 //	func (p *MyProcessor) Process(data types.Processable) error {
 //	    // Process data...
 //	}
 package types
-

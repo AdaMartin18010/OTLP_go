@@ -12,4 +12,3 @@
 //	stats := runtime.GetMemStats()
 //	fmt.Printf("Alloc: %d MB\n", stats.Alloc/1024/1024)
 package runtime
-

@@ -15,4 +15,3 @@
 //	}
 //	tp := sdktrace.NewTracerProvider(opts...)
 package options
-

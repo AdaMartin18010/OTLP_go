@@ -11,8 +11,7 @@
 //	pool := pool.New(func() *Buffer {
 //	    return &Buffer{data: make([]byte, 0, 1024)}
 //	})
-//	
+//
 //	buf := pool.Get()
 //	defer pool.Put(buf)
 package pool
-

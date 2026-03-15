@@ -12,8 +12,7 @@
 //	if err != nil {
 //	    log.Fatal(err)
 //	}
-//	
+//
 //	endpoint := cfg.GetString("otel.endpoint")
 //	timeout := cfg.GetDuration("otel.timeout")
 package config
-

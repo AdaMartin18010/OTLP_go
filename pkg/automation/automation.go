@@ -17,4 +17,3 @@
 //	    log.Fatal(err)
 //	}
 package automation
-

@@ -16,4 +16,3 @@
 //	    resource.WithContainer(),
 //	)
 package resource
-

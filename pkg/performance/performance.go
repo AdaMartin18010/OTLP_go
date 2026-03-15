@@ -12,7 +12,6 @@
 //	pool := performance.NewSpanPool(1000)
 //	span := pool.Get()
 //	defer pool.Put(span)
-//	
+//
 //	// Use span...
 package performance
-

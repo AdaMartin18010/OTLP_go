@@ -12,7 +12,6 @@
 //	// Start CPU profiling
 //	stop := profiling.StartCPUProfile("cpu.prof")
 //	defer stop()
-//	
+//
 //	// Application code...
 package profiling
-
