@@ -1,4 +1,4 @@
-﻿package microservices
+package microservices
 
 import (
 	"OTLP_go/pkg/types"

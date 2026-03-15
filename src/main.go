@@ -1,4 +1,4 @@
-﻿package main
+package main
 
 import (
 	"context"
@@ -240,9 +240,9 @@ func main() {
 	// 启动服务器
 	go func() {
 		logger.Info("🌐 Server listening",
-		slog.String("addr", addr),
-		slog.String("otlp", endpoint),
-	)
+			slog.String("addr", addr),
+			slog.String("otlp", endpoint),
+		)
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			logger.Error("❌ Server error", slog.Any("error", err))
 			os.Exit(1)

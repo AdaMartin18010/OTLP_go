@@ -5,6 +5,3 @@
 module OTLP_go/src/pkg/types
 
 go 1.26
-require (
-    go.opentelemetry.io/otel v1.30.0
-)
