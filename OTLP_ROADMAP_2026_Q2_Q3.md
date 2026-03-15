@@ -1,7 +1,7 @@
 # 📅 OTLP_go 2026年 Q2-Q3 可持续推进路线图
 
-**制定日期**: 2026-03-15  
-**执行周期**: 2026年 Q2 (4-6月) - Q3 (7-9月)  
+**制定日期**: 2026-03-15
+**执行周期**: 2026年 Q2 (4-6月) - Q3 (7-9月)
 **目标**: 实现 OTLP 标准完全合规，达到生产就绪状态
 
 ---
@@ -9,6 +9,7 @@
 ## 🎯 愿景与目标
 
 ### 总体愿景
+>
 > 打造业界领先的 Go + OTLP 技术参考实现，完全符合 OpenTelemetry 最新标准
 
 ### 量化目标
@@ -26,9 +27,11 @@
 ## 📆 Q2 (4-6月) 详细计划
 
 ### Sprint 1 (Week 1-2): 紧急修复期
+
 **主题**: 安全与兼容性
 
 #### 任务清单
+
 ```markdown
 □ P0-001: 替换所有 WithInsecure() 调用
   - 影响范围: examples/*, src/pkg/otel/*
@@ -56,6 +59,7 @@
 ```
 
 #### 里程碑 1.1
+
 ```
 ✅ 所有示例代码使用 TLS
 ✅ semconv v1.30.0 全量替换
@@ -66,9 +70,11 @@
 ---
 
 ### Sprint 2 (Week 3-4): Logs 信号实现
+
 **主题**: 完善四支柱 - Logs
 
 #### 任务清单
+
 ```markdown
 □ P1-001: 实现 OTLP Logs Exporter
   - 新建: src/logs.go
@@ -98,6 +104,7 @@
 ```
 
 #### 里程碑 1.2
+
 ```
 ✅ Logs Exporter 可用
 ✅ LoggerProvider 配置完善
@@ -109,9 +116,11 @@
 ---
 
 ### Sprint 3 (Week 5-6): Metrics 完善
+
 **主题**: Metrics 高级特性
 
 #### 任务清单
+
 ```markdown
 □ P1-006: 添加 Views 配置
   - 聚合类型选择
@@ -136,6 +145,7 @@
 ```
 
 #### 里程碑 1.3
+
 ```
 ✅ Views 配置可用
 ✅ Cardinality 保护生效
@@ -146,9 +156,11 @@
 ---
 
 ### Sprint 4 (Week 7-8): 稳定性提升
+
 **主题**: 生产就绪特性
 
 #### 任务清单
+
 ```markdown
 □ P1-010: SDK 自观测指标
   - 导出队列深度
@@ -177,6 +189,7 @@
 ```
 
 #### 里程碑 1.4 (Q2 结束)
+
 ```
 ✅ SDK 自观测完善
 ✅ 连接管理健壮
@@ -190,9 +203,11 @@
 ## 📆 Q3 (7-9月) 详细计划
 
 ### Sprint 5 (Week 9-12): Profiles 信号
+
 **主题**: 实现第四支柱
 
 #### 任务清单
+
 ```markdown
 □ P2-001: 研究 Profiles 协议
   - OTLP Profiles 规范研读
@@ -224,6 +239,7 @@
 ```
 
 #### 里程碑 2.1
+
 ```
 ✅ Profiles Exporter 可用
 ✅ CPU/Memory Profiling 支持
@@ -234,9 +250,11 @@
 ---
 
 ### Sprint 6 (Week 13-16): 高级特性
+
 **主题**: OTLP v1.5.0 新特性
 
 #### 任务清单
+
 ```markdown
 □ P2-006: Entity Events 实现
   - Entity 概念建模
@@ -262,6 +280,7 @@
 ```
 
 #### 里程碑 2.2
+
 ```
 ✅ Entity Events 支持
 ✅ 新响应格式兼容
@@ -272,9 +291,11 @@
 ---
 
 ### Sprint 7 (Week 17-20): 生态集成
+
 **主题**: 云原生生态
 
 #### 任务清单
+
 ```markdown
 □ P2-010: OpenTelemetry Operator 集成
   - Sidecar 注入支持
@@ -302,6 +323,7 @@
 ```
 
 #### 里程碑 2.3
+
 ```
 ✅ Operator 集成完成
 ✅ Service Graph 可用
@@ -312,9 +334,11 @@
 ---
 
 ### Sprint 8 (Week 21-24): 合规认证
+
 **主题**: 标准化与认证
 
 #### 任务清单
+
 ```markdown
 □ P2-014: OTLP 兼容性测试套件
   - 自动化测试
@@ -348,6 +372,7 @@
 ```
 
 #### 里程碑 2.4 (Q3 结束)
+
 ```
 ✅ 兼容性测试通过
 ✅ Semantic Conventions 合规
@@ -388,19 +413,19 @@
 gantt
     title 2026年 OTLP_go 路线图
     dateFormat  YYYY-MM-DD
-    
+
     section Q2 - 基础完善
     Sprint 1: 安全修复      :s1, 2026-04-01, 2w
     Sprint 2: Logs 实现     :s2, after s1, 2w
     Sprint 3: Metrics 完善  :s3, after s2, 2w
     Sprint 4: 稳定性        :s4, after s3, 2w
-    
+
     section Q3 - 高级特性
     Sprint 5: Profiles      :s5, 2026-07-01, 4w
     Sprint 6: 新特性        :s6, after s5, 4w
     Sprint 7: 生态集成      :s7, after s6, 4w
     Sprint 8: 合规认证      :s8, after s7, 4w
-    
+
     section 里程碑
     v3.4.0 发布          :milestone, after s2, 0d
     生产就绪             :milestone, after s4, 0d
@@ -413,6 +438,7 @@ gantt
 ## 📈 成功指标
 
 ### 技术指标
+
 ```
 代码覆盖率:      82% → 90%
 测试通过率:      100% 保持
@@ -423,6 +449,7 @@ Race-free:       保持
 ```
 
 ### 合规指标
+
 ```
 OTLP 协议符合度:   65% → 95%
 Semantic Conventions: 70% → 95%
@@ -431,6 +458,7 @@ Semantic Conventions: 70% → 95%
 ```
 
 ### 社区指标
+
 ```
 GitHub Stars:      目标 1000+
 Contributors:      目标 20+
@@ -455,17 +483,20 @@ Issues 响应时间:    <24h
 ## 📚 附录
 
 ### A. 参考资源
+
 - [OpenTelemetry Roadmap](https://github.com/open-telemetry/opentelemetry-specification/blob/main/roadmap.md)
 - [OTLP Changelog](https://github.com/open-telemetry/opentelemetry-proto/blob/main/CHANGELOG.md)
 - [Go SDK Changelog](https://github.com/open-telemetry/opentelemetry-go/blob/main/CHANGELOG.md)
 
 ### B. 工具清单
+
 - 兼容性测试: `opentelemetry-collector-contrib/testbed`
 - 性能测试: `go test -bench`
 - 安全扫描: `gosec`, `nancy`
 - 文档生成: `godoc`, `pkgsite`
 
 ### C. 评审检查点
+
 - [ ] Week 4: Sprint 2 结束评审
 - [ ] Week 8: Q2 结束评审
 - [ ] Week 12: Sprint 5 结束评审
@@ -475,6 +506,6 @@ Issues 响应时间:    <24h
 
 ---
 
-**制定团队**: OTLP_go Core Team  
-**审核人**: Tech Lead, Product Manager  
+**制定团队**: OTLP_go Core Team
+**审核人**: Tech Lead, Product Manager
 **批准状态**: 🟡 待审核

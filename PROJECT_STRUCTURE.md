@@ -1,7 +1,7 @@
 # 📁 项目文件结构
 
-> **生成时间**: 2025-10-04  
-> **项目版本**: v3.1.0  
+> **生成时间**: 2025-10-04
+> **项目版本**: v3.1.0
 > **总文件数**: 80+
 
 ---
@@ -221,25 +221,25 @@ OTLP_go/
 graph TB
     README[README.md] --> QUICK[QUICK_START_GUIDE.md]
     README --> INDEX[DOCUMENT_INDEX.md]
-    
+
     QUICK --> EXAMPLES[examples/]
     QUICK --> DOCKER[docker-compose.yml]
-    
+
     INDEX --> THEORY[理论文档 18篇]
     INDEX --> PRACTICE[实践文档 3篇]
-    
+
     EXAMPLES --> BASIC[basic/]
     EXAMPLES --> PERF[performance/]
     EXAMPLES --> DIST[distributed-tracing/]
-    
+
     DOCKER --> CONFIGS[configs/]
     CONFIGS --> COLLECTOR[otel-collector-config.yaml]
     CONFIGS --> PROM[prometheus.yml]
-    
+
     MAKEFILE[Makefile] --> BUILD[构建]
     MAKEFILE --> TEST[测试]
     MAKEFILE --> RUN[运行]
-    
+
     CI[.github/workflows/] --> CICD[CI/CD]
     CICD --> LINT[代码检查]
     CICD --> UNITTEST[单元测试]
@@ -336,6 +336,6 @@ cat PROGRESS_REPORT_2025-10-04_FINAL.md
 
 ---
 
-**文档生成时间**: 2025-10-04  
-**项目版本**: v3.1.0  
+**文档生成时间**: 2025-10-04
+**项目版本**: v3.1.0
 **维护者**: OTLP_go Team

@@ -552,14 +552,14 @@ func main() {
     // 初始化 TracerProvider
     tp := initTracer()
     defer tp.Shutdown(context.Background())
-    
+
     // 创建 Tracer
     tracer := otel.Tracer("my-app")
-    
+
     // 创建 Span
     ctx, span := tracer.Start(context.Background(), "main")
     defer span.End()
-    
+
     // 执行业务逻辑
     doWork(ctx)
 }
@@ -602,8 +602,8 @@ func main() {
 
 ---
 
-**文档版本**: v1.0.0  
-**最后更新**: 2025-10-06  
+**文档版本**: v1.0.0
+**最后更新**: 2025-10-06
 **维护者**: OTLP Analysis Team
 
 **Happy Learning! 📚**-

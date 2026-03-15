@@ -47,7 +47,7 @@ func doWork(ctx context.Context) {
     tracer := otel.Tracer("my-app")
     ctx, span := tracer.Start(ctx, "doWork")
     defer span.End()
-    
+
     // 你的业务逻辑
     span.SetAttributes(attribute.String("key", "value"))
 }
@@ -59,7 +59,7 @@ func doWork(ctx context.Context) {
 func parentFunc(ctx context.Context) {
     ctx, span := tracer.Start(ctx, "parent")
     defer span.End()
-    
+
     childFunc(ctx) // Context 自动传播
 }
 
@@ -196,7 +196,7 @@ value := ctx.Value(key)
 
 ---
 
-**版本**: v1.0.0  
+**版本**: v1.0.0
 **更新**: 2025-10-06
 
 **Happy Coding! 🚀**:
