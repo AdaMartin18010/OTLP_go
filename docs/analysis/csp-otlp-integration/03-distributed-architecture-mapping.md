@@ -152,7 +152,7 @@ Application → SDK → Local Storage → Batch Upload
 func (a *Agent) Export(stream otlpgrpc.ExportTraceServiceServer) error {
     ctx, span := tracer.Start(stream.Context(), "agent.export")
     defer span.End()
-    
+
     for {
         req, err := stream.Recv()
         if err == io.EOF {
@@ -161,7 +161,7 @@ func (a *Agent) Export(stream otlpgrpc.ExportTraceServiceServer) error {
         if err != nil {
             return err
         }
-        
+
         // 处理并转发到 Gateway
         a.forwardToGateway(ctx, req)
     }
@@ -175,9 +175,9 @@ func (a *Agent) Export(stream otlpgrpc.ExportTraceServiceServer) error {
 **CSP 模型**：
 
 ```csp
-EDGE_AGENT = app_input?data -> 
-             process(data) -> 
-             gateway_output!data -> 
+EDGE_AGENT = app_input?data ->
+             process(data) ->
+             gateway_output!data ->
              EDGE_AGENT
 ```
 
@@ -193,13 +193,13 @@ type EdgeAgent struct {
 func (a *EdgeAgent) Start(ctx context.Context) {
     ctx, span := tracer.Start(ctx, "edge_agent")
     defer span.End()
-    
+
     for {
         select {
         case data := <-a.appInput:
             // 处理数据
             processedData := a.processor.Process(ctx, data)
-            
+
             // 转发到 Gateway
             select {
             case a.gatewayOutput <- processedData:
@@ -211,7 +211,7 @@ func (a *EdgeAgent) Start(ctx context.Context) {
                 span.AddEvent("gateway_channel_full")
                 a.handleBackpressure(ctx, processedData)
             }
-            
+
         case <-ctx.Done():
             return
         }
@@ -228,9 +228,9 @@ GATEWAY = (agent1_input?data -> GATEWAY_PROCESS(data))
        [] (agent2_input?data -> GATEWAY_PROCESS(data))
        [] (agentN_input?data -> GATEWAY_PROCESS(data))
 
-GATEWAY_PROCESS(data) = 
-    aggregate(data) -> 
-    backend_output!data -> 
+GATEWAY_PROCESS(data) =
+    aggregate(data) ->
+    backend_output!data ->
     GATEWAY
 ```
 
@@ -246,36 +246,36 @@ type RegionalGateway struct {
 func (g *RegionalGateway) Start(ctx context.Context) {
     ctx, span := tracer.Start(ctx, "regional_gateway")
     defer span.End()
-    
+
     // 使用 reflect.Select 实现多路复用
     cases := make([]reflect.SelectCase, len(g.agentInputs)+1)
-    
+
     for i, input := range g.agentInputs {
         cases[i] = reflect.SelectCase{
             Dir:  reflect.SelectRecv,
             Chan: reflect.ValueOf(input),
         }
     }
-    
+
     cases[len(g.agentInputs)] = reflect.SelectCase{
         Dir:  reflect.SelectRecv,
         Chan: reflect.ValueOf(ctx.Done()),
     }
-    
+
     for {
         chosen, value, ok := reflect.Select(cases)
-        
+
         if chosen == len(g.agentInputs) {
             // context cancelled
             return
         }
-        
+
         if ok {
             data := value.Interface().(OTLPData)
             span.AddEvent("received_from_agent", trace.WithAttributes(
                 attribute.Int("agent_id", chosen),
             ))
-            
+
             // 聚合并转发
             aggregatedData := g.aggregator.Aggregate(ctx, data)
             g.backendOutput <- aggregatedData
@@ -289,9 +289,9 @@ func (g *RegionalGateway) Start(ctx context.Context) {
 **CSP 模型**：
 
 ```csp
-BACKEND = gateway_input?data -> 
-          store(data) -> 
-          index(data) -> 
+BACKEND = gateway_input?data ->
+          store(data) ->
+          index(data) ->
           BACKEND
 ```
 
@@ -307,7 +307,7 @@ type CentralBackend struct {
 func (b *CentralBackend) Start(ctx context.Context) {
     ctx, span := tracer.Start(ctx, "central_backend")
     defer span.End()
-    
+
     for {
         select {
         case data := <-b.gatewayInput:
@@ -316,14 +316,14 @@ func (b *CentralBackend) Start(ctx context.Context) {
                 span.RecordError(err)
                 continue
             }
-            
+
             // 索引数据
             if err := b.indexer.Index(ctx, data); err != nil {
                 span.RecordError(err)
             }
-            
+
             span.AddEvent("data_stored_and_indexed")
-            
+
         case <-ctx.Done():
             return
         }
@@ -340,9 +340,9 @@ func (b *CentralBackend) Start(ctx context.Context) {
 **CSP 模型**：
 
 ```csp
-EVENTUAL_CONSISTENCY = 
-    write!data -> 
-    (propagate1!data || propagate2!data || propagate3!data) -> 
+EVENTUAL_CONSISTENCY =
+    write!data ->
+    (propagate1!data || propagate2!data || propagate3!data) ->
     EVENTUALLY_CONSISTENT
 ```
 
@@ -356,30 +356,30 @@ type EventualConsistencyStore struct {
 func (s *EventualConsistencyStore) Store(ctx context.Context, data OTLPData) error {
     ctx, span := tracer.Start(ctx, "eventual_consistency_store")
     defer span.End()
-    
+
     var wg sync.WaitGroup
     errChan := make(chan error, len(s.replicas))
-    
+
     // 异步写入所有副本
     for i, replica := range s.replicas {
         wg.Add(1)
         go func(id int, r ReplicaStore) {
             defer wg.Done()
-            
+
             ctx, span := tracer.Start(ctx, "replica_write")
             span.SetAttributes(attribute.Int("replica.id", id))
             defer span.End()
-            
+
             if err := r.Write(ctx, data); err != nil {
                 span.RecordError(err)
                 errChan <- err
             }
         }(i, replica)
     }
-    
+
     wg.Wait()
     close(errChan)
-    
+
     // 只要有一个副本成功即可
     errorCount := 0
     for err := range errChan {
@@ -388,7 +388,7 @@ func (s *EventualConsistencyStore) Store(ctx context.Context, data OTLPData) err
             return fmt.Errorf("all replicas failed")
         }
     }
-    
+
     return nil
 }
 ```
@@ -400,10 +400,10 @@ func (s *EventualConsistencyStore) Store(ctx context.Context, data OTLPData) err
 **CSP 模型**：
 
 ```csp
-CAUSAL_ORDER = 
-    event1!{trace_id, span_id_1, parent_id=nil} -> 
-    event2!{trace_id, span_id_2, parent_id=span_id_1} -> 
-    event3!{trace_id, span_id_3, parent_id=span_id_2} -> 
+CAUSAL_ORDER =
+    event1!{trace_id, span_id_1, parent_id=nil} ->
+    event2!{trace_id, span_id_2, parent_id=span_id_1} ->
+    event3!{trace_id, span_id_3, parent_id=span_id_2} ->
     CAUSAL_ORDER
 ```
 
@@ -418,29 +418,29 @@ type CausalConsistencyValidator struct {
 func (v *CausalConsistencyValidator) Validate(ctx context.Context, span Span) error {
     ctx, traceSpan := tracer.Start(ctx, "causal_consistency_validate")
     defer traceSpan.End()
-    
+
     v.mu.Lock()
     defer v.mu.Unlock()
-    
+
     traceID := span.TraceID
     spanID := span.SpanID
     parentID := span.ParentSpanID
-    
+
     // 初始化 trace 图
     if v.spanGraph[traceID] == nil {
         v.spanGraph[traceID] = make(map[string]bool)
     }
-    
+
     // 验证父 span 是否存在（如果有父 span）
     if parentID != "" && !v.spanGraph[traceID][parentID] {
         err := fmt.Errorf("causal consistency violation: parent span %s not found", parentID)
         traceSpan.RecordError(err)
         return err
     }
-    
+
     // 记录当前 span
     v.spanGraph[traceID][spanID] = true
-    
+
     traceSpan.AddEvent("causal_consistency_validated")
     return nil
 }
@@ -462,20 +462,20 @@ type SequentialConsistencyBuffer struct {
 func (b *SequentialConsistencyBuffer) Append(ctx context.Context, data OTLPData) error {
     ctx, span := tracer.Start(ctx, "sequential_append")
     defer span.End()
-    
+
     b.mu.Lock()
     defer b.mu.Unlock()
-    
+
     // 分配序列号
     b.sequence++
     data.Sequence = b.sequence
-    
+
     b.buffer = append(b.buffer, data)
-    
+
     span.SetAttributes(
         attribute.Int64("sequence", int64(b.sequence)),
     )
-    
+
     return nil
 }
 ```
@@ -495,17 +495,17 @@ type HealthChecker struct {
 func (h *HealthChecker) Start(ctx context.Context) {
     ctx, span := tracer.Start(ctx, "health_checker")
     defer span.End()
-    
+
     ticker := time.NewTicker(h.interval)
     defer ticker.Stop()
-    
+
     for {
         select {
         case <-ticker.C:
             for _, target := range h.targets {
                 go h.checkHealth(ctx, target)
             }
-            
+
         case <-ctx.Done():
             return
         }
@@ -516,10 +516,10 @@ func (h *HealthChecker) checkHealth(ctx context.Context, target string) {
     ctx, span := tracer.Start(ctx, "check_health")
     span.SetAttributes(attribute.String("target", target))
     defer span.End()
-    
+
     ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
     defer cancel()
-    
+
     // 发送健康检查请求
     if err := h.ping(ctx, target); err != nil {
         span.RecordError(err)
@@ -547,21 +547,21 @@ type ExponentialBackoff struct {
 func (e *ExponentialBackoff) Retry(ctx context.Context, fn func() error) error {
     ctx, span := tracer.Start(ctx, "exponential_backoff_retry")
     defer span.End()
-    
+
     delay := e.initialDelay
-    
+
     for attempt := 0; attempt < e.maxRetries; attempt++ {
         err := fn()
         if err == nil {
             span.SetAttributes(attribute.Int("attempts", attempt+1))
             return nil
         }
-        
+
         span.AddEvent("retry_attempt_failed", trace.WithAttributes(
             attribute.Int("attempt", attempt+1),
             attribute.String("error", err.Error()),
         ))
-        
+
         // 等待后重试
         select {
         case <-time.After(delay):
@@ -573,7 +573,7 @@ func (e *ExponentialBackoff) Retry(ctx context.Context, fn func() error) error {
             return ctx.Err()
         }
     }
-    
+
     err := fmt.Errorf("max retries exceeded")
     span.RecordError(err)
     return err
@@ -588,7 +588,7 @@ func (e *ExponentialBackoff) Retry(ctx context.Context, fn func() error) error {
 type CircuitBreaker struct {
     maxFailures  int
     resetTimeout time.Duration
-    
+
     failures     int
     lastFailTime time.Time
     state        string // "closed", "open", "half-open"
@@ -598,15 +598,15 @@ type CircuitBreaker struct {
 func (cb *CircuitBreaker) Call(ctx context.Context, fn func() error) error {
     ctx, span := tracer.Start(ctx, "circuit_breaker_call")
     defer span.End()
-    
+
     cb.mu.Lock()
-    
+
     // 检查是否需要从 open 转换到 half-open
     if cb.state == "open" && time.Since(cb.lastFailTime) > cb.resetTimeout {
         cb.state = "half-open"
         cb.failures = 0
     }
-    
+
     // 如果熔断器打开，直接返回错误
     if cb.state == "open" {
         cb.mu.Unlock()
@@ -615,24 +615,24 @@ func (cb *CircuitBreaker) Call(ctx context.Context, fn func() error) error {
         span.SetAttributes(attribute.String("circuit_breaker.state", "open"))
         return err
     }
-    
+
     cb.mu.Unlock()
-    
+
     // 执行函数
     err := fn()
-    
+
     cb.mu.Lock()
     defer cb.mu.Unlock()
-    
+
     if err != nil {
         cb.failures++
         cb.lastFailTime = time.Now()
-        
+
         if cb.failures >= cb.maxFailures {
             cb.state = "open"
             span.AddEvent("circuit_breaker_opened")
         }
-        
+
         span.RecordError(err)
     } else {
         // 成功，重置失败计数
@@ -642,12 +642,12 @@ func (cb *CircuitBreaker) Call(ctx context.Context, fn func() error) error {
         }
         cb.failures = 0
     }
-    
+
     span.SetAttributes(
         attribute.String("circuit_breaker.state", cb.state),
         attribute.Int("circuit_breaker.failures", cb.failures),
     )
-    
+
     return err
 }
 ```
@@ -681,16 +681,16 @@ type TenantRouter struct {
 func (r *TenantRouter) Route(ctx context.Context, data OTLPData) error {
     ctx, span := tracer.Start(ctx, "tenant_router")
     defer span.End()
-    
+
     tenantID := extractTenantID(data.Resource)
-    
+
     span.SetAttributes(attribute.String("tenant.id", tenantID))
-    
+
     output, exists := r.routes[tenantID]
     if !exists {
         output = r.routes["default"]
     }
-    
+
     select {
     case output <- data:
         return nil
@@ -710,10 +710,10 @@ func (r *TenantRouter) Route(ctx context.Context, data OTLPData) error {
 type TenantQuota struct {
     maxSpansPerSecond int64
     maxBytesPerSecond int64
-    
+
     currentSpans int64
     currentBytes int64
-    
+
     resetTime time.Time
     mu        sync.Mutex
 }
@@ -721,42 +721,42 @@ type TenantQuota struct {
 func (q *TenantQuota) CheckAndConsume(ctx context.Context, data OTLPData) error {
     ctx, span := tracer.Start(ctx, "tenant_quota_check")
     defer span.End()
-    
+
     q.mu.Lock()
     defer q.mu.Unlock()
-    
+
     // 重置计数器（每秒）
     if time.Since(q.resetTime) > time.Second {
         q.currentSpans = 0
         q.currentBytes = 0
         q.resetTime = time.Now()
     }
-    
+
     spanCount := int64(len(data.Spans))
     byteCount := int64(data.Size())
-    
+
     // 检查配额
     if q.currentSpans+spanCount > q.maxSpansPerSecond {
         err := fmt.Errorf("span quota exceeded")
         span.RecordError(err)
         return err
     }
-    
+
     if q.currentBytes+byteCount > q.maxBytesPerSecond {
         err := fmt.Errorf("byte quota exceeded")
         span.RecordError(err)
         return err
     }
-    
+
     // 消费配额
     q.currentSpans += spanCount
     q.currentBytes += byteCount
-    
+
     span.SetAttributes(
         attribute.Int64("quota.current_spans", q.currentSpans),
         attribute.Int64("quota.current_bytes", q.currentBytes),
     )
-    
+
     return nil
 }
 ```

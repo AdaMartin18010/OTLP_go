@@ -95,7 +95,7 @@ processors:
       - set(resource.attributes["service.name"], "otlp-go-demo")
       - set(span.attributes["env"], resource.attributes["deployment.environment"]) where IsSet(resource.attributes["deployment.environment"]) == true
     metric_statements:
-      - keep_keys(resource.attributes, ["service.name","deployment.environment"]) 
+      - keep_keys(resource.attributes, ["service.name","deployment.environment"])
       - limit(metrics, 512)
       - set(attributes["queue"], "pipeline") where metric.name == "pipeline.queue.length"
       - set(attributes["stage"], "process") where metric.name == "pipeline.task.latency"

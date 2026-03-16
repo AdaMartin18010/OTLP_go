@@ -43,7 +43,7 @@ import (
     "context"
     "encoding/json"
     "net/http"
-    
+
     "go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
     "go.opentelemetry.io/otel"
     "go.opentelemetry.io/otel/attribute"
@@ -73,31 +73,31 @@ func NewClient(baseURL string) *Client {
 func (c *Client) SendRequest(ctx context.Context, req Request) (*Response, error) {
     ctx, span := tracer.Start(ctx, "client_send_request")
     defer span.End()
-    
+
     span.SetAttributes(
         attribute.String("request.id", req.ID),
         attribute.String("request.type", req.Type),
     )
-    
+
     // 序列化请求
     body, err := json.Marshal(req)
     if err != nil {
         span.RecordError(err)
         return nil, err
     }
-    
+
     // 创建 HTTP 请求
     httpReq, err := http.NewRequestWithContext(ctx, "POST", c.baseURL+"/api/process", bytes.NewReader(body))
     if err != nil {
         span.RecordError(err)
         return nil, err
     }
-    
+
     httpReq.Header.Set("Content-Type", "application/json")
-    
+
     // 注入 Trace Context
     propagator.Inject(ctx, propagation.HeaderCarrier(httpReq.Header))
-    
+
     // 发送请求
     span.AddEvent("sending_request")
     httpResp, err := c.httpClient.Do(httpReq)
@@ -106,20 +106,20 @@ func (c *Client) SendRequest(ctx context.Context, req Request) (*Response, error
         return nil, err
     }
     defer httpResp.Body.Close()
-    
+
     // 解析响应
     var resp Response
     if err := json.NewDecoder(httpResp.Body).Decode(&resp); err != nil {
         span.RecordError(err)
         return nil, err
     }
-    
+
     span.AddEvent("response_received")
     span.SetAttributes(
         attribute.String("response.id", resp.ID),
         attribute.Int("response.status", httpResp.StatusCode),
     )
-    
+
     return &resp, nil
 }
 
@@ -139,7 +139,7 @@ func (s *Server) HandleRequest(w http.ResponseWriter, r *http.Request) {
     ctx := r.Context()
     ctx, span := tracer.Start(ctx, "server_handle_request")
     defer span.End()
-    
+
     // 解析请求
     var req Request
     if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -147,12 +147,12 @@ func (s *Server) HandleRequest(w http.ResponseWriter, r *http.Request) {
         http.Error(w, err.Error(), http.StatusBadRequest)
         return
     }
-    
+
     span.SetAttributes(
         attribute.String("request.id", req.ID),
         attribute.String("request.type", req.Type),
     )
-    
+
     // 处理请求
     resp, err := s.processor.Process(ctx, req)
     if err != nil {
@@ -160,25 +160,25 @@ func (s *Server) HandleRequest(w http.ResponseWriter, r *http.Request) {
         http.Error(w, err.Error(), http.StatusInternalServerError)
         return
     }
-    
+
     // 返回响应
     w.Header().Set("Content-Type", "application/json")
     json.NewEncoder(w).Encode(resp)
-    
+
     span.AddEvent("response_sent")
 }
 
 func (s *Server) Start(addr string) error {
     mux := http.NewServeMux()
-    
+
     // 使用 otelhttp middleware 自动提取 Trace Context
     handler := otelhttp.NewHandler(
         http.HandlerFunc(s.HandleRequest),
         "process",
     )
-    
+
     mux.Handle("/api/process", handler)
-    
+
     return http.ListenAndServe(addr, mux)
 }
 ```
@@ -198,32 +198,32 @@ type AsyncClient struct {
 func (c *AsyncClient) SendRequestAsync(ctx context.Context, req Request) (<-chan Response, error) {
     ctx, span := tracer.Start(ctx, "async_send_request")
     defer span.End()
-    
+
     // 生成关联 ID
     correlationID := uuid.New().String()
     req.CorrelationID = correlationID
-    
+
     // 创建响应 channel
     respChan := make(chan Response, 1)
     c.mu.Lock()
     c.responses[correlationID] = respChan
     c.mu.Unlock()
-    
+
     // 注入 Trace Context 到消息
     carrier := propagation.MapCarrier{}
     propagator.Inject(ctx, carrier)
     req.TraceContext = carrier
-    
+
     // 发布请求
     if err := c.publisher.Publish(ctx, "requests", req); err != nil {
         span.RecordError(err)
         return nil, err
     }
-    
+
     span.AddEvent("request_published", trace.WithAttributes(
         attribute.String("correlation.id", correlationID),
     ))
-    
+
     return respChan, nil
 }
 
@@ -233,16 +233,16 @@ func (c *AsyncClient) StartResponseListener(ctx context.Context) {
         if err := json.Unmarshal(msg.Data, &resp); err != nil {
             return err
         }
-        
+
         // 提取 Trace Context
         ctx = propagator.Extract(ctx, propagation.MapCarrier(resp.TraceContext))
         ctx, span := tracer.Start(ctx, "response_received")
         defer span.End()
-        
+
         span.SetAttributes(
             attribute.String("correlation.id", resp.CorrelationID),
         )
-        
+
         // 发送到对应的 channel
         c.mu.Lock()
         if ch, ok := c.responses[resp.CorrelationID]; ok {
@@ -251,7 +251,7 @@ func (c *AsyncClient) StartResponseListener(ctx context.Context) {
             delete(c.responses, resp.CorrelationID)
         }
         c.mu.Unlock()
-        
+
         return nil
     })
 }
@@ -286,25 +286,25 @@ func NewPubSub() *PubSub {
 func (ps *PubSub) Publish(ctx context.Context, topic string, msg Message) error {
     ctx, span := tracer.Start(ctx, "pubsub_publish")
     defer span.End()
-    
+
     span.SetAttributes(
         attribute.String("topic", topic),
         attribute.String("message.id", msg.ID),
     )
-    
+
     // 注入 Trace Context
     carrier := propagation.MapCarrier{}
     propagator.Inject(ctx, carrier)
     msg.TraceContext = carrier
-    
+
     ps.mu.RLock()
     subscribers := ps.topics[topic]
     ps.mu.RUnlock()
-    
+
     span.SetAttributes(
         attribute.Int("subscribers.count", len(subscribers)),
     )
-    
+
     // 发送到所有订阅者
     for i, ch := range subscribers {
         select {
@@ -320,17 +320,17 @@ func (ps *PubSub) Publish(ctx context.Context, topic string, msg Message) error 
             ))
         }
     }
-    
+
     return nil
 }
 
 func (ps *PubSub) Subscribe(ctx context.Context, topic string, handler func(context.Context, Message) error) {
     ch := make(chan Message, 100)
-    
+
     ps.mu.Lock()
     ps.topics[topic] = append(ps.topics[topic], ch)
     ps.mu.Unlock()
-    
+
     go func() {
         for {
             select {
@@ -338,18 +338,18 @@ func (ps *PubSub) Subscribe(ctx context.Context, topic string, handler func(cont
                 // 提取 Trace Context
                 msgCtx := propagator.Extract(context.Background(), propagation.MapCarrier(msg.TraceContext))
                 msgCtx, span := tracer.Start(msgCtx, "subscriber_handle")
-                
+
                 span.SetAttributes(
                     attribute.String("topic", topic),
                     attribute.String("message.id", msg.ID),
                 )
-                
+
                 if err := handler(msgCtx, msg); err != nil {
                     span.RecordError(err)
                 }
-                
+
                 span.End()
-                
+
             case <-ctx.Done():
                 return
             }
@@ -375,13 +375,13 @@ func NewEventBus() *EventBus {
 func (eb *EventBus) PublishOrderCreated(ctx context.Context, order Order) error {
     ctx, span := tracer.Start(ctx, "publish_order_created")
     defer span.End()
-    
+
     event := Event{
         Type:      "order.created",
         Timestamp: time.Now(),
         Data:      order,
     }
-    
+
     return eb.pubsub.Publish(ctx, "orders", Message{
         ID:   uuid.New().String(),
         Type: event.Type,
@@ -394,15 +394,15 @@ func (eb *EventBus) SubscribeInventoryService(ctx context.Context) {
     eb.pubsub.Subscribe(ctx, "orders", func(ctx context.Context, msg Message) error {
         ctx, span := tracer.Start(ctx, "inventory_handle_order")
         defer span.End()
-        
+
         var event Event
         // 解析事件...
-        
+
         if event.Type == "order.created" {
             // 扣减库存
             return reserveInventory(ctx, event.Data.(Order))
         }
-        
+
         return nil
     })
 }
@@ -412,15 +412,15 @@ func (eb *EventBus) SubscribePaymentService(ctx context.Context) {
     eb.pubsub.Subscribe(ctx, "orders", func(ctx context.Context, msg Message) error {
         ctx, span := tracer.Start(ctx, "payment_handle_order")
         defer span.End()
-        
+
         var event Event
         // 解析事件...
-        
+
         if event.Type == "order.created" {
             // 创建支付
             return createPayment(ctx, event.Data.(Order))
         }
-        
+
         return nil
     })
 }
@@ -453,11 +453,11 @@ func (s *StreamServer) BidirectionalStream(stream pb.StreamService_Bidirectional
     ctx := stream.Context()
     ctx, span := tracer.Start(ctx, "bidirectional_stream")
     defer span.End()
-    
+
     // 接收 goroutine
     recvChan := make(chan *pb.Request)
     errChan := make(chan error, 1)
-    
+
     go func() {
         for {
             req, err := stream.Recv()
@@ -469,7 +469,7 @@ func (s *StreamServer) BidirectionalStream(stream pb.StreamService_Bidirectional
                 errChan <- err
                 return
             }
-            
+
             select {
             case recvChan <- req:
             case <-ctx.Done():
@@ -477,7 +477,7 @@ func (s *StreamServer) BidirectionalStream(stream pb.StreamService_Bidirectional
             }
         }
     }()
-    
+
     // 处理和发送
     for {
         select {
@@ -485,28 +485,28 @@ func (s *StreamServer) BidirectionalStream(stream pb.StreamService_Bidirectional
             if !ok {
                 return nil
             }
-            
+
             ctx, span := tracer.Start(ctx, "process_stream_request")
             span.SetAttributes(
                 attribute.String("request.id", req.Id),
             )
-            
+
             // 处理请求
             resp := processRequest(ctx, req)
-            
+
             // 发送响应
             if err := stream.Send(resp); err != nil {
                 span.RecordError(err)
                 span.End()
                 return err
             }
-            
+
             span.End()
-            
+
         case err := <-errChan:
             span.RecordError(err)
             return err
-            
+
         case <-ctx.Done():
             return ctx.Err()
         }
@@ -521,14 +521,14 @@ type StreamClient struct {
 func (c *StreamClient) Stream(ctx context.Context) error {
     ctx, span := tracer.Start(ctx, "client_stream")
     defer span.End()
-    
+
     // 创建流
     stream, err := c.client.BidirectionalStream(ctx)
     if err != nil {
         span.RecordError(err)
         return err
     }
-    
+
     // 发送 goroutine
     go func() {
         for i := 0; i < 10; i++ {
@@ -536,16 +536,16 @@ func (c *StreamClient) Stream(ctx context.Context) error {
                 Id:   fmt.Sprintf("req-%d", i),
                 Data: fmt.Sprintf("data-%d", i),
             }
-            
+
             if err := stream.Send(req); err != nil {
                 return
             }
-            
+
             time.Sleep(100 * time.Millisecond)
         }
         stream.CloseSend()
     }()
-    
+
     // 接收响应
     for {
         resp, err := stream.Recv()
@@ -556,12 +556,12 @@ func (c *StreamClient) Stream(ctx context.Context) error {
             span.RecordError(err)
             return err
         }
-        
+
         span.AddEvent("response_received", trace.WithAttributes(
             attribute.String("response.id", resp.Id),
         ))
     }
-    
+
     return nil
 }
 ```
@@ -577,7 +577,7 @@ func (h *WebSocketHandler) HandleConnection(w http.ResponseWriter, r *http.Reque
     ctx := r.Context()
     ctx, span := tracer.Start(ctx, "websocket_connection")
     defer span.End()
-    
+
     // 升级到 WebSocket
     conn, err := h.upgrader.Upgrade(w, r, nil)
     if err != nil {
@@ -585,7 +585,7 @@ func (h *WebSocketHandler) HandleConnection(w http.ResponseWriter, r *http.Reque
         return
     }
     defer conn.Close()
-    
+
     // 读取消息
     for {
         var msg Message
@@ -597,31 +597,31 @@ func (h *WebSocketHandler) HandleConnection(w http.ResponseWriter, r *http.Reque
             }
             break
         }
-        
+
         // 提取 Trace Context
         msgCtx := propagator.Extract(ctx, propagation.MapCarrier(msg.TraceContext))
         msgCtx, msgSpan := tracer.Start(msgCtx, "websocket_message")
-        
+
         msgSpan.SetAttributes(
             attribute.String("message.id", msg.ID),
             attribute.String("message.type", msg.Type),
         )
-        
+
         // 处理消息
         resp := processMessage(msgCtx, msg)
-        
+
         // 注入 Trace Context 到响应
         carrier := propagation.MapCarrier{}
         propagator.Inject(msgCtx, carrier)
         resp.TraceContext = carrier
-        
+
         // 发送响应
         if err := conn.WriteJSON(resp); err != nil {
             msgSpan.RecordError(err)
             msgSpan.End()
             break
         }
-        
+
         msgSpan.End()
     }
 }
@@ -650,15 +650,15 @@ func ExtractTraceContext(ctx context.Context, header http.Header) context.Contex
 func makeRequest(ctx context.Context, url string) (*http.Response, error) {
     ctx, span := tracer.Start(ctx, "make_request")
     defer span.End()
-    
+
     req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
     if err != nil {
         return nil, err
     }
-    
+
     // 注入 Trace Context
     InjectTraceContext(ctx, req.Header)
-    
+
     return http.DefaultClient.Do(req)
 }
 
@@ -667,7 +667,7 @@ func handleRequest(w http.ResponseWriter, r *http.Request) {
     ctx := ExtractTraceContext(r.Context(), r.Header)
     ctx, span := tracer.Start(ctx, "handle_request")
     defer span.End()
-    
+
     // 处理请求...
 }
 ```
@@ -707,17 +707,17 @@ type MessageWithContext struct {
 func PublishWithContext(ctx context.Context, topic string, data []byte) error {
     ctx, span := tracer.Start(ctx, "publish_message")
     defer span.End()
-    
+
     // 注入 Trace Context
     carrier := propagation.MapCarrier{}
     propagator.Inject(ctx, carrier)
-    
+
     msg := MessageWithContext{
         ID:           uuid.New().String(),
         Data:         data,
         TraceContext: carrier,
     }
-    
+
     return publisher.Publish(topic, msg)
 }
 
@@ -727,7 +727,7 @@ func ConsumeWithContext(msg MessageWithContext) error {
     ctx := propagator.Extract(context.Background(), propagation.MapCarrier(msg.TraceContext))
     ctx, span := tracer.Start(ctx, "consume_message")
     defer span.End()
-    
+
     return processMessage(ctx, msg.Data)
 }
 ```
@@ -762,13 +762,13 @@ spec:
 func proxyRequest(ctx context.Context, r *http.Request, targetURL string) (*http.Response, error) {
     ctx, span := tracer.Start(ctx, "proxy_request")
     defer span.End()
-    
+
     // 创建新请求
     proxyReq, err := http.NewRequestWithContext(ctx, r.Method, targetURL, r.Body)
     if err != nil {
         return nil, err
     }
-    
+
     // 复制所有 tracing headers
     tracingHeaders := []string{
         "x-request-id",
@@ -780,13 +780,13 @@ func proxyRequest(ctx context.Context, r *http.Request, targetURL string) (*http
         "traceparent",
         "tracestate",
     }
-    
+
     for _, header := range tracingHeaders {
         if val := r.Header.Get(header); val != "" {
             proxyReq.Header.Set(header, val)
         }
     }
-    
+
     return http.DefaultClient.Do(proxyReq)
 }
 ```
@@ -804,23 +804,23 @@ type OrderService struct {
 func (s *OrderService) CreateOrder(ctx context.Context, req CreateOrderRequest) (*Order, error) {
     ctx, span := tracer.Start(ctx, "create_order")
     defer span.End()
-    
+
     span.SetAttributes(
         attribute.String("user.id", req.UserID),
         attribute.Int("items.count", len(req.Items)),
     )
-    
+
     // 1. 检查库存
     inventoryResp, err := s.inventoryClient.CheckInventory(ctx, req.Items)
     if err != nil {
         span.RecordError(err)
         return nil, err
     }
-    
+
     if !inventoryResp.Available {
         return nil, errors.New("insufficient inventory")
     }
-    
+
     // 2. 创建订单
     order := &Order{
         ID:     uuid.New().String(),
@@ -828,17 +828,17 @@ func (s *OrderService) CreateOrder(ctx context.Context, req CreateOrderRequest) 
         Items:  req.Items,
         Status: "pending",
     }
-    
+
     // 3. 发布事件
     if err := s.eventBus.PublishOrderCreated(ctx, *order); err != nil {
         span.RecordError(err)
         return nil, err
     }
-    
+
     span.AddEvent("order_created", trace.WithAttributes(
         attribute.String("order.id", order.ID),
     ))
-    
+
     return order, nil
 }
 
@@ -848,13 +848,13 @@ type InventoryService struct{}
 func (s *InventoryService) CheckInventory(ctx context.Context, items []Item) (*InventoryResponse, error) {
     ctx, span := tracer.Start(ctx, "check_inventory")
     defer span.End()
-    
+
     span.SetAttributes(
         attribute.Int("items.count", len(items)),
     )
-    
+
     // 检查库存逻辑...
-    
+
     return &InventoryResponse{Available: true}, nil
 }
 
@@ -864,14 +864,14 @@ type PaymentService struct{}
 func (s *PaymentService) CreatePayment(ctx context.Context, order Order) error {
     ctx, span := tracer.Start(ctx, "create_payment")
     defer span.End()
-    
+
     span.SetAttributes(
         attribute.String("order.id", order.ID),
         attribute.Float64("amount", order.TotalAmount),
     )
-    
+
     // 创建支付逻辑...
-    
+
     return nil
 }
 ```

@@ -38,25 +38,25 @@ type SpanValidator struct{}
 
 func (sv *SpanValidator) ValidateSpan(span ptrace.Span) []error {
     var errors []error
-    
+
     // 验证 ID
     if span.TraceID().IsEmpty() {
         errors = append(errors, fmt.Errorf("missing trace_id"))
     }
-    
+
     if span.SpanID().IsEmpty() {
         errors = append(errors, fmt.Errorf("missing span_id"))
     }
-    
+
     // 验证时间
     if span.StartTimestamp() == 0 {
         errors = append(errors, fmt.Errorf("missing start_time"))
     }
-    
+
     if span.EndTimestamp() == 0 {
         errors = append(errors, fmt.Errorf("missing end_time"))
     }
-    
+
     if span.EndTimestamp() < span.StartTimestamp() {
         errors = append(errors, fmt.Errorf(
             "end_time (%d) < start_time (%d)",
@@ -64,13 +64,13 @@ func (sv *SpanValidator) ValidateSpan(span ptrace.Span) []error {
             span.StartTimestamp(),
         ))
     }
-    
+
     return errors
 }
 
 func (sv *SpanValidator) ValidateParentChild(parent, child ptrace.Span) []error {
     var errors []error
-    
+
     // 验证 Trace ID 一致
     if parent.TraceID() != child.TraceID() {
         errors = append(errors, fmt.Errorf(
@@ -79,7 +79,7 @@ func (sv *SpanValidator) ValidateParentChild(parent, child ptrace.Span) []error 
             child.TraceID(),
         ))
     }
-    
+
     // 验证 Parent Span ID
     if child.ParentSpanID() != parent.SpanID() {
         errors = append(errors, fmt.Errorf(
@@ -88,7 +88,7 @@ func (sv *SpanValidator) ValidateParentChild(parent, child ptrace.Span) []error 
             child.ParentSpanID(),
         ))
     }
-    
+
     // 验证时间范围
     if child.StartTimestamp() < parent.StartTimestamp() {
         errors = append(errors, fmt.Errorf(
@@ -97,7 +97,7 @@ func (sv *SpanValidator) ValidateParentChild(parent, child ptrace.Span) []error 
             parent.StartTimestamp(),
         ))
     }
-    
+
     if child.EndTimestamp() > parent.EndTimestamp() {
         errors = append(errors, fmt.Errorf(
             "child end_time (%d) > parent end_time (%d)",
@@ -105,7 +105,7 @@ func (sv *SpanValidator) ValidateParentChild(parent, child ptrace.Span) []error 
             parent.EndTimestamp(),
         ))
     }
-    
+
     return errors
 }
 ```
@@ -127,7 +127,7 @@ func BuildTraceTree(traces ptrace.Traces) (*TraceTree, error) {
     tree := &TraceTree{
         SpanMap: make(map[[8]byte]*SpanNode),
     }
-    
+
     // 第一遍：创建所有节点
     for i := 0; i < traces.ResourceSpans().Len(); i++ {
         rs := traces.ResourceSpans().At(i)
@@ -143,7 +143,7 @@ func BuildTraceTree(traces ptrace.Traces) (*TraceTree, error) {
             }
         }
     }
-    
+
     // 第二遍：建立父子关系
     for _, node := range tree.SpanMap {
         if node.Span.ParentSpanID().IsEmpty() {
@@ -164,21 +164,21 @@ func BuildTraceTree(traces ptrace.Traces) (*TraceTree, error) {
             parent.Children = append(parent.Children, node)
         }
     }
-    
+
     if tree.Root == nil {
         return nil, fmt.Errorf("no root span found")
     }
-    
+
     return tree, nil
 }
 
 func (tt *TraceTree) Validate() []error {
     var errors []error
-    
+
     // 验证树结构
     visited := make(map[[8]byte]bool)
     errors = append(errors, tt.validateNode(tt.Root, visited)...)
-    
+
     // 检查是否有孤立节点
     for spanID := range tt.SpanMap {
         if !visited[spanID] {
@@ -188,32 +188,32 @@ func (tt *TraceTree) Validate() []error {
             ))
         }
     }
-    
+
     return errors
 }
 
 func (tt *TraceTree) validateNode(node *SpanNode, visited map[[8]byte]bool) []error {
     var errors []error
-    
+
     spanID := node.Span.SpanID()
-    
+
     // 检查循环引用
     if visited[spanID] {
         return []error{fmt.Errorf("circular reference detected: %s", spanID)}
     }
-    
+
     visited[spanID] = true
-    
+
     // 验证子节点
     for _, child := range node.Children {
         // 验证父子关系
         validator := &SpanValidator{}
         errors = append(errors, validator.ValidateParentChild(node.Span, child.Span)...)
-        
+
         // 递归验证子树
         errors = append(errors, tt.validateNode(child, visited)...)
     }
-    
+
     return errors
 }
 ```
@@ -256,57 +256,57 @@ func (hb *HappensBeforeGraph) HappensBefore(a, b [8]byte) bool {
     if hb.edges[a][b] {
         return true
     }
-    
+
     // 传递闭包（BFS）
     visited := make(map[[8]byte]bool)
     queue := [][8]byte{a}
-    
+
     for len(queue) > 0 {
         current := queue[0]
         queue = queue[1:]
-        
+
         if visited[current] {
             continue
         }
         visited[current] = true
-        
+
         if current == b {
             return true
         }
-        
+
         for next := range hb.edges[current] {
             queue = append(queue, next)
         }
     }
-    
+
     return false
 }
 
 func BuildHappensBeforeGraph(traces ptrace.Traces) *HappensBeforeGraph {
     graph := NewHappensBeforeGraph()
     spans := extractAllSpans(traces)
-    
+
     for i := 0; i < len(spans); i++ {
         for j := 0; j < len(spans); j++ {
             if i == j {
                 continue
             }
-            
+
             spanA := spans[i]
             spanB := spans[j]
-            
+
             // 规则 1: 时间顺序
             if spanA.EndTimestamp() < spanB.StartTimestamp() {
                 graph.AddEdge(spanA.SpanID(), spanB.SpanID())
             }
-            
+
             // 规则 2: 父子关系
             if spanA.SpanID() == spanB.ParentSpanID() {
                 graph.AddEdge(spanA.SpanID(), spanB.SpanID())
             }
         }
     }
-    
+
     return graph
 }
 ```
@@ -316,18 +316,18 @@ func BuildHappensBeforeGraph(traces ptrace.Traces) *HappensBeforeGraph {
 ```go
 func VerifyCausalConsistency(traces ptrace.Traces) []error {
     var errors []error
-    
+
     graph := BuildHappensBeforeGraph(traces)
     spans := extractAllSpans(traces)
-    
+
     for i := 0; i < len(spans); i++ {
         for j := i + 1; j < len(spans); j++ {
             spanA := spans[i]
             spanB := spans[j]
-            
+
             aBeforeB := graph.HappensBefore(spanA.SpanID(), spanB.SpanID())
             bBeforeA := graph.HappensBefore(spanB.SpanID(), spanA.SpanID())
-            
+
             // 检查循环依赖
             if aBeforeB && bBeforeA {
                 errors = append(errors, fmt.Errorf(
@@ -336,7 +336,7 @@ func VerifyCausalConsistency(traces ptrace.Traces) []error {
                     spanB.SpanID(),
                 ))
             }
-            
+
             // 检查时间一致性
             if aBeforeB && spanA.EndTimestamp() > spanB.StartTimestamp() {
                 errors = append(errors, fmt.Errorf(
@@ -347,7 +347,7 @@ func VerifyCausalConsistency(traces ptrace.Traces) []error {
             }
         }
     }
-    
+
     return errors
 }
 ```
@@ -369,14 +369,14 @@ func NewClockSkewDetector(maxSkew time.Duration) *ClockSkewDetector {
 
 func (csd *ClockSkewDetector) DetectSkew(traces ptrace.Traces) []error {
     var errors []error
-    
+
     // 按服务分组
     serviceSpans := make(map[string][]ptrace.Span)
-    
+
     for i := 0; i < traces.ResourceSpans().Len(); i++ {
         rs := traces.ResourceSpans().At(i)
         serviceName := rs.Resource().Attributes().AsRaw()["service.name"].(string)
-        
+
         for j := 0; j < rs.ScopeSpans().Len(); j++ {
             ss := rs.ScopeSpans().At(j)
             for k := 0; k < ss.Spans().Len(); k++ {
@@ -385,14 +385,14 @@ func (csd *ClockSkewDetector) DetectSkew(traces ptrace.Traces) []error {
             }
         }
     }
-    
+
     // 检测跨服务时钟偏移
     for serviceA, spansA := range serviceSpans {
         for serviceB, spansB := range serviceSpans {
             if serviceA == serviceB {
                 continue
             }
-            
+
             skew := csd.estimateSkew(spansA, spansB)
             if skew > csd.maxSkew {
                 errors = append(errors, fmt.Errorf(
@@ -404,13 +404,13 @@ func (csd *ClockSkewDetector) DetectSkew(traces ptrace.Traces) []error {
             }
         }
     }
-    
+
     return errors
 }
 
 func (csd *ClockSkewDetector) estimateSkew(spansA, spansB []ptrace.Span) time.Duration {
     var maxSkew time.Duration
-    
+
     for _, spanA := range spansA {
         for _, spanB := range spansB {
             // 如果 A 是 B 的父节点
@@ -425,7 +425,7 @@ func (csd *ClockSkewDetector) estimateSkew(spansA, spansB []ptrace.Span) time.Du
             }
         }
     }
-    
+
     return maxSkew
 }
 ```
@@ -435,20 +435,20 @@ func (csd *ClockSkewDetector) estimateSkew(spansA, spansB []ptrace.Span) time.Du
 ```go
 func VerifyTimestampMonotonicity(traces ptrace.Traces) []error {
     var errors []error
-    
+
     tree, err := BuildTraceTree(traces)
     if err != nil {
         return []error{err}
     }
-    
+
     errors = append(errors, verifyNodeMonotonicity(tree.Root)...)
-    
+
     return errors
 }
 
 func verifyNodeMonotonicity(node *SpanNode) []error {
     var errors []error
-    
+
     // 验证当前节点
     if node.Span.EndTimestamp() < node.Span.StartTimestamp() {
         errors = append(errors, fmt.Errorf(
@@ -456,18 +456,18 @@ func verifyNodeMonotonicity(node *SpanNode) []error {
             node.Span.SpanID(),
         ))
     }
-    
+
     // 验证事件时间戳
     for i := 0; i < node.Span.Events().Len(); i++ {
         event := node.Span.Events().At(i)
-        
+
         if event.Timestamp() < node.Span.StartTimestamp() {
             errors = append(errors, fmt.Errorf(
                 "span %s: event timestamp < start_time",
                 node.Span.SpanID(),
             ))
         }
-        
+
         if event.Timestamp() > node.Span.EndTimestamp() {
             errors = append(errors, fmt.Errorf(
                 "span %s: event timestamp > end_time",
@@ -475,12 +475,12 @@ func verifyNodeMonotonicity(node *SpanNode) []error {
             ))
         }
     }
-    
+
     // 递归验证子节点
     for _, child := range node.Children {
         errors = append(errors, verifyNodeMonotonicity(child)...)
     }
-    
+
     return errors
 }
 ```
@@ -492,20 +492,20 @@ func verifyNodeMonotonicity(node *SpanNode) []error {
 ```go
 func VerifyResourceConsistency(traces ptrace.Traces) []error {
     var errors []error
-    
+
     // 按 Trace ID 分组
     traceResources := make(map[[16]byte]map[string]interface{})
-    
+
     for i := 0; i < traces.ResourceSpans().Len(); i++ {
         rs := traces.ResourceSpans().At(i)
         resource := rs.Resource().Attributes().AsRaw()
-        
+
         for j := 0; j < rs.ScopeSpans().Len(); j++ {
             ss := rs.ScopeSpans().At(j)
             for k := 0; k < ss.Spans().Len(); k++ {
                 span := ss.Spans().At(k)
                 traceID := span.TraceID()
-                
+
                 if existing, ok := traceResources[traceID]; ok {
                     // 验证 Resource 一致性
                     if !resourcesEqual(existing, resource) {
@@ -520,7 +520,7 @@ func VerifyResourceConsistency(traces ptrace.Traces) []error {
             }
         }
     }
-    
+
     return errors
 }
 
@@ -531,13 +531,13 @@ func resourcesEqual(a, b map[string]interface{}) bool {
         "service.namespace",
         "deployment.environment",
     }
-    
+
     for _, key := range keyAttributes {
         if a[key] != b[key] {
             return false
         }
     }
-    
+
     return true
 }
 ```
@@ -572,10 +572,10 @@ func NewSemanticConventionValidator() *SemanticConventionValidator {
 
 func (scv *SemanticConventionValidator) ValidateSpan(span ptrace.Span) []error {
     var errors []error
-    
+
     spanKind := span.Kind()
     attrs := span.Attributes().AsRaw()
-    
+
     // 根据 Span Kind 验证
     switch spanKind {
     case ptrace.SpanKindClient, ptrace.SpanKindServer:
@@ -583,25 +583,25 @@ func (scv *SemanticConventionValidator) ValidateSpan(span ptrace.Span) []error {
         if _, ok := attrs["http.method"]; ok {
             errors = append(errors, scv.validateHTTPSpan(attrs)...)
         }
-        
+
         // 检查是否是 RPC span
         if _, ok := attrs["rpc.system"]; ok {
             errors = append(errors, scv.validateRPCSpan(attrs)...)
         }
-        
+
     case ptrace.SpanKindInternal:
         // 检查是否是 DB span
         if _, ok := attrs["db.system"]; ok {
             errors = append(errors, scv.validateDBSpan(attrs)...)
         }
     }
-    
+
     return errors
 }
 
 func (scv *SemanticConventionValidator) validateHTTPSpan(attrs map[string]interface{}) []error {
     var errors []error
-    
+
     for _, required := range scv.requiredAttributes["http"] {
         if _, ok := attrs[required]; !ok {
             errors = append(errors, fmt.Errorf(
@@ -610,7 +610,7 @@ func (scv *SemanticConventionValidator) validateHTTPSpan(attrs map[string]interf
             ))
         }
     }
-    
+
     return errors
 }
 ```
@@ -639,11 +639,11 @@ func NewAttributeTypeValidator() *AttributeTypeValidator {
 
 func (atv *AttributeTypeValidator) ValidateAttributes(attrs map[string]interface{}) []error {
     var errors []error
-    
+
     for key, value := range attrs {
         if expectedType, ok := atv.expectedTypes[key]; ok {
             actualType := reflect.TypeOf(value).Kind()
-            
+
             if actualType != expectedType {
                 errors = append(errors, fmt.Errorf(
                     "attribute %s: expected type %s, got %s",
@@ -654,7 +654,7 @@ func (atv *AttributeTypeValidator) ValidateAttributes(attrs map[string]interface
             }
         }
     }
-    
+
     return errors
 }
 ```
@@ -688,22 +688,22 @@ func NewValidationPipeline() *ValidationPipeline {
 func (vp *ValidationPipeline) Validate(ctx context.Context, traces ptrace.Traces) ValidationResult {
     ctx, span := tracer.Start(ctx, "validation_pipeline")
     defer span.End()
-    
+
     result := ValidationResult{
         Errors:   make([]error, 0),
         Warnings: make([]error, 0),
     }
-    
+
     for _, validator := range vp.validators {
         errors := validator.Validate(traces)
         result.Errors = append(result.Errors, errors...)
     }
-    
+
     span.SetAttributes(
         attribute.Int("errors.count", len(result.Errors)),
         attribute.Int("warnings.count", len(result.Warnings)),
     )
-    
+
     return result
 }
 

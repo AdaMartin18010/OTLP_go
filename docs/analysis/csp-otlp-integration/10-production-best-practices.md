@@ -124,12 +124,12 @@ processors:
   batch:
     timeout: 10s
     send_batch_size: 1024
-  
+
   memory_limiter:
     limit_mib: 400
     spike_limit_mib: 100
     check_interval: 5s
-  
+
   resource:
     attributes:
     - key: node.name
@@ -219,15 +219,15 @@ processors:
   batch:
     timeout: 30s
     send_batch_size: 2048
-  
+
   memory_limiter:
     limit_mib: 3072
     spike_limit_mib: 512
-  
+
   # 采样
   probabilistic_sampler:
     sampling_percentage: 10
-  
+
   # 尾部采样
   tail_sampling:
     decision_wait: 10s
@@ -244,7 +244,7 @@ processors:
       type: probabilistic
       probabilistic:
         sampling_percentage: 5
-  
+
   # 数据脱敏
   transform:
     traces:
@@ -256,10 +256,10 @@ processors:
 exporters:
   otlp/jaeger:
     endpoint: jaeger-collector:4317
-  
+
   otlp/tempo:
     endpoint: tempo:4317
-  
+
   prometheusremotewrite:
     endpoint: http://prometheus:9090/api/v1/write
 
@@ -309,7 +309,7 @@ groups:
     annotations:
       summary: "OTLP Collector dropping spans"
       description: "Collector {{ $labels.instance }} is dropping {{ $value }} spans/sec"
-  
+
   # 队列满告警
   - alert: OTELCollectorQueueFull
     expr: |
@@ -319,7 +319,7 @@ groups:
       severity: warning
     annotations:
       summary: "OTLP Collector queue nearly full"
-  
+
   # 导出失败告警
   - alert: OTELCollectorExportFailure
     expr: |
@@ -329,7 +329,7 @@ groups:
       severity: critical
     annotations:
       summary: "OTLP Collector export failures"
-  
+
   # 内存使用告警
   - alert: OTELCollectorHighMemory
     expr: |
@@ -339,7 +339,7 @@ groups:
       severity: warning
     annotations:
       summary: "OTLP Collector high memory usage"
-  
+
   # CPU 使用告警
   - alert: OTELCollectorHighCPU
     expr: |
@@ -359,12 +359,12 @@ var (
     orderCreated = meter.Int64Counter("orders.created",
         metric.WithDescription("Number of orders created"),
     )
-    
+
     orderDuration = meter.Float64Histogram("orders.duration",
         metric.WithDescription("Order processing duration"),
         metric.WithUnit("ms"),
     )
-    
+
     orderErrors = meter.Int64Counter("orders.errors",
         metric.WithDescription("Number of order errors"),
     )
@@ -372,16 +372,16 @@ var (
 
 func CreateOrder(ctx context.Context, req CreateOrderRequest) (*Order, error) {
     start := time.Now()
-    
+
     ctx, span := tracer.Start(ctx, "create_order")
     defer span.End()
-    
+
     // 处理订单...
     order, err := processOrder(ctx, req)
-    
+
     // 记录指标
     duration := time.Since(start).Milliseconds()
-    
+
     if err != nil {
         orderErrors.Add(ctx, 1,
             metric.WithAttributes(
@@ -390,20 +390,20 @@ func CreateOrder(ctx context.Context, req CreateOrderRequest) (*Order, error) {
         )
         return nil, err
     }
-    
+
     orderCreated.Add(ctx, 1,
         metric.WithAttributes(
             attribute.String("order.type", order.Type),
             attribute.String("region", order.Region),
         ),
     )
-    
+
     orderDuration.Record(ctx, float64(duration),
         metric.WithAttributes(
             attribute.String("order.type", order.Type),
         ),
     )
-    
+
     return order, nil
 }
 ```
@@ -427,21 +427,21 @@ spec:
         sum(rate(http_requests_total{status!~"5.."}[5m]))
         /
         sum(rate(http_requests_total[5m]))
-    
+
     # 延迟 SLO: P95 < 500ms
     - record: slo:latency:p95
       expr: |
         histogram_quantile(0.95,
           sum(rate(http_request_duration_seconds_bucket[5m])) by (le)
         )
-    
+
     # 错误率 SLO: < 0.1%
     - record: slo:error_rate:ratio
       expr: |
         sum(rate(http_requests_total{status=~"5.."}[5m]))
         /
         sum(rate(http_requests_total[5m]))
-    
+
     # SLO 告警
     - alert: SLOAvailabilityBreach
       expr: slo:availability:ratio < 0.999
@@ -450,7 +450,7 @@ spec:
         severity: critical
       annotations:
         summary: "Availability SLO breach"
-    
+
     - alert: SLOLatencyBreach
       expr: slo:latency:p95 > 0.5
       for: 5m
@@ -490,22 +490,22 @@ kubectl exec -it -n observability otel-agent-xxx -- \
 func AnalyzeLatency(traceID string) {
     // 1. 获取 Trace
     trace := jaeger.GetTrace(traceID)
-    
+
     // 2. 计算每个 Span 的耗时
     for _, span := range trace.Spans {
         duration := span.Duration()
         percentage := float64(duration) / float64(trace.Duration()) * 100
-        
-        fmt.Printf("%s: %v (%.1f%%)\n", 
-            span.OperationName, 
-            duration, 
+
+        fmt.Printf("%s: %v (%.1f%%)\n",
+            span.OperationName,
+            duration,
             percentage)
     }
-    
+
     // 3. 找出瓶颈
     bottleneck := findBottleneck(trace)
-    fmt.Printf("Bottleneck: %s (%v)\n", 
-        bottleneck.OperationName, 
+    fmt.Printf("Bottleneck: %s (%v)\n",
+        bottleneck.OperationName,
         bottleneck.Duration())
 }
 ```
@@ -629,16 +629,16 @@ BenchmarkBatchExport-8           100000   12000 ns/op   4800 B/op   32 allocs/op
 func EstimateResources(qps int, avgSpansPerRequest int) Resources {
     // 计算总 Span 数
     totalSpans := qps * avgSpansPerRequest
-    
+
     // 计算所需 Collector 数量
     collectorsNeeded := int(math.Ceil(
         float64(totalSpans) / 50000 * 1.5,
     ))
-    
+
     // 计算存储需求
     // 假设每个 Span 1KB，保留 7 天
     storageGB := totalSpans * 1024 * 86400 * 7 / 1e9
-    
+
     return Resources{
         Collectors:  collectorsNeeded,
         CPU:         collectorsNeeded * 1,
@@ -736,7 +736,7 @@ processors:
     - delete_key(attributes, "password")
     - delete_key(attributes, "credit_card")
     - delete_key(attributes, "ssn")
-    
+
     # 删除敏感 HTTP headers
     - delete_key(attributes, "http.request.header.authorization")
     - delete_key(attributes, "http.request.header.cookie")
@@ -752,17 +752,17 @@ processors:
 func (s *OPAMPServer) UpdateCollectorConfig(agentID string, config CollectorConfig) error {
     ctx, span := tracer.Start(context.Background(), "update_collector_config")
     defer span.End()
-    
+
     span.SetAttributes(
         attribute.String("agent.id", agentID),
     )
-    
+
     // 生成配置
     configYAML, err := yaml.Marshal(config)
     if err != nil {
         return err
     }
-    
+
     // 下发配置
     return s.client.SendRemoteConfig(ctx, &protobufs.RemoteConfig{
         Config: &protobufs.AgentConfigMap{

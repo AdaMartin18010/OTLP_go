@@ -83,7 +83,7 @@ P = input?x -> process(x) -> output!result -> P
 func handler(ctx context.Context, input Input) Output {
     ctx, span := tracer.Start(ctx, "handler")
     defer span.End()
-    
+
     result := process(input)
     return result
 }
@@ -107,15 +107,15 @@ go func() {
 func process(task Task) Result {
     ctx, span := tracer.Start(context.Background(), "process")
     defer span.End()
-    
+
     span.SetAttributes(
         attribute.String("task.id", task.ID),
         attribute.Int("task.size", len(task.Data)),
     )
-    
+
     // 处理逻辑
     result := doWork(task)
-    
+
     span.AddEvent("processing_complete")
     return result
 }

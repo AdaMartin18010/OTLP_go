@@ -62,7 +62,7 @@ go process()  // 启动进程
 func process(ctx context.Context) {
     // start
     log.Println("process started")
-    
+
     // work
     for {
         select {
@@ -88,13 +88,13 @@ import (
 func process(ctx context.Context, id string) {
     ctx, span := tracer.Start(ctx, "process")
     defer span.End()
-    
+
     // 进程标识
     span.SetAttributes(
         attribute.String("process.id", id),
         attribute.Int("goroutine.id", getGoroutineID()),
     )
-    
+
     // 进程执行
     work(ctx)
 }
@@ -126,7 +126,7 @@ value := <-ch
 func sender(ctx context.Context, ch chan<- int, value int) {
     ctx, span := tracer.Start(ctx, "sender")
     defer span.End()
-    
+
     span.AddEvent("send_start")
     ch <- value
     span.AddEvent("send_complete")
@@ -135,13 +135,13 @@ func sender(ctx context.Context, ch chan<- int, value int) {
 func receiver(ctx context.Context, ch <-chan int) int {
     ctx, span := tracer.Start(ctx, "receiver")
     defer span.End()
-    
+
     span.AddEvent("receive_start")
     value := <-ch
     span.AddEvent("receive_complete", trace.WithAttributes(
         attribute.Int("value", value),
     ))
-    
+
     return value
 }
 ```
@@ -208,16 +208,16 @@ func consumer(ch <-chan int) {
 func process(ctx context.Context, chA, chB <-chan Message) {
     ctx, span := tracer.Start(ctx, "process")
     defer span.End()
-    
+
     select {
     case msg := <-chA:
         span.SetAttributes(attribute.String("choice", "A"))
         handleA(ctx, msg)
-        
+
     case msg := <-chB:
         span.SetAttributes(attribute.String("choice", "B"))
         handleB(ctx, msg)
-        
+
     case <-ctx.Done():
         span.SetAttributes(attribute.String("choice", "cancelled"))
         return
@@ -244,9 +244,9 @@ default:
 func multiplexer(ctx context.Context, inputs []<-chan Message, output chan<- Message) {
     ctx, span := tracer.Start(ctx, "multiplexer")
     defer span.End()
-    
+
     cases := make([]reflect.SelectCase, len(inputs)+1)
-    
+
     // 添加所有输入 channel
     for i, ch := range inputs {
         cases[i] = reflect.SelectCase{
@@ -254,21 +254,21 @@ func multiplexer(ctx context.Context, inputs []<-chan Message, output chan<- Mes
             Chan: reflect.ValueOf(ch),
         }
     }
-    
+
     // 添加 context.Done()
     cases[len(inputs)] = reflect.SelectCase{
         Dir:  reflect.SelectRecv,
         Chan: reflect.ValueOf(ctx.Done()),
     }
-    
+
     for {
         chosen, value, ok := reflect.Select(cases)
-        
+
         if chosen == len(inputs) {
             // context cancelled
             return
         }
-        
+
         if ok {
             msg := value.Interface().(Message)
             span.AddEvent("message_received", trace.WithAttributes(
@@ -292,13 +292,13 @@ func multiplexer(ctx context.Context, inputs []<-chan Message, output chan<- Mes
 func parent(ctx context.Context) {
     ctx, cancel := context.WithCancel(ctx)
     defer cancel()
-    
+
     ctx, span := tracer.Start(ctx, "parent")
     defer span.End()
-    
+
     // 启动子进程
     go child(ctx)
-    
+
     // 取消会传播到所有子进程
     time.Sleep(5 * time.Second)
     cancel()
@@ -307,7 +307,7 @@ func parent(ctx context.Context) {
 func child(ctx context.Context) {
     ctx, span := tracer.Start(ctx, "child")
     defer span.End()
-    
+
     select {
     case <-ctx.Done():
         span.AddEvent("cancelled")
@@ -324,16 +324,16 @@ func child(ctx context.Context) {
 func processWithTimeout(ctx context.Context) error {
     ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
     defer cancel()
-    
+
     ctx, span := tracer.Start(ctx, "process_with_timeout")
     defer span.End()
-    
+
     done := make(chan error, 1)
-    
+
     go func() {
         done <- doWork(ctx)
     }()
-    
+
     select {
     case err := <-done:
         return err
@@ -368,10 +368,10 @@ func getRequestID(ctx context.Context) string {
 // 与 OTLP 集成
 func handler(ctx context.Context) {
     requestID := getRequestID(ctx)
-    
+
     ctx, span := tracer.Start(ctx, "handler")
     defer span.End()
-    
+
     span.SetAttributes(
         attribute.String("request.id", requestID),
     )
@@ -386,7 +386,7 @@ func handler(ctx context.Context) {
 func pipeline(ctx context.Context, input <-chan int) <-chan int {
     ctx, span := tracer.Start(ctx, "pipeline")
     defer span.End()
-    
+
     // Stage 1: 平方
     stage1 := make(chan int)
     go func() {
@@ -399,7 +399,7 @@ func pipeline(ctx context.Context, input <-chan int) <-chan int {
             }
         }
     }()
-    
+
     // Stage 2: 加倍
     stage2 := make(chan int)
     go func() {
@@ -412,7 +412,7 @@ func pipeline(ctx context.Context, input <-chan int) <-chan int {
             }
         }
     }()
-    
+
     return stage2
 }
 ```
@@ -422,47 +422,47 @@ func pipeline(ctx context.Context, input <-chan int) <-chan int {
 ```go
 func fanOut(ctx context.Context, input <-chan Task, workers int) []<-chan Result {
     outputs := make([]<-chan Result, workers)
-    
+
     for i := 0; i < workers; i++ {
         outputs[i] = worker(ctx, i, input)
     }
-    
+
     return outputs
 }
 
 func worker(ctx context.Context, id int, input <-chan Task) <-chan Result {
     output := make(chan Result)
-    
+
     go func() {
         defer close(output)
-        
+
         for task := range input {
             ctx, span := tracer.Start(ctx, "worker")
             span.SetAttributes(
                 attribute.Int("worker.id", id),
                 attribute.String("task.id", task.ID),
             )
-            
+
             result := process(task)
-            
+
             select {
             case output <- result:
             case <-ctx.Done():
                 span.End()
                 return
             }
-            
+
             span.End()
         }
     }()
-    
+
     return output
 }
 
 func fanIn(ctx context.Context, inputs []<-chan Result) <-chan Result {
     output := make(chan Result)
     var wg sync.WaitGroup
-    
+
     for _, input := range inputs {
         wg.Add(1)
         go func(ch <-chan Result) {
@@ -476,12 +476,12 @@ func fanIn(ctx context.Context, inputs []<-chan Result) <-chan Result {
             }
         }(input)
     }
-    
+
     go func() {
         wg.Wait()
         close(output)
     }()
-    
+
     return output
 }
 ```
@@ -507,7 +507,7 @@ func NewWorkerPool(workers int) *WorkerPool {
 func (p *WorkerPool) Start(ctx context.Context) {
     ctx, span := tracer.Start(ctx, "worker_pool_start")
     defer span.End()
-    
+
     for i := 0; i < p.workers; i++ {
         p.wg.Add(1)
         go p.worker(ctx, i)
@@ -516,25 +516,25 @@ func (p *WorkerPool) Start(ctx context.Context) {
 
 func (p *WorkerPool) worker(ctx context.Context, id int) {
     defer p.wg.Done()
-    
+
     for {
         select {
         case task, ok := <-p.tasks:
             if !ok {
                 return
             }
-            
+
             ctx, span := tracer.Start(ctx, "worker_process")
             span.SetAttributes(
                 attribute.Int("worker.id", id),
                 attribute.String("task.id", task.ID),
             )
-            
+
             result := process(task)
             p.results <- result
-            
+
             span.End()
-            
+
         case <-ctx.Done():
             return
         }
@@ -563,7 +563,7 @@ type Processor[T any] struct {
 func (p *Processor[T]) Start(ctx context.Context) {
     ctx, span := tracer.Start(ctx, "processor_start")
     defer span.End()
-    
+
     for {
         select {
         case item, ok := <-p.input:
@@ -572,7 +572,7 @@ func (p *Processor[T]) Start(ctx context.Context) {
             }
             result := p.fn(item)
             p.output <- result
-            
+
         case <-ctx.Done():
             return
         }
@@ -588,21 +588,21 @@ import "context"
 func structuredConcurrency(ctx context.Context) error {
     ctx, cancel := context.WithCancel(ctx)
     defer cancel()
-    
+
     ctx, span := tracer.Start(ctx, "structured_concurrency")
     defer span.End()
-    
+
     errChan := make(chan error, 2)
-    
+
     // 启动子任务
     go func() {
         errChan <- task1(ctx)
     }()
-    
+
     go func() {
         errChan <- task2(ctx)
     }()
-    
+
     // 等待所有任务完成或第一个错误
     for i := 0; i < 2; i++ {
         if err := <-errChan; err != nil {
@@ -610,7 +610,7 @@ func structuredConcurrency(ctx context.Context) error {
             return err
         }
     }
-    
+
     return nil
 }
 ```
@@ -654,11 +654,11 @@ func putTask(task *Task) {
 func batchProcessor(ctx context.Context, input <-chan Task, batchSize int) {
     ctx, span := tracer.Start(ctx, "batch_processor")
     defer span.End()
-    
+
     batch := make([]Task, 0, batchSize)
     ticker := time.NewTicker(100 * time.Millisecond)
     defer ticker.Stop()
-    
+
     for {
         select {
         case task := <-input:
@@ -667,13 +667,13 @@ func batchProcessor(ctx context.Context, input <-chan Task, batchSize int) {
                 processBatch(ctx, batch)
                 batch = batch[:0]
             }
-            
+
         case <-ticker.C:
             if len(batch) > 0 {
                 processBatch(ctx, batch)
                 batch = batch[:0]
             }
-            
+
         case <-ctx.Done():
             return
         }

@@ -54,7 +54,7 @@ package main
 import (
     "context"
     "net/http"
-    
+
     "go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
     "go.opentelemetry.io/otel"
     "go.opentelemetry.io/otel/attribute"
@@ -71,7 +71,7 @@ func (gw *APIGateway) HandleCreateOrder(w http.ResponseWriter, r *http.Request) 
     ctx := r.Context()
     ctx, span := tracer.Start(ctx, "api_gateway.create_order")
     defer span.End()
-    
+
     // 解析请求
     var req CreateOrderRequest
     if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -80,13 +80,13 @@ func (gw *APIGateway) HandleCreateOrder(w http.ResponseWriter, r *http.Request) 
         http.Error(w, err.Error(), http.StatusBadRequest)
         return
     }
-    
+
     span.SetAttributes(
         attribute.String("user.id", req.UserID),
         attribute.Int("items.count", len(req.Items)),
         attribute.String("request.id", req.RequestID),
     )
-    
+
     // 调用订单服务
     order, err := gw.orderClient.CreateOrder(ctx, req)
     if err != nil {
@@ -95,13 +95,13 @@ func (gw *APIGateway) HandleCreateOrder(w http.ResponseWriter, r *http.Request) 
         http.Error(w, err.Error(), http.StatusInternalServerError)
         return
     }
-    
+
     span.SetAttributes(
         attribute.String("order.id", order.ID),
         attribute.String("order.status", order.Status),
     )
     span.SetStatus(codes.Ok, "order created successfully")
-    
+
     // 返回响应
     w.Header().Set("Content-Type", "application/json")
     json.NewEncoder(w).Encode(order)
@@ -111,17 +111,17 @@ func main() {
     // 初始化 OTLP
     shutdown := initTracer()
     defer shutdown()
-    
+
     gateway := &APIGateway{
         orderClient: NewOrderClient("http://order-service:8080"),
     }
-    
+
     // 使用 otelhttp middleware
     handler := otelhttp.NewHandler(
         http.HandlerFunc(gateway.HandleCreateOrder),
         "create_order",
     )
-    
+
     http.Handle("/api/orders", handler)
     http.ListenAndServe(":8080", nil)
 }
@@ -135,7 +135,7 @@ package main
 import (
     "context"
     "fmt"
-    
+
     "go.opentelemetry.io/otel"
     "go.opentelemetry.io/otel/attribute"
     "go.opentelemetry.io/otel/codes"
@@ -152,19 +152,19 @@ type OrderService struct {
 func (os *OrderService) CreateOrder(ctx context.Context, req CreateOrderRequest) (*Order, error) {
     ctx, span := tracer.Start(ctx, "order_service.create_order")
     defer span.End()
-    
+
     span.SetAttributes(
         attribute.String("user.id", req.UserID),
         attribute.Int("items.count", len(req.Items)),
     )
-    
+
     // 1. 验证库存
     if err := os.checkInventory(ctx, req.Items); err != nil {
         span.RecordError(err)
         span.SetStatus(codes.Error, "inventory check failed")
         return nil, err
     }
-    
+
     // 2. 创建订单记录
     order, err := os.createOrderRecord(ctx, req)
     if err != nil {
@@ -172,67 +172,67 @@ func (os *OrderService) CreateOrder(ctx context.Context, req CreateOrderRequest)
         span.SetStatus(codes.Error, "order creation failed")
         return nil, err
     }
-    
+
     span.SetAttributes(
         attribute.String("order.id", order.ID),
     )
-    
+
     // 3. 预留库存
     if err := os.reserveInventory(ctx, order); err != nil {
         span.RecordError(err)
         span.SetStatus(codes.Error, "inventory reservation failed")
-        
+
         // 回滚订单
         os.cancelOrder(ctx, order.ID)
         return nil, err
     }
-    
+
     // 4. 创建支付
     payment, err := os.createPayment(ctx, order)
     if err != nil {
         span.RecordError(err)
         span.SetStatus(codes.Error, "payment creation failed")
-        
+
         // 回滚库存和订单
         os.releaseInventory(ctx, order)
         os.cancelOrder(ctx, order.ID)
         return nil, err
     }
-    
+
     span.SetAttributes(
         attribute.String("payment.id", payment.ID),
     )
-    
+
     // 5. 更新订单状态
     order.Status = "pending_payment"
     order.PaymentID = payment.ID
-    
+
     if err := os.db.UpdateOrder(ctx, order); err != nil {
         span.RecordError(err)
         span.SetStatus(codes.Error, "order update failed")
         return nil, err
     }
-    
+
     span.SetStatus(codes.Ok, "order created successfully")
     span.AddEvent("order_created", attribute.String("order.id", order.ID))
-    
+
     return order, nil
 }
 
 func (os *OrderService) checkInventory(ctx context.Context, items []Item) error {
     ctx, span := tracer.Start(ctx, "check_inventory")
     defer span.End()
-    
+
     span.SetAttributes(
         attribute.Int("items.count", len(items)),
     )
-    
+
     resp, err := os.inventoryClient.CheckAvailability(ctx, items)
     if err != nil {
         span.RecordError(err)
         return err
     }
-    
+
     if !resp.Available {
         err := fmt.Errorf("insufficient inventory")
         span.RecordError(err)
@@ -241,7 +241,7 @@ func (os *OrderService) checkInventory(ctx context.Context, items []Item) error 
         )
         return err
     }
-    
+
     span.SetStatus(codes.Ok, "inventory available")
     return nil
 }
@@ -249,7 +249,7 @@ func (os *OrderService) checkInventory(ctx context.Context, items []Item) error 
 func (os *OrderService) createOrderRecord(ctx context.Context, req CreateOrderRequest) (*Order, error) {
     ctx, span := tracer.Start(ctx, "create_order_record")
     defer span.End()
-    
+
     order := &Order{
         ID:          generateOrderID(),
         UserID:      req.UserID,
@@ -258,17 +258,17 @@ func (os *OrderService) createOrderRecord(ctx context.Context, req CreateOrderRe
         Status:      "created",
         CreatedAt:   time.Now(),
     }
-    
+
     span.SetAttributes(
         attribute.String("order.id", order.ID),
         attribute.Float64("order.total", order.TotalAmount),
     )
-    
+
     if err := os.db.InsertOrder(ctx, order); err != nil {
         span.RecordError(err)
         return nil, err
     }
-    
+
     span.SetStatus(codes.Ok, "order record created")
     return order, nil
 }
@@ -276,16 +276,16 @@ func (os *OrderService) createOrderRecord(ctx context.Context, req CreateOrderRe
 func (os *OrderService) reserveInventory(ctx context.Context, order *Order) error {
     ctx, span := tracer.Start(ctx, "reserve_inventory")
     defer span.End()
-    
+
     span.SetAttributes(
         attribute.String("order.id", order.ID),
     )
-    
+
     if err := os.inventoryClient.Reserve(ctx, order.ID, order.Items); err != nil {
         span.RecordError(err)
         return err
     }
-    
+
     span.SetStatus(codes.Ok, "inventory reserved")
     return nil
 }
@@ -293,28 +293,28 @@ func (os *OrderService) reserveInventory(ctx context.Context, order *Order) erro
 func (os *OrderService) createPayment(ctx context.Context, order *Order) (*Payment, error) {
     ctx, span := tracer.Start(ctx, "create_payment")
     defer span.End()
-    
+
     span.SetAttributes(
         attribute.String("order.id", order.ID),
         attribute.Float64("amount", order.TotalAmount),
     )
-    
+
     payment, err := os.paymentClient.CreatePayment(ctx, PaymentRequest{
         OrderID: order.ID,
         Amount:  order.TotalAmount,
         UserID:  order.UserID,
     })
-    
+
     if err != nil {
         span.RecordError(err)
         return nil, err
     }
-    
+
     span.SetAttributes(
         attribute.String("payment.id", payment.ID),
     )
     span.SetStatus(codes.Ok, "payment created")
-    
+
     return payment, nil
 }
 ```
@@ -327,7 +327,7 @@ package main
 import (
     "context"
     "sync"
-    
+
     "go.opentelemetry.io/otel"
     "go.opentelemetry.io/otel/attribute"
 )
@@ -343,62 +343,62 @@ type InventoryService struct {
 func (is *InventoryService) CheckAvailability(ctx context.Context, items []Item) (*AvailabilityResponse, error) {
     ctx, span := tracer.Start(ctx, "inventory.check_availability")
     defer span.End()
-    
+
     is.mu.RLock()
     defer is.mu.RUnlock()
-    
+
     resp := &AvailabilityResponse{
         Available:        true,
         UnavailableItems: make([]string, 0),
     }
-    
+
     for _, item := range items {
         available := is.inventory[item.ID]
-        
+
         span.AddEvent("check_item", attribute.String("item.id", item.ID),
             attribute.Int("available", available),
             attribute.Int("requested", item.Quantity))
-        
+
         if available < item.Quantity {
             resp.Available = false
             resp.UnavailableItems = append(resp.UnavailableItems, item.ID)
         }
     }
-    
+
     span.SetAttributes(
         attribute.Bool("available", resp.Available),
         attribute.Int("unavailable.count", len(resp.UnavailableItems)),
     )
-    
+
     return resp, nil
 }
 
 func (is *InventoryService) Reserve(ctx context.Context, orderID string, items []Item) error {
     ctx, span := tracer.Start(ctx, "inventory.reserve")
     defer span.End()
-    
+
     is.mu.Lock()
     defer is.mu.Unlock()
-    
+
     span.SetAttributes(
         attribute.String("order.id", orderID),
         attribute.Int("items.count", len(items)),
     )
-    
+
     // 预留库存
     if is.reserved[orderID] == nil {
         is.reserved[orderID] = make(map[string]int)
     }
-    
+
     for _, item := range items {
         is.inventory[item.ID] -= item.Quantity
         is.reserved[orderID][item.ID] = item.Quantity
-        
+
         span.AddEvent("item_reserved",
             attribute.String("item.id", item.ID),
             attribute.Int("quantity", item.Quantity))
     }
-    
+
     return nil
 }
 ```
@@ -410,7 +410,7 @@ package main
 
 import (
     "context"
-    
+
     "go.opentelemetry.io/otel"
     "go.opentelemetry.io/otel/attribute"
 )
@@ -424,13 +424,13 @@ type PaymentService struct {
 func (ps *PaymentService) CreatePayment(ctx context.Context, req PaymentRequest) (*Payment, error) {
     ctx, span := tracer.Start(ctx, "payment.create")
     defer span.End()
-    
+
     span.SetAttributes(
         attribute.String("order.id", req.OrderID),
         attribute.Float64("amount", req.Amount),
         attribute.String("user.id", req.UserID),
     )
-    
+
     // 创建支付记录
     payment := &Payment{
         ID:      generatePaymentID(),
@@ -438,21 +438,21 @@ func (ps *PaymentService) CreatePayment(ctx context.Context, req PaymentRequest)
         Amount:  req.Amount,
         Status:  "pending",
     }
-    
+
     // 调用支付网关
     if err := ps.gateway.Charge(ctx, payment); err != nil {
         span.RecordError(err)
         payment.Status = "failed"
         return payment, err
     }
-    
+
     payment.Status = "completed"
-    
+
     span.SetAttributes(
         attribute.String("payment.id", payment.ID),
         attribute.String("payment.status", payment.Status),
     )
-    
+
     return payment, nil
 }
 ```
@@ -466,26 +466,26 @@ func (ps *PaymentService) CreatePayment(ctx context.Context, req PaymentRequest)
 func OrderProcessingPipeline(ctx context.Context, orders <-chan Order) <-chan OrderResult {
     // Stage 1: 验证
     validated := validateOrders(ctx, orders)
-    
+
     // Stage 2: 处理
     processed := processOrders(ctx, validated)
-    
+
     // Stage 3: 通知
     notified := notifyOrders(ctx, processed)
-    
+
     return notified
 }
 
 func validateOrders(ctx context.Context, orders <-chan Order) <-chan Order {
     output := make(chan Order)
-    
+
     go func() {
         defer close(output)
-        
+
         for order := range orders {
             ctx, span := tracer.Start(ctx, "validate_order")
             span.SetAttributes(attribute.String("order.id", order.ID))
-            
+
             if isValid(order) {
                 select {
                 case output <- order:
@@ -494,11 +494,11 @@ func validateOrders(ctx context.Context, orders <-chan Order) <-chan Order {
                     return
                 }
             }
-            
+
             span.End()
         }
     }()
-    
+
     return output
 }
 ```
@@ -510,25 +510,25 @@ func validateOrders(ctx context.Context, orders <-chan Order) <-chan Order {
 func ProcessOrderItems(ctx context.Context, order Order) ([]ItemResult, error) {
     ctx, span := tracer.Start(ctx, "process_order_items")
     defer span.End()
-    
+
     // Fan-out: 为每个订单项创建 goroutine
     results := make(chan ItemResult, len(order.Items))
     var wg sync.WaitGroup
-    
+
     for _, item := range order.Items {
         wg.Add(1)
         go func(item Item) {
             defer wg.Done()
-            
+
             ctx, span := tracer.Start(ctx, "process_item")
             span.SetAttributes(
                 attribute.String("item.id", item.ID),
                 attribute.String("order.id", order.ID),
             )
             defer span.End()
-            
+
             result := processItem(ctx, item)
-            
+
             select {
             case results <- result:
             case <-ctx.Done():
@@ -536,19 +536,19 @@ func ProcessOrderItems(ctx context.Context, order Order) ([]ItemResult, error) {
             }
         }(item)
     }
-    
+
     // Fan-in: 收集所有结果
     go func() {
         wg.Wait()
         close(results)
     }()
-    
+
     // 聚合结果
     var allResults []ItemResult
     for result := range results {
         allResults = append(allResults, result)
     }
-    
+
     return allResults, nil
 }
 ```
@@ -597,35 +597,35 @@ func ProcessOrder(ctx context.Context, order Order) error {
         ),
     )
     defer span.End()
-    
+
     // 2. 记录关键事件
     span.AddEvent("validation_started")
-    
+
     if err := validateOrder(order); err != nil {
         // 3. 记录错误
         span.RecordError(err)
         span.SetStatus(codes.Error, "validation failed")
         return err
     }
-    
+
     span.AddEvent("validation_completed")
-    
+
     // 4. 添加业务指标
     span.SetAttributes(
         attribute.Float64("order.total", order.TotalAmount),
         attribute.Int("order.items", len(order.Items)),
     )
-    
+
     // 5. 处理业务逻辑
     if err := saveOrder(ctx, order); err != nil {
         span.RecordError(err)
         span.SetStatus(codes.Error, "save failed")
         return err
     }
-    
+
     // 6. 设置成功状态
     span.SetStatus(codes.Ok, "order processed")
-    
+
     return nil
 }
 ```
@@ -642,15 +642,15 @@ func ProcessOrder(ctx context.Context, order Order) error {
 func AnalyzeSlowTraces(traces []Trace) {
     for _, trace := range traces {
         totalDuration := trace.Duration()
-        
+
         fmt.Printf("Trace %s: %v\n", trace.ID, totalDuration)
-        
+
         // 找出最慢的 Span
         slowestSpan := findSlowestSpan(trace)
-        fmt.Printf("  Slowest: %s (%v)\n", 
-            slowestSpan.Name, 
+        fmt.Printf("  Slowest: %s (%v)\n",
+            slowestSpan.Name,
             slowestSpan.Duration())
-        
+
         // 计算每个 Span 的占比
         for _, span := range trace.Spans {
             percentage := float64(span.Duration()) / float64(totalDuration) * 100
@@ -669,13 +669,13 @@ func AnalyzeSlowTraces(traces []Trace) {
 func CreateOrderSlow(ctx context.Context, req CreateOrderRequest) (*Order, error) {
     // 1. 检查库存 (200ms)
     inventory, _ := checkInventory(ctx, req.Items)
-    
+
     // 2. 验证用户 (150ms)
     user, _ := validateUser(ctx, req.UserID)
-    
+
     // 3. 计算价格 (100ms)
     price, _ := calculatePrice(ctx, req.Items)
-    
+
     // 总耗时: 450ms
     return createOrder(ctx, inventory, user, price)
 }
@@ -684,7 +684,7 @@ func CreateOrderSlow(ctx context.Context, req CreateOrderRequest) (*Order, error
 func CreateOrderFast(ctx context.Context, req CreateOrderRequest) (*Order, error) {
     ctx, span := tracer.Start(ctx, "create_order_fast")
     defer span.End()
-    
+
     var (
         inventory InventoryResponse
         user      User
@@ -692,10 +692,10 @@ func CreateOrderFast(ctx context.Context, req CreateOrderRequest) (*Order, error
         wg        sync.WaitGroup
         errChan   = make(chan error, 3)
     )
-    
+
     // 并行执行
     wg.Add(3)
-    
+
     go func() {
         defer wg.Done()
         var err error
@@ -704,7 +704,7 @@ func CreateOrderFast(ctx context.Context, req CreateOrderRequest) (*Order, error
             errChan <- err
         }
     }()
-    
+
     go func() {
         defer wg.Done()
         var err error
@@ -713,7 +713,7 @@ func CreateOrderFast(ctx context.Context, req CreateOrderRequest) (*Order, error
             errChan <- err
         }
     }()
-    
+
     go func() {
         defer wg.Done()
         var err error
@@ -722,15 +722,15 @@ func CreateOrderFast(ctx context.Context, req CreateOrderRequest) (*Order, error
             errChan <- err
         }
     }()
-    
+
     wg.Wait()
     close(errChan)
-    
+
     // 检查错误
     if err := <-errChan; err != nil {
         return nil, err
     }
-    
+
     // 总耗时: ~200ms (最慢的调用)
     return createOrder(ctx, inventory, user, price)
 }
@@ -789,10 +789,10 @@ func CreateOrderFast(ctx context.Context, req CreateOrderRequest) (*Order, error
 func (ps *PaymentService) CreatePayment(ctx context.Context, req PaymentRequest) (*Payment, error) {
     ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
     defer cancel()
-    
+
     ctx, span := tracer.Start(ctx, "payment.create")
     defer span.End()
-    
+
     // 添加重试
     var payment *Payment
     err := retry.Do(
@@ -809,7 +809,7 @@ func (ps *PaymentService) CreatePayment(ctx context.Context, req PaymentRequest)
                 attribute.String("error", err.Error()))
         }),
     )
-    
+
     return payment, err
 }
 ```

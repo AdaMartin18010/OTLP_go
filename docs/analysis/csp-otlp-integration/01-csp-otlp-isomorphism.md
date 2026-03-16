@@ -59,20 +59,20 @@ func process(ctx context.Context, input Input) Output {
     // 进程开始 → Span 开始
     ctx, span := tracer.Start(ctx, "process")
     defer span.End()  // 进程结束 → Span 结束
-    
+
     // input?x → Span Event
     span.AddEvent("input_received", trace.WithAttributes(
         attribute.String("input.id", input.ID),
     ))
-    
+
     // compute(x) → Span 执行
     result := compute(input)
-    
+
     // output!result → Span Event
     span.AddEvent("output_sent", trace.WithAttributes(
         attribute.String("result.id", result.ID),
     ))
-    
+
     return result
 }
 ```
@@ -99,7 +99,7 @@ P = A ; B ; C
 func P(ctx context.Context) {
     ctx, span := tracer.Start(ctx, "P")
     defer span.End()
-    
+
     A(ctx)  // Child Span
     B(ctx)  // Child Span
     C(ctx)  // Child Span
@@ -135,13 +135,13 @@ System = P || Q
 func producer(ctx context.Context, ch chan<- Message) {
     ctx, span := tracer.Start(ctx, "producer")
     defer span.End()
-    
+
     msg := Message{
         Data:    "hello",
         TraceID: span.SpanContext().TraceID(),  // 传递 Trace 上下文
         SpanID:  span.SpanContext().SpanID(),
     }
-    
+
     span.AddEvent("send_message")
     ch <- msg
 }
@@ -156,10 +156,10 @@ func consumer(ctx context.Context, ch <-chan Message) {
                 SpanID:  msg.SpanID,
             }),
         )
-        
+
         ctx, span := tracer.Start(ctx, "consumer")
         span.AddEvent("receive_message")
-        
+
         process(ctx, msg.Data)
         span.End()
     }
@@ -220,7 +220,7 @@ func extractContext(msg Message) context.Context {
 func P(ctx context.Context) {
     ctx, span := tracer.Start(ctx, "P")
     defer span.End()
-    
+
     A(ctx)  // parent_span_id = span.SpanID()
     B(ctx)  // parent_span_id = span.SpanID()
 }
@@ -245,21 +245,21 @@ Trace
 func P(ctx context.Context) {
     ctx, span := tracer.Start(ctx, "P")
     defer span.End()
-    
+
     var wg sync.WaitGroup
-    
+
     wg.Add(1)
     go func() {
         defer wg.Done()
         A(ctx)  // 并行 Span
     }()
-    
+
     wg.Add(1)
     go func() {
         defer wg.Done()
         B(ctx)  // 并行 Span
     }()
-    
+
     wg.Wait()
 }
 ```
@@ -279,16 +279,16 @@ Trace
 func P(ctx context.Context) {
     ctx, span := tracer.Start(ctx, "P")
     defer span.End()
-    
+
     var wg sync.WaitGroup
     var spanA, spanB trace.Span
-    
+
     wg.Add(1)
     go func() {
         defer wg.Done()
         _, spanA = tracer.Start(ctx, "A")
         defer spanA.End()
-        
+
         // A 链接到 B（表示并行关系）
         if spanB != nil {
             spanA.AddLink(trace.Link{
@@ -296,14 +296,14 @@ func P(ctx context.Context) {
             })
         }
     }()
-    
+
     wg.Add(1)
     go func() {
         defer wg.Done()
         _, spanB = tracer.Start(ctx, "B")
         defer spanB.End()
     }()
-    
+
     wg.Wait()
 }
 ```
@@ -318,12 +318,12 @@ func P(ctx context.Context) {
 func P(ctx context.Context, chA, chB <-chan Message) {
     ctx, span := tracer.Start(ctx, "P")
     defer span.End()
-    
+
     select {
     case msg := <-chA:
         span.SetAttributes(attribute.String("choice", "A"))
         A(ctx, msg)
-        
+
     case msg := <-chB:
         span.SetAttributes(attribute.String("choice", "B"))
         B(ctx, msg)
@@ -415,14 +415,14 @@ var tracer = otel.Tracer("csp-otlp-example")
 func producer(ctx context.Context, ch chan<- Item) {
     ctx, span := tracer.Start(ctx, "producer")
     defer span.End()
-    
+
     for i := 0; i < 10; i++ {
         item := Item{ID: i}
-        
+
         span.AddEvent("produce", trace.WithAttributes(
             attribute.Int("item.id", i),
         ))
-        
+
         ch <- item
     }
     close(ch)
@@ -432,12 +432,12 @@ func producer(ctx context.Context, ch chan<- Item) {
 func consumer(ctx context.Context, ch <-chan Item) {
     ctx, span := tracer.Start(ctx, "consumer")
     defer span.End()
-    
+
     for item := range ch {
         span.AddEvent("consume", trace.WithAttributes(
             attribute.Int("item.id", item.ID),
         ))
-        
+
         process(ctx, item)
     }
 }
@@ -446,14 +446,14 @@ func consumer(ctx context.Context, ch <-chan Item) {
 func process(ctx context.Context, item Item) {
     ctx, span := tracer.Start(ctx, "process")
     defer span.End()
-    
+
     span.SetAttributes(
         attribute.Int("item.id", item.ID),
     )
-    
+
     // 处理逻辑
     result := compute(item)
-    
+
     span.AddEvent("processed", trace.WithAttributes(
         attribute.String("result", result),
     ))
@@ -464,9 +464,9 @@ func main() {
     ctx := context.Background()
     ctx, span := tracer.Start(ctx, "system")
     defer span.End()
-    
+
     ch := make(chan Item, 10)
-    
+
     go producer(ctx, ch)
     consumer(ctx, ch)
 }

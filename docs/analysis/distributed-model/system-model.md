@@ -93,17 +93,17 @@ func (c HighAvailabilityClient) SendTraces(traces []Trace) error {
     return c.retry.Execute(func() error {
         endpoint := c.selector.Select(c.endpoints)
         client := c.clients[endpoint]
-        
+
         if c.circuit.IsOpen(endpoint) {
             return fmt.Errorf("circuit breaker is open for endpoint: %s", endpoint)
         }
-        
+
         err := client.SendTraces(traces)
         if err != nil {
             c.circuit.RecordFailure(endpoint)
             return err
         }
-        
+
         c.circuit.RecordSuccess(endpoint)
         return nil
     })
@@ -152,25 +152,25 @@ type HighAvailabilityAgent struct {
 func (a HighAvailabilityAgent) Collect() error {
     a.mutex.Lock()
     defer a.mutex.Unlock()
-    
+
     for _, collector := range a.collectors {
         if err := collector.Collect(); err != nil {
             log.Printf("Collector %s failed: %v", collector.ID(), err)
             continue
         }
     }
-    
+
     return nil
 }
 
 func (a HighAvailabilityAgent) Process() error {
     a.mutex.Lock()
     defer a.mutex.Unlock()
-    
+
     // 并发处理
     var wg sync.WaitGroup
     errChan := make(chan error, len(a.processors))
-    
+
     for _, processor := range a.processors {
         wg.Add(1)
         go func(p Processor) {
@@ -180,17 +180,17 @@ func (a HighAvailabilityAgent) Process() error {
             }
         }(processor)
     }
-    
+
     wg.Wait()
     close(errChan)
-    
+
     // 检查错误
     for err := range errChan {
         if err != nil {
             return err
         }
     }
-    
+
     return nil
 }
 
@@ -233,16 +233,16 @@ type LoadBalancingGateway struct {
 func (g LoadBalancingGateway) Route(data OTLPData) error {
     g.mutex.Lock()
     defer g.mutex.Unlock()
-    
+
     // 选择后端
     backend := g.balancer.Select(g.backends)
-    
+
     // 路由数据
     if err := g.router.Route(data, backend); err != nil {
         g.metrics.ErrorRate++
         return err
     }
-    
+
     g.metrics.RequestCount++
     return nil
 }
@@ -250,14 +250,14 @@ func (g LoadBalancingGateway) Route(data OTLPData) error {
 func (g LoadBalancingGateway) Aggregate() error {
     // 聚合来自多个 Agent 的数据
     aggregatedData := g.aggregator.Aggregate()
-    
+
     // 发送到后端存储
     for _, backend := range g.backends {
         if err := backend.Store(aggregatedData); err != nil {
             log.Printf("Backend %s storage failed: %v", backend.ID(), err)
         }
     }
-    
+
     return nil
 }
 
@@ -282,21 +282,21 @@ type EventualConsistencyManager struct {
 func (m EventualConsistencyManager) EnsureConsistency() error {
     // 1. 检测冲突
     conflicts := m.detectConflicts()
-    
+
     // 2. 解决冲突
     for _, conflict := range conflicts {
         if err := m.conflict.Resolve(conflict); err != nil {
             return err
         }
     }
-    
+
     // 3. 同步数据
     return m.sync.Synchronize(m.replicas)
 }
 
 func (m EventualConsistencyManager) detectConflicts() []Conflict {
     var conflicts []Conflict
-    
+
     for i := 0; i < len(m.replicas); i++ {
         for j := i + 1; j < len(m.replicas); j++ {
             if conflict := m.compareReplicas(m.replicas[i], m.replicas[j]); conflict != nil {
@@ -304,7 +304,7 @@ func (m EventualConsistencyManager) detectConflicts() []Conflict {
             }
         }
     }
-    
+
     return conflicts
 }
 ```
@@ -324,11 +324,11 @@ func (m CausalConsistencyManager) ProcessWithCausality(operation Operation) erro
     if !m.dependencies.IsSatisfied(operation.Dependencies) {
         return fmt.Errorf("causal dependencies not satisfied")
     }
-    
+
     // 2. 更新向量时钟
     m.vectorClock.Increment(operation.NodeID)
     operation.Timestamp = m.vectorClock.GetTimestamp()
-    
+
     // 3. 调度执行
     return m.scheduler.Schedule(operation)
 }
@@ -348,7 +348,7 @@ func (vc VectorClock) Increment(nodeID string) {
 func (vc VectorClock) GetTimestamp() map[string]int64 {
     vc.mutex.RLock()
     defer vc.mutex.RUnlock()
-    
+
     timestamp := make(map[string]int64)
     for k, v := range vc.clock {
         timestamp[k] = v
@@ -373,9 +373,9 @@ type FailureDetector struct {
 func (fd FailureDetector) DetectFailures() []string {
     fd.mutex.Lock()
     defer fd.mutex.Unlock()
-    
+
     var failedNodes []string
-    
+
     for nodeID, node := range fd.nodes {
         if fd.isNodeFailed(node) {
             fd.suspicions[nodeID] = true
@@ -384,23 +384,23 @@ func (fd FailureDetector) DetectFailures() []string {
             fd.suspicions[nodeID] = false
         }
     }
-    
+
     return failedNodes
 }
 
 func (fd FailureDetector) isNodeFailed(node Node) bool {
     timeout := fd.timeouts[node.ID]
-    
+
     // 检查心跳
     if time.Since(node.LastHeartbeat) > timeout {
         return true
     }
-    
+
     // 检查响应时间
     if node.AvgResponseTime > timeout {
         return true
     }
-    
+
     return false
 }
 ```
@@ -421,15 +421,15 @@ func (frm FailureRecoveryManager) RecoverFromFailure(failedNode string) error {
     if !frm.detector.IsFailed(failedNode) {
         return fmt.Errorf("node %s is not failed", failedNode)
     }
-    
+
     // 2. 重新分配负载
     if err := frm.balancer.Rebalance(failedNode); err != nil {
         return err
     }
-    
+
     // 3. 启动恢复流程
     go frm.startRecovery(failedNode)
-    
+
     return nil
 }
 
@@ -438,13 +438,13 @@ func (frm FailureRecoveryManager) startRecovery(failedNode string) {
     for !frm.detector.IsHealthy(failedNode) {
         time.Sleep(time.Second * 5)
     }
-    
+
     // 2. 同步数据
     if err := frm.replicator.Sync(failedNode); err != nil {
         log.Printf("Failed to sync node %s: %v", failedNode, err)
         return
     }
-    
+
     // 3. 重新加入集群
     if err := frm.balancer.AddNode(failedNode); err != nil {
         log.Printf("Failed to add node %s back to cluster: %v", failedNode, err)
@@ -469,47 +469,47 @@ type HorizontalScalingManager struct {
 func (hsm HorizontalScalingManager) ScaleOut() error {
     hsm.mutex.Lock()
     defer hsm.mutex.Unlock()
-    
+
     // 1. 检查扩展条件
     if !hsm.shouldScaleOut() {
         return nil
     }
-    
+
     // 2. 计算需要的节点数
     requiredNodes := hsm.calculateRequiredNodes()
-    
+
     // 3. 启动新节点
     for i := 0; i < requiredNodes; i++ {
         node, err := hsm.provisioner.ProvisionNode()
         if err != nil {
             return err
         }
-        
+
         hsm.nodes = append(hsm.nodes, node)
     }
-    
+
     // 4. 重新平衡负载
     return hsm.rebalanceLoad()
 }
 
 func (hsm HorizontalScalingManager) shouldScaleOut() bool {
     metrics := hsm.metrics.GetCurrentMetrics()
-    
+
     // CPU 使用率超过阈值
     if metrics.CPUUsage > hsm.threshold.CPUThreshold {
         return true
     }
-    
+
     // 内存使用率超过阈值
     if metrics.MemoryUsage > hsm.threshold.MemoryThreshold {
         return true
     }
-    
+
     // 请求延迟超过阈值
     if metrics.RequestLatency > hsm.threshold.LatencyThreshold {
         return true
     }
-    
+
     return false
 }
 ```
@@ -528,34 +528,34 @@ type VerticalScalingManager struct {
 func (vsm VerticalScalingManager) ScaleUp(nodeID string) error {
     vsm.mutex.Lock()
     defer vsm.mutex.Unlock()
-    
+
     node := vsm.findNode(nodeID)
     if node == nil {
         return fmt.Errorf("node %s not found", nodeID)
     }
-    
+
     // 1. 检查扩展条件
     if !vsm.shouldScaleUp(node) {
         return nil
     }
-    
+
     // 2. 增加资源
     return node.ScaleUp()
 }
 
 func (vsm VerticalScalingManager) shouldScaleUp(node Node) bool {
     metrics := node.GetMetrics()
-    
+
     // CPU 使用率持续高
     if metrics.CPUUsage > vsm.threshold.CPUThreshold {
         return true
     }
-    
+
     // 内存使用率持续高
     if metrics.MemoryUsage > vsm.threshold.MemoryThreshold {
         return true
     }
-    
+
     return false
 }
 ```
@@ -582,13 +582,13 @@ type LatencyMeasurement struct {
 func (la LatencyAnalyzer) AnalyzeLatency() LatencyAnalysis {
     la.mutex.RLock()
     defer la.mutex.RUnlock()
-    
+
     analysis := LatencyAnalysis{
         P50: la.calculatePercentile(0.5),
         P95: la.calculatePercentile(0.95),
         P99: la.calculatePercentile(0.99),
     }
-    
+
     return analysis
 }
 
@@ -596,20 +596,20 @@ func (la LatencyAnalyzer) calculatePercentile(percentile float64) time.Duration 
     if len(la.measurements) == 0 {
         return 0
     }
-    
+
     // 排序
     sorted := make([]LatencyMeasurement, len(la.measurements))
     copy(sorted, la.measurements)
     sort.Slice(sorted, func(i, j int) bool {
         return sorted[i].Latency < sorted[j].Latency
     })
-    
+
     // 计算百分位数
     index := int(float64(len(sorted)) * percentile)
     if index >= len(sorted) {
         index = len(sorted) - 1
     }
-    
+
     return sorted[index].Latency
 }
 ```
@@ -634,22 +634,22 @@ type ThroughputMeasurement struct {
 func (ta ThroughputAnalyzer) AnalyzeThroughput() ThroughputAnalysis {
     ta.mutex.RLock()
     defer ta.mutex.RUnlock()
-    
+
     if len(ta.measurements) == 0 {
         return ThroughputAnalysis{}
     }
-    
+
     // 计算平均吞吐量
     totalOperations := int64(0)
     totalDuration := time.Duration(0)
-    
+
     for _, measurement := range ta.measurements {
         totalOperations += measurement.Operations
         totalDuration += measurement.Duration
     }
-    
+
     avgThroughput := float64(totalOperations) / totalDuration.Seconds()
-    
+
     return ThroughputAnalysis{
         Average: avgThroughput,
         Peak:    ta.findPeakThroughput(),

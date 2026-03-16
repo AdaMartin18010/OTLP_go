@@ -81,9 +81,9 @@ P || Q = P [Σ || Σ] Q  -- 所有事件都同步
 **Span 创建进程**：
 
 ```csp
-SPAN(id) = start.id -> 
-           (event.id -> SPAN(id) 
-            □ 
+SPAN(id) = start.id ->
+           (event.id -> SPAN(id)
+            □
             end.id -> SKIP)
 
 -- 多个 Span
@@ -93,12 +93,12 @@ TRACE = SPAN(1) ||| SPAN(2) ||| SPAN(3)
 **父子 Span 关系**：
 
 ```csp
-PARENT(pid) = start.pid -> 
-              CHILD(pid, cid) ; 
+PARENT(pid) = start.pid ->
+              CHILD(pid, cid) ;
               end.pid -> SKIP
 
-CHILD(pid, cid) = start.cid -> 
-                  end.cid -> 
+CHILD(pid, cid) = start.cid ->
+                  end.cid ->
                   SKIP
 
 -- 组合（顺序执行）
@@ -132,7 +132,7 @@ SYSTEM = SENDER [send, receive] CHANNEL [send, receive] RECEIVER
 
 ```csp
 BUFFER(0) = send?x -> BUFFER([x])
-BUFFER(xs) = 
+BUFFER(xs) =
     (|xs| < MAX) & send?x -> BUFFER(xs ++ [x])
     □
     (|xs| > 0) & receive!head(xs) -> BUFFER(tail(xs))
@@ -175,7 +175,7 @@ MICROSERVICES = SERVICE_A [{request, response}] SERVICE_B
 
 ```csp
 -- Context 传播进程
-CONTEXT(ctx) = 
+CONTEXT(ctx) =
     send.ctx -> CONTEXT(ctx)
     □
     receive?newCtx -> CONTEXT(newCtx)
@@ -192,9 +192,9 @@ CALL_CHAIN = CLIENT [call.ctx1] SERVER1 [call.ctx2] SERVER2
 
 ```csp
 -- Trace 必须有明确的开始和结束
-VALID_TRACE = start.tid -> 
-              (event.tid -> VALID_TRACE 
-               □ 
+VALID_TRACE = start.tid ->
+              (event.tid -> VALID_TRACE
+               □
                end.tid -> SKIP)
 
 -- 不合法的 Trace（缺少 end）
@@ -271,9 +271,9 @@ type DeadlockDetector struct {
 func (dd *DeadlockDetector) AddWaitEdge(from, to string) {
     dd.mu.Lock()
     defer dd.mu.Unlock()
-    
+
     dd.waitGraph[from] = append(dd.waitGraph[from], to)
-    
+
     // 检测环
     if dd.hasCycle(from) {
         log.Fatal("Deadlock detected!")
@@ -283,14 +283,14 @@ func (dd *DeadlockDetector) AddWaitEdge(from, to string) {
 func (dd *DeadlockDetector) hasCycle(start string) bool {
     visited := make(map[string]bool)
     recStack := make(map[string]bool)
-    
+
     return dd.dfs(start, visited, recStack)
 }
 
 func (dd *DeadlockDetector) dfs(node string, visited, recStack map[string]bool) bool {
     visited[node] = true
     recStack[node] = true
-    
+
     for _, neighbor := range dd.waitGraph[node] {
         if !visited[neighbor] {
             if dd.dfs(neighbor, visited, recStack) {
@@ -300,7 +300,7 @@ func (dd *DeadlockDetector) dfs(node string, visited, recStack map[string]bool) 
             return true  // 找到环
         }
     }
-    
+
     recStack[node] = false
     return false
 }
@@ -346,7 +346,7 @@ liveness(P, a) ⇔ ∀s ∈ traces(P). ∃t. s ++ <a> ++ t ∈ traces(P)
 LIVENESS_SPAN = start -> (event -> LIVENESS_SPAN □ end -> SKIP)
 
 -- 验证：从 start 状态最终能到达 end
-assert start ∈ traces(LIVENESS_SPAN) ⇒ 
+assert start ∈ traces(LIVENESS_SPAN) ⇒
        ∃s. start ++ s ++ <end> ∈ traces(LIVENESS_SPAN)
 ```
 
@@ -354,11 +354,11 @@ assert start ∈ traces(LIVENESS_SPAN) ⇒
 
 ```csp
 -- 强公平性：如果事件 a 无限次可用，则必须无限次执行
-strong_fairness(P, a) ⇔ 
+strong_fairness(P, a) ⇔
     (∀i. ∃j > i. a enabled at j) ⇒ (∀i. ∃j > i. a occurs at j)
 
 -- 弱公平性：如果事件 a 持续可用，则最终会执行
-weak_fairness(P, a) ⇔ 
+weak_fairness(P, a) ⇔
     (∃i. ∀j > i. a enabled at j) ⇒ (∃k. a occurs at k)
 ```
 
@@ -374,7 +374,7 @@ type FairScheduler struct {
 func (fs *FairScheduler) Schedule(ctx context.Context) {
     for {
         fs.mu.Lock()
-        
+
         // 轮询所有队列（保证公平性）
         for service, queue := range fs.queues {
             if !queue.IsEmpty() {
@@ -382,9 +382,9 @@ func (fs *FairScheduler) Schedule(ctx context.Context) {
                 go export(ctx, span)
             }
         }
-        
+
         fs.mu.Unlock()
-        
+
         time.Sleep(100 * time.Millisecond)
     }
 }
@@ -450,13 +450,13 @@ Next ==
 Spec == Init /\ [][Next]_<<queue, exported, retryCount, pipelineState>>
 
 \* 安全性属性
-NoDataLoss == \A s \in Spans : 
+NoDataLoss == \A s \in Spans :
     (retryCount[s] = MaxRetries) => (s \in exported)
 
 QueueBounded == Len(queue) <= MaxQueueSize
 
 \* 活性属性
-EventualExport == \A s \in Spans : 
+EventualExport == \A s \in Spans :
     <>(s \in exported)
 
 ====
@@ -547,17 +547,17 @@ assert SYSTEM :[has trace]: <send.1, receive.1>
 func VerifyCSPModel(modelFile string) error {
     cmd := exec.Command("fdr4", "--batch", modelFile)
     output, err := cmd.CombinedOutput()
-    
+
     if err != nil {
         return fmt.Errorf("verification failed: %v\n%s", err, output)
     }
-    
+
     // 解析结果
     if strings.Contains(string(output), "PASSED") {
         log.Println("All assertions passed")
         return nil
     }
-    
+
     return fmt.Errorf("verification failed:\n%s", output)
 }
 ```

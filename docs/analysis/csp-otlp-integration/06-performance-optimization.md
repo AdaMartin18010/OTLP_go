@@ -52,7 +52,7 @@ func NewAdaptiveBuffer(initial, min, max int) *AdaptiveBuffer {
 func (ab *AdaptiveBuffer) AdjustSize(ctx context.Context) {
     ticker := time.NewTicker(5 * time.Second)
     defer ticker.Stop()
-    
+
     for {
         select {
         case <-ticker.C:
@@ -60,7 +60,7 @@ func (ab *AdaptiveBuffer) AdjustSize(ctx context.Context) {
             currentLen := len(ab.ch)
             currentCap := cap(ab.ch)
             ab.utilization = float64(currentLen) / float64(currentCap)
-            
+
             var newSize int
             if ab.utilization > 0.8 {
                 // 高利用率，增大缓冲
@@ -72,17 +72,17 @@ func (ab *AdaptiveBuffer) AdjustSize(ctx context.Context) {
                 ab.mu.Unlock()
                 continue
             }
-            
+
             if newSize != currentCap {
                 ab.resize(newSize)
-                
+
                 // 记录指标
                 meter.RecordInt64(ctx, "buffer.size", int64(newSize))
                 meter.RecordFloat64(ctx, "buffer.utilization", ab.utilization)
             }
-            
+
             ab.mu.Unlock()
-            
+
         case <-ctx.Done():
             return
         }
@@ -91,7 +91,7 @@ func (ab *AdaptiveBuffer) AdjustSize(ctx context.Context) {
 
 func (ab *AdaptiveBuffer) resize(newSize int) {
     newCh := make(chan Data, newSize)
-    
+
     // 迁移现有数据
     close(ab.ch)
     for data := range ab.ch {
@@ -101,7 +101,7 @@ func (ab *AdaptiveBuffer) resize(newSize int) {
             // 缓冲已满，丢弃
         }
     }
-    
+
     ab.ch = newCh
     ab.targetSize = newSize
 }
@@ -115,7 +115,7 @@ type SmartBatcher struct {
     maxWaitTime  time.Duration
     input        <-chan Data
     output       chan<- []Data
-    
+
     // 自适应参数
     avgProcessTime time.Duration
     ewma           *EWMA
@@ -134,47 +134,47 @@ func NewSmartBatcher(input <-chan Data, output chan<- []Data, config BatchConfig
 func (sb *SmartBatcher) Run(ctx context.Context) {
     ctx, span := tracer.Start(ctx, "smart_batcher")
     defer span.End()
-    
+
     batch := make([]Data, 0, sb.maxBatchSize)
     timer := time.NewTimer(sb.maxWaitTime)
     defer timer.Stop()
-    
+
     flush := func() {
         if len(batch) == 0 {
             return
         }
-        
+
         start := time.Now()
-        
+
         batchCopy := make([]Data, len(batch))
         copy(batchCopy, batch)
-        
+
         select {
         case sb.output <- batchCopy:
             // 更新处理时间
             processTime := time.Since(start)
             sb.avgProcessTime = sb.ewma.Update(processTime)
-            
+
             // 动态调整等待时间
             if sb.avgProcessTime > sb.maxWaitTime/2 {
                 sb.maxWaitTime = min(sb.maxWaitTime*2, 10*time.Second)
             } else {
                 sb.maxWaitTime = max(sb.maxWaitTime/2, 10*time.Millisecond)
             }
-            
+
             span.AddEvent("batch_flushed", trace.WithAttributes(
                 attribute.Int("batch.size", len(batch)),
                 attribute.Duration("wait.time", sb.maxWaitTime),
             ))
-            
+
         case <-ctx.Done():
             return
         }
-        
+
         batch = batch[:0]
         timer.Reset(sb.maxWaitTime)
     }
-    
+
     for {
         select {
         case data, ok := <-sb.input:
@@ -182,18 +182,18 @@ func (sb *SmartBatcher) Run(ctx context.Context) {
                 flush()
                 return
             }
-            
+
             batch = append(batch, data)
-            
+
             // 批次大小达到阈值
             if len(batch) >= sb.maxBatchSize {
                 flush()
             }
-            
+
         case <-timer.C:
             // 超时，刷新批次
             flush()
-            
+
         case <-ctx.Done():
             flush()
             return
@@ -231,7 +231,7 @@ type WorkerPool struct {
     taskQueue  chan Task
     resultQueue chan Result
     wg         sync.WaitGroup
-    
+
     // 性能指标
     activeWorkers int64
     totalTasks    int64
@@ -249,56 +249,56 @@ func NewWorkerPool(workers, queueSize int) *WorkerPool {
 func (wp *WorkerPool) Start(ctx context.Context) {
     ctx, span := tracer.Start(ctx, "worker_pool_start")
     defer span.End()
-    
+
     span.SetAttributes(
         attribute.Int("workers", wp.workers),
     )
-    
+
     for i := 0; i < wp.workers; i++ {
         wp.wg.Add(1)
         go wp.worker(ctx, i)
     }
-    
+
     // 监控 goroutine
     go wp.monitor(ctx)
 }
 
 func (wp *WorkerPool) worker(ctx context.Context, id int) {
     defer wp.wg.Done()
-    
+
     for {
         select {
         case task, ok := <-wp.taskQueue:
             if !ok {
                 return
             }
-            
+
             atomic.AddInt64(&wp.activeWorkers, 1)
-            
+
             ctx, span := tracer.Start(ctx, "worker_process")
             span.SetAttributes(
                 attribute.Int("worker.id", id),
                 attribute.String("task.id", task.ID),
             )
-            
+
             start := time.Now()
             result := task.Execute(ctx)
             duration := time.Since(start)
-            
+
             span.SetAttributes(
                 attribute.Duration("task.duration", duration),
             )
             span.End()
-            
+
             atomic.AddInt64(&wp.activeWorkers, -1)
             atomic.AddInt64(&wp.completedTasks, 1)
-            
+
             select {
             case wp.resultQueue <- result:
             case <-ctx.Done():
                 return
             }
-            
+
         case <-ctx.Done():
             return
         }
@@ -308,25 +308,25 @@ func (wp *WorkerPool) worker(ctx context.Context, id int) {
 func (wp *WorkerPool) monitor(ctx context.Context) {
     ticker := time.NewTicker(10 * time.Second)
     defer ticker.Stop()
-    
+
     for {
         select {
         case <-ticker.C:
             active := atomic.LoadInt64(&wp.activeWorkers)
             completed := atomic.LoadInt64(&wp.completedTasks)
             queueLen := len(wp.taskQueue)
-            
+
             // 上报指标
             meter.RecordInt64(ctx, "worker.active", active)
             meter.RecordInt64(ctx, "worker.completed", completed)
             meter.RecordInt64(ctx, "worker.queue.length", int64(queueLen))
-            
+
             // 动态调整（如果需要）
             utilization := float64(active) / float64(wp.workers)
             if utilization > 0.9 && queueLen > wp.workers*2 {
                 // 考虑增加 worker（需要实现动态扩展）
             }
-            
+
         case <-ctx.Done():
             return
         }
@@ -335,7 +335,7 @@ func (wp *WorkerPool) monitor(ctx context.Context) {
 
 func (wp *WorkerPool) Submit(task Task) error {
     atomic.AddInt64(&wp.totalTasks, 1)
-    
+
     select {
     case wp.taskQueue <- task:
         return nil
@@ -366,26 +366,26 @@ type DynamicWorkerPool struct {
 func (dwp *DynamicWorkerPool) ScaleUp(ctx context.Context) {
     dwp.mu.Lock()
     defer dwp.mu.Unlock()
-    
+
     if dwp.currentWorkers >= dwp.maxWorkers {
         return
     }
-    
+
     // 启动新 worker
     go dwp.worker(ctx, dwp.currentWorkers)
     dwp.currentWorkers++
-    
+
     meter.RecordInt64(ctx, "worker.scaled_up", int64(dwp.currentWorkers))
 }
 
 func (dwp *DynamicWorkerPool) ScaleDown(ctx context.Context) {
     dwp.mu.Lock()
     defer dwp.mu.Unlock()
-    
+
     if dwp.currentWorkers <= dwp.minWorkers {
         return
     }
-    
+
     // 发送停止信号
     select {
     case dwp.workerChan <- struct{}{}:
@@ -442,12 +442,12 @@ func (s *Span) Reset() {
     s.Name = ""
     s.StartTime = time.Time{}
     s.EndTime = time.Time{}
-    
+
     // 清空 map 但保留容量
     for k := range s.Attributes {
         delete(s.Attributes, k)
     }
-    
+
     // 清空 slice 但保留容量
     s.Events = s.Events[:0]
 }
@@ -472,14 +472,14 @@ func NewZeroCopySerializer() *ZeroCopySerializer {
 func (zcs *ZeroCopySerializer) SerializeSpan(span *Span) ([]byte, error) {
     zcs.buffer.Reset()
     zcs.writer.Reset(zcs.buffer)
-    
+
     // 使用 protobuf 或其他高效序列化
     // 直接写入 buffer，避免中间分配
-    
+
     if err := zcs.writer.Flush(); err != nil {
         return nil, err
     }
-    
+
     // 返回底层字节切片（不复制）
     return zcs.buffer.Bytes(), nil
 }
@@ -496,7 +496,7 @@ func NewMemoryPool() *MemoryPool {
     mp := &MemoryPool{
         pools: make(map[int]*sync.Pool),
     }
-    
+
     // 预定义常用大小的池
     sizes := []int{64, 128, 256, 512, 1024, 2048, 4096, 8192}
     for _, size := range sizes {
@@ -507,19 +507,19 @@ func NewMemoryPool() *MemoryPool {
             },
         }
     }
-    
+
     return mp
 }
 
 func (mp *MemoryPool) Get(size int) []byte {
     // 找到最接近的池大小
     poolSize := mp.nearestPoolSize(size)
-    
+
     if pool, ok := mp.pools[poolSize]; ok {
         buf := pool.Get().([]byte)
         return buf[:size]
     }
-    
+
     // 没有合适的池，直接分配
     return make([]byte, size)
 }
@@ -527,7 +527,7 @@ func (mp *MemoryPool) Get(size int) []byte {
 func (mp *MemoryPool) Put(buf []byte) {
     size := cap(buf)
     poolSize := mp.nearestPoolSize(size)
-    
+
     if pool, ok := mp.pools[poolSize]; ok {
         pool.Put(buf[:cap(buf)])
     }
@@ -570,23 +570,23 @@ func NewBatchExporter(exporter otlptrace.Client, config ExportConfig) *BatchExpo
 func (be *BatchExporter) Start(ctx context.Context) {
     ticker := time.NewTicker(be.timeout)
     defer ticker.Stop()
-    
+
     for {
         select {
         case traces := <-be.queue:
             be.mu.Lock()
             be.buffer = append(be.buffer, traces)
-            
+
             if len(be.buffer) >= be.batchSize {
                 be.flush(ctx)
             }
             be.mu.Unlock()
-            
+
         case <-ticker.C:
             be.mu.Lock()
             be.flush(ctx)
             be.mu.Unlock()
-            
+
         case <-ctx.Done():
             be.mu.Lock()
             be.flush(ctx)
@@ -600,20 +600,20 @@ func (be *BatchExporter) flush(ctx context.Context) {
     if len(be.buffer) == 0 {
         return
     }
-    
+
     ctx, span := tracer.Start(ctx, "batch_export")
     defer span.End()
-    
+
     span.SetAttributes(
         attribute.Int("batch.size", len(be.buffer)),
     )
-    
+
     // 合并所有 traces
     merged := ptrace.NewTraces()
     for _, traces := range be.buffer {
         traces.ResourceSpans().MoveAndAppendTo(merged.ResourceSpans())
     }
-    
+
     // 导出
     start := time.Now()
     if err := be.exporter.UploadTraces(ctx, merged); err != nil {
@@ -624,7 +624,7 @@ func (be *BatchExporter) flush(ctx context.Context) {
             attribute.Duration("export.duration", duration),
         )
     }
-    
+
     be.buffer = be.buffer[:0]
 }
 ```
@@ -648,33 +648,33 @@ const (
 func (ce *CompressedExporter) Export(ctx context.Context, traces ptrace.Traces) error {
     ctx, span := tracer.Start(ctx, "compressed_export")
     defer span.End()
-    
+
     // 序列化
     marshaler := &ptrace.ProtoMarshaler{}
     data, err := marshaler.MarshalTraces(traces)
     if err != nil {
         return err
     }
-    
+
     originalSize := len(data)
     span.SetAttributes(
         attribute.Int("data.original_size", originalSize),
     )
-    
+
     // 压缩
     compressed, err := ce.compress(data)
     if err != nil {
         return err
     }
-    
+
     compressedSize := len(compressed)
     ratio := float64(compressedSize) / float64(originalSize)
-    
+
     span.SetAttributes(
         attribute.Int("data.compressed_size", compressedSize),
         attribute.Float64("compression.ratio", ratio),
     )
-    
+
     // 导出压缩数据
     return ce.exporter.UploadTraces(ctx, traces)
 }
@@ -693,15 +693,15 @@ func (ce *CompressedExporter) compress(data []byte) ([]byte, error) {
 func (ce *CompressedExporter) gzipCompress(data []byte) ([]byte, error) {
     var buf bytes.Buffer
     writer := gzip.NewWriter(&buf)
-    
+
     if _, err := writer.Write(data); err != nil {
         return nil, err
     }
-    
+
     if err := writer.Close(); err != nil {
         return nil, err
     }
-    
+
     return buf.Bytes(), nil
 }
 ```
@@ -732,38 +732,38 @@ func NewAdaptiveSampler(targetRate float64) *AdaptiveSampler {
 
 func (as *AdaptiveSampler) ShouldSample(ctx context.Context, traceID trace.TraceID) bool {
     atomic.AddInt64(&as.requestCount, 1)
-    
+
     // 检查是否需要调整采样率
     if time.Since(as.lastAdjust) > as.windowSize {
         as.adjustRate()
     }
-    
+
     // 基于 TraceID 的确定性采样
     threshold := uint64(as.currentRate * float64(math.MaxUint64))
     traceIDUint := binary.BigEndian.Uint64(traceID[:8])
-    
+
     shouldSample := traceIDUint < threshold
-    
+
     if shouldSample {
         atomic.AddInt64(&as.sampledCount, 1)
     }
-    
+
     return shouldSample
 }
 
 func (as *AdaptiveSampler) adjustRate() {
     as.mu.Lock()
     defer as.mu.Unlock()
-    
+
     requests := atomic.LoadInt64(&as.requestCount)
     sampled := atomic.LoadInt64(&as.sampledCount)
-    
+
     if requests == 0 {
         return
     }
-    
+
     actualRate := float64(sampled) / float64(requests)
-    
+
     // 调整采样率
     if actualRate > as.targetRate*1.1 {
         // 实际采样率过高，降低
@@ -772,15 +772,15 @@ func (as *AdaptiveSampler) adjustRate() {
         // 实际采样率过低，提高
         as.currentRate *= 1.1
     }
-    
+
     // 限制范围
     as.currentRate = math.Max(0.01, math.Min(1.0, as.currentRate))
-    
+
     // 重置计数器
     atomic.StoreInt64(&as.requestCount, 0)
     atomic.StoreInt64(&as.sampledCount, 0)
     as.lastAdjust = time.Now()
-    
+
     // 上报指标
     meter.RecordFloat64(context.Background(), "sampler.rate", as.currentRate)
 }
@@ -806,7 +806,7 @@ type TraceDecision struct {
 
 func (ts *TailSampler) AddSpan(span ptrace.Span) {
     traceID := span.TraceID()
-    
+
     ts.mu.Lock()
     decision, exists := ts.traces[traceID]
     if !exists {
@@ -816,36 +816,36 @@ func (ts *TailSampler) AddSpan(span ptrace.Span) {
         }
         ts.traces[traceID] = decision
     }
-    
+
     decision.Spans = append(decision.Spans, span)
-    
+
     // 检查错误
     if span.Status().Code() == ptrace.StatusCodeError {
         decision.HasError = true
     }
-    
+
     ts.mu.Unlock()
-    
+
     // 启动超时定时器
     go ts.scheduleDecision(traceID)
 }
 
 func (ts *TailSampler) scheduleDecision(traceID trace.TraceID) {
     time.Sleep(ts.timeout)
-    
+
     ts.mu.Lock()
     decision, exists := ts.traces[traceID]
     if !exists {
         ts.mu.Unlock()
         return
     }
-    
+
     delete(ts.traces, traceID)
     ts.mu.Unlock()
-    
+
     // 做出采样决策
     decision.ShouldKeep = ts.makeDecision(decision)
-    
+
     ts.decisions <- *decision
 }
 
@@ -854,12 +854,12 @@ func (ts *TailSampler) makeDecision(decision *TraceDecision) bool {
     if decision.HasError {
         return true
     }
-    
+
     // 规则 2: 慢 trace 保留
     if decision.Duration > 1*time.Second {
         return true
     }
-    
+
     // 规则 3: 其他按比例采样
     return rand.Float64() < 0.1
 }
@@ -944,10 +944,10 @@ func stringToBytes(s string) []byte {
 func BenchmarkSpanCreation(b *testing.B) {
     tracer := otel.Tracer("benchmark")
     ctx := context.Background()
-    
+
     b.ResetTimer()
     b.ReportAllocs()
-    
+
     for i := 0; i < b.N; i++ {
         _, span := tracer.Start(ctx, "test")
         span.End()
@@ -956,10 +956,10 @@ func BenchmarkSpanCreation(b *testing.B) {
 
 func BenchmarkSpanWithPool(b *testing.B) {
     pool := NewSpanPool()
-    
+
     b.ResetTimer()
     b.ReportAllocs()
-    
+
     for i := 0; i < b.N; i++ {
         span := pool.Get()
         // 使用 span...
@@ -972,12 +972,12 @@ func BenchmarkBatchExport(b *testing.B) {
         BatchSize: 100,
         Timeout:   1 * time.Second,
     })
-    
+
     traces := generateTestTraces(100)
-    
+
     b.ResetTimer()
     b.ReportAllocs()
-    
+
     for i := 0; i < b.N; i++ {
         exporter.Export(context.Background(), traces)
     }

@@ -3,6 +3,7 @@
 > **专注于Go语言**的OpenTelemetry协议（OTLP）及云原生技术深度实践指南
 
 [![Go Version](https://img.shields.io/badge/Go-1.26-00ADD8?logo=go)](https://go.dev/)
+[![OTLP Version](https://img.shields.io/badge/OTLP-1.10.0-blue.svg)](https://opentelemetry.io/docs/specs/otlp/)
 [![Go Workspace](https://img.shields.io/badge/Go%20Workspace-33%20modules-purple.svg)](WORKSPACE.md)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Documentation](https://img.shields.io/badge/docs-12%2C804%20lines-brightgreen.svg)](标准深度梳理_2025_10/)
@@ -16,7 +17,8 @@
 
 ### 🎯 核心特点
 
-- ✅ **Go 1.26 Workspace** - 33个模块的多模块仓库管理
+- ✅ **Go 1.26** - 最新 Green Tea GC、SIMD 实验性支持、泛型自引用
+- ✅ **Go Workspace** - 33个模块的多模块仓库管理
 - ✅ **100% Go语言专注** - 不涉及其他编程语言
 - ✅ **生产环境就绪** - 所有配置和代码均符合企业标准
 - ✅ **OTLP全链路集成** - Traces + Metrics + Logs + Profiles
@@ -261,9 +263,16 @@ docker build -t myapp:latest .
 
 ### 技术覆盖
 
-#### Go语言核心
+#### Go 1.26 核心特性
 
-- ✅ Go 1.26 最新特性
+- ✅ **Green Tea GC** - 默认启用，GC 开销减少 10-40%
+- ✅ **new 表达式** - `new(int64(300))` 语法支持
+- ✅ **泛型自引用** - 类型参数列表中可引用自身
+- ✅ **cgo 优化** - 调用开销减少约 30%
+- ✅ **实验性 SIMD** - `simd/archsimd` 包支持
+- ✅ **实验性 runtime/secret** - 安全擦除敏感数据
+- ✅ **crypto/hpke** - 混合公钥加密支持
+- ✅ **errors.AsType** - 泛型错误类型断言
 - ✅ Goroutine（GMP调度模型）
 - ✅ Channel（CSP模式）
 - ✅ Context传播
@@ -271,11 +280,13 @@ docker build -t myapp:latest .
 - ✅ sync 同步原语
 - ✅ atomic 无锁编程
 
-#### 云原生生态
+#### OTLP 可观测性 (v1.10.0)
 
-- ✅ Kubernetes 1.31+ (Deployment、StatefulSet、DaemonSet)
-- ✅ Istio 1.24+ (服务网格)
-- ✅ Linkerd 2.16+ (轻量级网格)
+- ✅ **Traces** - API/SDK/Protocol 全稳定
+- ✅ **Metrics** - API/Protocol 稳定，SDK 混合状态
+- ✅ **Logs** - Bridge API/SDK/Protocol 全稳定
+- ✅ **Profiles** - Protocol 开发中
+- ✅ **Zipkin Exporter** - 已弃用（Zipkin 原生支持 OTLP）
 - ✅ Helm 3 (包管理)
 - ✅ Docker 多阶段构建
 
@@ -463,8 +474,10 @@ type ShardedCache struct {
 
 ---
 
-**最后更新**: 2025-10-17
-**文档版本**: v1.0
+**最后更新**: 2026-03-17
+**文档版本**: v3.0.0
+**Go 版本**: 1.26
+**OTLP 版本**: 1.10.0
 **总行数**: 12,804行
 **代码示例**: 108个
 **维护者**: 平台工程团队
