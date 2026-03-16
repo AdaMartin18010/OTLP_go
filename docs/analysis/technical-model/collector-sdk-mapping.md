@@ -1,8 +1,8 @@
-# Collector ↔ SDK 参数映射（Go 1.25.1 / OTLP）
+# Collector ↔ SDK 参数映射（Go 1.26 / OTLP）
 
 ## 目录
 
-- [Collector ↔ SDK 参数映射（Go 1.25.1 / OTLP）](#collector--sdk-参数映射go-1251--otlp)
+- [Collector ↔ SDK 参数映射（Go 1.26 / OTLP）](#collector--sdk-参数映射go-126--otlp)
   - [目录](#目录)
   - [目标](#目标)
   - [映射总览](#映射总览)

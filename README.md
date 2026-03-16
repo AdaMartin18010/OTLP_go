@@ -6,14 +6,14 @@
 [![OTLP Version](https://img.shields.io/badge/OTLP-1.10.0-blue.svg)](https://opentelemetry.io/docs/specs/otlp/)
 [![Go Workspace](https://img.shields.io/badge/Go%20Workspace-33%20modules-purple.svg)](WORKSPACE.md)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Documentation](https://img.shields.io/badge/docs-12%2C804%20lines-brightgreen.svg)](标准深度梳理_2025_10/)
-[![Code Examples](https://img.shields.io/badge/examples-108-orange.svg)](标准深度梳理_2025_10/)
+[![Documentation](https://img.shields.io/badge/docs-8%2C000%2B%20lines-brightgreen.svg)](docs/analysis/)
+[![Code Examples](https://img.shields.io/badge/examples-18-orange.svg)](examples/)
 
 ---
 
 ## 📖 项目简介
 
-本项目是一个**企业级Go语言技术栈深度梳理**，专注于OpenTelemetry、eBPF、服务网格、性能分析、生产部署、并发编程等核心技术领域。所有内容均为生产环境验证的最佳实践，包含**12,804行深度技术文档**和**108个完整代码示例**。
+本项目是一个**企业级Go语言技术栈深度梳理**，专注于OpenTelemetry、eBPF、服务网格、性能分析、生产部署、并发编程等核心技术领域。所有内容均为生产环境验证的最佳实践，包含**深度技术文档**和**完整代码示例**。
 
 ### 🎯 核心特点
 
@@ -328,9 +328,37 @@ func handleRequest(ctx context.Context) {
 }
 ```
 
-参考文档：[🚀 Go生产环境部署运维指南 - 第4章](标准深度梳理_2025_10/🚀_Go生产环境部署运维指南_企业级实战.md)
+参考文档：[🚀 Go生产环境部署运维指南 - 第4章](docs/archive/标准深度梳理_2025_10/🚀_Go生产环境部署运维指南_企业级实战.md)
 
-### 2. 性能瓶颈定位
+### 2. Go 1.26 新特性实战
+
+```go
+// new 表达式 - 简化可选字段初始化
+attrs := SpanAttributes{
+    HTTPMethod:     "GET",
+    HTTPStatusCode: new(200),  // Go 1.26 新语法
+}
+
+// Green Tea GC - 默认启用，GC 开销减少 10-40%
+// 无需代码改动，自动受益于小对象扫描优化
+
+// errors.AsType - 泛型错误处理（Go 1.26）
+if exportErr, ok := errors.AsType[ExportError](err); ok {
+    handleExportError(exportErr)
+}
+```
+
+运行示例：
+```bash
+cd examples/go126-features
+go run main.go
+```
+
+参考文档：
+- [Go 1.26 新特性深度分析](docs/analysis/golang-1.26-features.md)
+- [OTLP 1.10.0 规范更新](docs/analysis/otlp-1.10.0-spec.md)
+
+### 3. 性能瓶颈定位
 
 ```bash
 # CPU Profiling
@@ -340,18 +368,18 @@ go tool pprof -http=:8080 cpu.prof
 # 查看Flame Graph
 ```
 
-参考文档：[🔥 Go Profiling完整指南 - 第2章](标准深度梳理_2025_10/🔥_Go_Profiling完整指南_性能分析与优化.md)
+参考文档：[🔥 Go Profiling完整指南 - 第2章](docs/archive/标准深度梳理_2025_10/🔥_Go_Profiling完整指南_性能分析与优化.md)
 
-### 3. 零侵入式追踪
+### 4. 零侵入式追踪
 
 ```go
 // eBPF追踪Goroutine创建
 // 无需修改应用代码
 ```
 
-参考文档：[🐝 Go + eBPF深度集成指南 - 第4章](标准深度梳理_2025_10/🐝_Go_eBPF深度集成指南_零侵入式可观测性.md)
+参考文档：[🐝 Go + eBPF深度集成指南 - 第4章](docs/archive/标准深度梳理_2025_10/🐝_Go_eBPF深度集成指南_零侵入式可观测性.md)
 
-### 4. 高并发优化
+### 5. 高并发优化
 
 ```go
 // 分片锁优化（8倍性能提升）
@@ -360,7 +388,7 @@ type ShardedCache struct {
 }
 ```
 
-参考文档：[⚡ Go并发模式深度实战 - 第7章](标准深度梳理_2025_10/⚡_Go并发模式深度实战_CSP_模式_高性能并发.md)
+参考文档：[⚡ Go并发模式深度实战 - 第7章](docs/archive/标准深度梳理_2025_10/⚡_Go并发模式深度实战_CSP_模式_高性能并发.md)
 
 ---
 

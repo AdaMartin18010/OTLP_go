@@ -2,7 +2,7 @@
 
 > **文档版本**: v1.0  
 > **最后更新**: 2025-10-04  
-> **关联文档**: [CSP 综合分析](../golang-1.25.1-otlp-integration/2025-updates/01-golang-1.25.1-csp-comprehensive-analysis.md)
+> **关联文档**: [CSP 综合分析](../golang-1.26-otlp-integration/2025-updates/01-golang-1.26-csp-comprehensive-analysis.md)
 
 ---
 

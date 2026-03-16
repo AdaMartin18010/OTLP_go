@@ -804,7 +804,7 @@ spec:
 
 ## 7. 参考资料
 
-- **Kubernetes 部署**：`docs/analysis/golang-1.25.1-otlp-integration/2025-updates/21-kubernetes-operator-development-2025.md`
-- **生产最佳实践**：`docs/analysis/golang-1.25.1-otlp-integration/2025-updates/19-production-best-practices-2025.md`
-- **监控告警**：`docs/analysis/golang-1.25.1-otlp-integration/2025-updates/20-monitoring-alerting-guide-2025.md`
+- **Kubernetes 部署**：`docs/analysis/golang-1.26-otlp-integration/2025-updates/21-kubernetes-operator-development-2025.md`
+- **生产最佳实践**：`docs/analysis/golang-1.26-otlp-integration/2025-updates/19-production-best-practices-2025.md`
+- **监控告警**：`docs/analysis/golang-1.26-otlp-integration/2025-updates/20-monitoring-alerting-guide-2025.md`
 - **OPAMP 协议**：`docs/opamp/overview.md`

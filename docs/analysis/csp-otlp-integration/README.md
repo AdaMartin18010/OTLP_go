@@ -11,7 +11,7 @@
    - Channel 通信与 Context 传播的映射
    - 并发模式与分布式追踪的语义等价
 
-2. **[Go 1.25.1 CSP 实现](02-golang-csp-implementation.md)**
+2. **[Go 1.26 CSP 实现](02-golang-csp-implementation.md)**
    - Goroutine 与 CSP 进程
    - Channel 类型系统与通信模式
    - Select 语句与非确定性选择
@@ -153,7 +153,7 @@ func process(task Task) Result {
                          │ 实现
                          ▼
 ┌─────────────────────────────────────────────────────────────┐
-│                 Go 1.25.1 实现                               │
+│                 Go 1.26 实现                               │
 │  goroutine + channel + context + otel SDK                   │
 └─────────────────────────────────────────────────────────────┘
 ```

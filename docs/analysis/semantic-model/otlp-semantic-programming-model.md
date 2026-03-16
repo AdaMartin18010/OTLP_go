@@ -1,7 +1,7 @@
 # OTLP 语义模型与程序设计的形式化分析
 
-**版本**: 1.0.0  
-**日期**: 2025-10-06  
+**版本**: 1.0.0
+**日期**: 2025-10-06
 **状态**: ✅ 完整
 
 ---
@@ -99,7 +99,7 @@ Value = String | Int | Double | Bool | Array[Value] | Map[String, Value]
 ```text
 定义偏序 ⊑ (子结构关系):
 
-s₁ ⊑ s₂ ⟺ 
+s₁ ⊑ s₂ ⟺
   ∧ s₁.span_id = s₂.span_id
   ∧ s₁.attributes ⊆ s₂.attributes
   ∧ s₁.events ⊆ s₂.events
@@ -182,7 +182,7 @@ ValueType ::= StringType
 ```text
 ⟦·⟧ : OTLP → Semantics
 
-⟦Trace(id, spans, resource)⟧ = 
+⟦Trace(id, spans, resource)⟧ =
   { trace_id: id,
     execution: ⋃ᵢ ⟦spans[i]⟧,
     context: ⟦resource⟧ }
@@ -251,17 +251,17 @@ func ProcessOrder(orderID string) error {
     if err := ValidateOrder(orderID); err != nil {
         return err
     }
-    
+
     // 2. 扣减库存
     if err := DeductInventory(orderID); err != nil {
         return err
     }
-    
+
     // 3. 创建支付
     if err := CreatePayment(orderID); err != nil {
         return err
     }
-    
+
     return nil
 }
 
@@ -342,20 +342,20 @@ func TransferMoney(from, to string, amount int) error {
             attribute.Int("amount", amount),
         ))
     defer span.End()
-    
+
     // 函数体
     if err := debitAccount(ctx, from, amount); err != nil {
         span.RecordError(err)
         span.SetStatus(codes.Error, err.Error())
         return err
     }
-    
+
     if err := creditAccount(ctx, to, amount); err != nil {
         span.RecordError(err)
         span.SetStatus(codes.Error, err.Error())
         return err
     }
-    
+
     span.SetAttributes(attribute.Bool("success", true))
     return nil
 }
@@ -421,12 +421,12 @@ func ServiceA(ctx context.Context) {
     // 当前作用域
     span := trace.SpanFromContext(ctx)
     traceID := span.SpanContext().TraceID()
-    
+
     // 添加作用域变量
     ctx = baggage.ContextWithValues(ctx,
         baggage.String("user_id", "user-123"),
         baggage.String("tenant_id", "tenant-456"))
-    
+
     // 作用域继承
     ServiceB(ctx)
 }
@@ -435,7 +435,7 @@ func ServiceB(ctx context.Context) {
     // 继承的作用域
     member := baggage.FromContext(ctx).Member("user_id")
     userID := member.Value() // "user-123"
-    
+
     // 作用域可见
     span := trace.SpanFromContext(ctx)
     span.SetAttributes(attribute.String("user_id", userID))
@@ -552,7 +552,7 @@ type Span struct {
 // 冗余检测
 func DetectRedundancy(spans []Span) []Redundancy {
     redundancies := []Redundancy{}
-    
+
     // 1. 检测重复 Attribute
     for _, span := range spans {
         attrs := span.Attributes
@@ -569,7 +569,7 @@ func DetectRedundancy(spans []Span) []Redundancy {
             }
         }
     }
-    
+
     // 2. 检测可推导信息
     for _, span := range spans {
         if span.Duration == span.EndTime.Sub(span.StartTime) {
@@ -580,7 +580,7 @@ func DetectRedundancy(spans []Span) []Redundancy {
             })
         }
     }
-    
+
     // 3. 检测跨 Span 冗余
     resourceMap := make(map[string][]string)
     for _, span := range spans {
@@ -596,7 +596,7 @@ func DetectRedundancy(spans []Span) []Redundancy {
             })
         }
     }
-    
+
     return redundancies
 }
 
@@ -604,7 +604,7 @@ func DetectRedundancy(spans []Span) []Redundancy {
 func EliminateRedundancy(spans []Span, redundancies []Redundancy) []Span {
     optimized := make([]Span, len(spans))
     copy(optimized, spans)
-    
+
     for _, r := range redundancies {
         switch r.Type {
         case "DuplicateAttribute":
@@ -614,13 +614,13 @@ func EliminateRedundancy(spans []Span, redundancies []Redundancy) []Span {
             } else {
                 delete(optimized[r.SpanIndex].Attributes, r.Key1)
             }
-            
+
         case "DerivableField":
             // 移除可推导字段 (如果不是必要冗余)
             if !IsNecessary(r.Field) {
                 optimized[r.SpanIndex].RemoveField(r.Field)
             }
-            
+
         case "DuplicateResource":
             // 提取公共 Resource 到 Trace 级别
             commonResource := ExtractCommonResource(r.Spans)
@@ -630,7 +630,7 @@ func EliminateRedundancy(spans []Span, redundancies []Redundancy) []Span {
             }
         }
     }
-    
+
     return optimized
 }
 ```
@@ -700,7 +700,7 @@ C = {Trace, Span, Metric, Log, Resource, Attribute, ...}
 概念 `C` 的定义是完备的,当且仅当:
 
 ```text
-Complete(C) ⟺ 
+Complete(C) ⟺
   ∀ instance i: IsInstance(i, C) ⟺ SatisfiesDefinition(i, C)
 
 即: 定义完全刻画了概念的外延
@@ -731,7 +731,7 @@ Span 定义:
 概念 `C` 的解释是无歧义的,当且仅当:
 
 ```text
-Unambiguous(C) ⟺ 
+Unambiguous(C) ⟺
   ∀ i₁, i₂: Interpret(i₁, C) = Interpret(i₂, C) ⟹ i₁ ≈ i₂
 
 即: 相同的解释对应语义等价的实例
@@ -922,17 +922,17 @@ Qed.
 2. 冗余最小:
    反证法:
    假设存在 T' 使得 ⟦T'⟧ = ⟦T⟧ 且 R(T') < R(Optimize(T))
-   
+
    则 T' 中必然移除了 Optimize(T) 中保留的某些信息 i
-   
+
    情况 1: i 是必要冗余
      则移除 i 会破坏某些性质 P (如容错性)
      因此 T' 不满足要求
-   
+
    情况 2: i 不是必要冗余
      则 Optimize 算法会移除 i
      矛盾!
-   
+
    因此假设不成立,Optimize(T) 是冗余最小的。
 ```
 
@@ -1065,7 +1065,7 @@ type DuplicateAttributeRule struct{}
 func (r *DuplicateAttributeRule) Check(span *Span) []Violation {
     violations := []Violation{}
     seen := make(map[string]attribute.Value)
-    
+
     for _, attr := range span.Attributes {
         if existing, ok := seen[attr.Key]; ok {
             if existing == attr.Value {
@@ -1078,7 +1078,7 @@ func (r *DuplicateAttributeRule) Check(span *Span) []Violation {
         }
         seen[attr.Key] = attr.Value
     }
-    
+
     return violations
 }
 
@@ -1087,7 +1087,7 @@ type DerivableFieldRule struct{}
 
 func (r *DerivableFieldRule) Check(span *Span) []Violation {
     violations := []Violation{}
-    
+
     // 检查 duration
     if span.Duration != 0 {
         expected := span.EndTime.Sub(span.StartTime)
@@ -1099,7 +1099,7 @@ func (r *DerivableFieldRule) Check(span *Span) []Violation {
             })
         }
     }
-    
+
     return violations
 }
 
@@ -1119,13 +1119,13 @@ func NewLinter() *Linter {
 
 func (l *Linter) Lint(trace *Trace) []Violation {
     violations := []Violation{}
-    
+
     for _, span := range trace.Spans {
         for _, rule := range l.rules {
             violations = append(violations, rule.Check(span)...)
         }
     }
-    
+
     return violations
 }
 
@@ -1152,20 +1152,20 @@ func ProcessOrder(ctx context.Context, order *Order) error {
     ctx, span := tracer.Start(ctx, "ProcessOrder",
         trace.WithSpanKind(trace.SpanKindServer))
     defer span.End()
-    
+
     // 1. 验证订单
     if err := validateOrder(ctx, order); err != nil {
         span.RecordError(err)
         return err
     }
-    
+
     // 2. 扣减库存 (可能失败)
     if err := deductInventory(ctx, order); err != nil {
         span.RecordError(err)
         // 补偿: 不需要回滚验证
         return err
     }
-    
+
     // 3. 创建支付 (可能失败)
     if err := createPayment(ctx, order); err != nil {
         span.RecordError(err)
@@ -1173,7 +1173,7 @@ func ProcessOrder(ctx context.Context, order *Order) error {
         compensateInventory(ctx, order)
         return err
     }
-    
+
     // 4. 发送通知
     if err := sendNotification(ctx, order); err != nil {
         // 非关键错误,记录但不回滚
@@ -1181,7 +1181,7 @@ func ProcessOrder(ctx context.Context, order *Order) error {
             attribute.String("error", err.Error()),
         ))
     }
-    
+
     return nil
 }
 
@@ -1377,13 +1377,13 @@ Trace:
 - `docs/analysis/computational-model/turing-computability-concurrency.md` - 图灵可计算性
 - `docs/analysis/computational-model/control-execution-data-flow.md` - 控制流/数据流
 - `docs/otlp/semantic-model.md` - OTLP 语义模型
-- `docs/language/go-1.25.1.md` - Go 语言特性
+- `docs/language/go-1.26.md` - Go 语言特性
 
 ---
 
 **文档结束**:
 
-**版本**: 1.0.0  
-**日期**: 2025-10-06  
-**作者**: OTLP 项目团队  
+**版本**: 1.0.0
+**日期**: 2025-10-06
+**作者**: OTLP 项目团队
 **许可**: 遵循项目根目录的 LICENSE 文件

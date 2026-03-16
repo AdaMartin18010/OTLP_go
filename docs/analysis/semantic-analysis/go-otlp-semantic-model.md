@@ -1,11 +1,11 @@
-# Go 1.25.1 与 OTLP 语义模型深度分析
+# Go 1.26 与 OTLP 语义模型深度分析
 
 ## 目录
 
-- [Go 1.25.1 与 OTLP 语义模型深度分析](#go-1251-与-otlp-语义模型深度分析)
+- [Go 1.26 与 OTLP 语义模型深度分析](#go-126-与-otlp-语义模型深度分析)
   - [目录](#目录)
   - [1. 概述](#1-概述)
-  - [2. Go 1.25.1 语言特性与 OTLP 语义映射](#2-go-1251-语言特性与-otlp-语义映射)
+  - [2. Go 1.26 语言特性与 OTLP 语义映射](#2-go-126-语言特性与-otlp-语义映射)
     - [2.1 泛型支持与类型安全](#21-泛型支持与类型安全)
     - [2.2 错误处理与语义一致性](#22-错误处理与语义一致性)
   - [3. OTLP 语义模型核心组件](#3-otlp-语义模型核心组件)
@@ -29,13 +29,13 @@
 
 ## 1. 概述
 
-本文档基于 Go 1.25.1 的最新语言特性，结合 OpenTelemetry Protocol (OTLP) 的语义模型，深入分析语义模型的设计原理、技术实现和形式化验证。
+本文档基于 Go 1.26 的最新语言特性，结合 OpenTelemetry Protocol (OTLP) 的语义模型，深入分析语义模型的设计原理、技术实现和形式化验证。
 
-## 2. Go 1.25.1 语言特性与 OTLP 语义映射
+## 2. Go 1.26 语言特性与 OTLP 语义映射
 
 ### 2.1 泛型支持与类型安全
 
-Go 1.25.1 的泛型特性为 OTLP 语义模型提供了更强的类型安全保障：
+Go 1.26 的泛型特性为 OTLP 语义模型提供了更强的类型安全保障：
 
 ```go
 // 泛型化的 OTLP 数据类型定义
@@ -72,7 +72,7 @@ type HTTPData struct {
 
 ### 2.2 错误处理与语义一致性
 
-Go 1.25.1 改进的错误处理机制确保 OTLP 语义模型的一致性：
+Go 1.26 改进的错误处理机制确保 OTLP 语义模型的一致性：
 
 ```go
 // 语义化的错误类型
@@ -97,7 +97,7 @@ func ValidateOTLPData(data OTLPData[any]) error {
     if err := validateTraceID(data.TraceID); err != nil {
         return fmt.Errorf("trace validation failed: %w", err)
     }
-    
+
     if errors.Is(err, ErrInvalidFormat) {
         return &OTLPError{
             Code:    InvalidTraceID,
@@ -108,7 +108,7 @@ func ValidateOTLPData(data OTLPData[any]) error {
             },
         }
     }
-    
+
     return nil
 }
 ```
@@ -118,7 +118,7 @@ func ValidateOTLPData(data OTLPData[any]) error {
 ### 3.1 资源语义模型 (Resource Semantic Model)
 
 ```go
-// 基于 Go 1.25.1 泛型的资源定义
+// 基于 Go 1.26 泛型的资源定义
 type Resource[T ResourceAttributes] struct {
     Attributes T
     SchemaURL  string
@@ -241,7 +241,7 @@ type ApplicationLog struct {
 
 ### 4.1 类型系统形式化
 
-使用 Go 1.25.1 的类型约束系统定义语义模型：
+使用 Go 1.26 的类型约束系统定义语义模型：
 
 ```go
 // 语义类型约束
@@ -275,17 +275,17 @@ func ProveSemanticConsistency[T SemanticType](
     if err := validateTypeConsistency(data); err != nil {
         return fmt.Errorf("type consistency violation: %w", err)
     }
-    
+
     // 2. 语义约束验证
     if err := validator.Validate(data); err != nil {
         return fmt.Errorf("semantic constraint violation: %w", err)
     }
-    
+
     // 3. 时间序列一致性验证
     if err := validateTemporalConsistency(data); err != nil {
         return fmt.Errorf("temporal consistency violation: %w", err)
     }
-    
+
     return nil
 }
 ```
@@ -375,13 +375,13 @@ func (m *DistributedSemanticManager[T]) EnsureConsistency() error {
     for i, node := range m.nodes {
         states[i] = node.GetSemanticState()
     }
-    
+
     // 2. 运行一致性算法
     consensus, err := m.consensus.ReachConsensus(states)
     if err != nil {
         return fmt.Errorf("consensus failed: %w", err)
     }
-    
+
     // 3. 应用一致性结果
     return m.applyConsensus(consensus)
 }
@@ -401,7 +401,7 @@ func (p *ZeroCopySemanticProcessor[T]) Process(data T) (T, error) {
     // 使用对象池避免内存分配
     processor := p.pool.Get().(*SemanticProcessor[T])
     defer p.pool.Put(processor)
-    
+
     return processor.Process(data)
 }
 ```
@@ -419,7 +419,7 @@ type SemanticCache[T any] struct {
 func (c *SemanticCache[T]) Get(key string) (T, bool) {
     c.mutex.RLock()
     defer c.mutex.RUnlock()
-    
+
     value, exists := c.cache[key]
     return value, exists
 }
@@ -427,14 +427,14 @@ func (c *SemanticCache[T]) Get(key string) (T, bool) {
 func (c *SemanticCache[T]) Set(key string, value T) {
     c.mutex.Lock()
     defer c.mutex.Unlock()
-    
+
     c.cache[key] = value
 }
 ```
 
 ## 8. 结论
 
-基于 Go 1.25.1 的泛型特性和改进的错误处理机制，我们构建了一个类型安全、语义一致的 OTLP 语义模型。该模型具有以下特点：
+基于 Go 1.26 的泛型特性和改进的错误处理机制，我们构建了一个类型安全、语义一致的 OTLP 语义模型。该模型具有以下特点：
 
 1. **类型安全**：利用泛型确保编译时类型检查
 2. **语义一致性**：通过形式化验证确保语义正确性

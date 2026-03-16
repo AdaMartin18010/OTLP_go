@@ -1,10 +1,10 @@
-# OTLP 语义模型 ↔ Go 实现映射（Go 1.25.1）
+# OTLP 语义模型 ↔ Go 实现映射（Go 1.26）
 
 本文将 OTLP 四支柱（Trace/Metrics/Logs/Profile）及 Resource/Semantic Conventions 与 Go 生态的具体实现逐项对齐，给出工程落地清单与注意事项。
 
 ## 目录
 
-- [OTLP 语义模型 ↔ Go 实现映射（Go 1.25.1）](#otlp-语义模型--go-实现映射go-1251)
+- [OTLP 语义模型 ↔ Go 实现映射（Go 1.26）](#otlp-语义模型--go-实现映射go-1251)
   - [目录](#目录)
   - [1. Resource（资源身份）](#1-resource资源身份)
   - [2. Trace（因果链）](#2-trace因果链)

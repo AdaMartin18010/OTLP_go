@@ -1,7 +1,14 @@
-// Module: OTLP_go/src/pkg/types
-// // Package types provides common data structures and type definitions.
-// It includes domain models, request/response types, and shared type aliases.
+// Module: github.com/OTLP_go/pkg
+// Package pkg provides the core OTLP Go SDK functionality.
 
-module OTLP_go/src/pkg/types
+module github.com/OTLP_go/pkg
 
 go 1.26
+
+require (
+	go.opentelemetry.io/otel v1.42.0
+	go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.42.0
+	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc v1.42.0
+	go.opentelemetry.io/otel/sdk v1.42.0
+	go.opentelemetry.io/otel/trace v1.42.0
+)

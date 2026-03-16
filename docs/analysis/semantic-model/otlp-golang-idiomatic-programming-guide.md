@@ -1348,7 +1348,7 @@ func processWithErrorHandling(ctx context.Context) (err error) {
 
 3. **相关文档**:
    - `otlp-golang-semantic-programming-integration.md` - 语义模型与编程范式
-   - `docs/language/go-1.25.1.md` - Go 语言特性
+   - `docs/language/go-1.26.md` - Go 语言特性
    - `docs/otlp/semantic-model.md` - OTLP 语义模型
 
 ---

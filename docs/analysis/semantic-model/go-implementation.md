@@ -519,6 +519,6 @@ func (bsp *BatchSpanProcessor) flush() {
 ## 7. 参考资料
 
 - **OpenTelemetry Go SDK**: <https://github.com/open-telemetry/opentelemetry-go>
-- **Go 1.25.1 特性**: `docs/language/go-1.25.1.md`
+- **Go 1.26 特性**: `docs/language/go-1.26.md`
 - **语义模型**: `docs/otlp/semantic-model.md`
 - **性能优化**: `docs/implementation/PHASE2_OPTIMIZATION_SUMMARY.md`

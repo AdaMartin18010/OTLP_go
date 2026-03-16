@@ -1,8 +1,8 @@
-# Go 1.25.1 OTLP 技术架构设计
+# Go 1.26 OTLP 技术架构设计
 
 ## 目录
 
-- [Go 1.25.1 OTLP 技术架构设计](#go-1251-otlp-技术架构设计)
+- [Go 1.26 OTLP 技术架构设计](#go-126-otlp-技术架构设计)
   - [目录](#目录)
   - [1. 技术架构概述](#1-技术架构概述)
     - [1.1 架构原则](#11-架构原则)
@@ -19,7 +19,7 @@
       - [2.3.2 智能路由](#232-智能路由)
     - [2.4 数据存储层](#24-数据存储层)
       - [2.4.1 分层存储](#241-分层存储)
-  - [3. 基于 Go 1.25.1 的架构优化](#3-基于-go-1251-的架构优化)
+  - [3. 基于 Go 1.26 的架构优化](#3-基于-go-126-的架构优化)
     - [3.1 泛型驱动的组件设计](#31-泛型驱动的组件设计)
     - [3.2 并发模型优化](#32-并发模型优化)
     - [3.3 内存管理优化](#33-内存管理优化)
@@ -34,11 +34,11 @@
 
 ## 1. 技术架构概述
 
-基于 Go 1.25.1 的 OTLP 技术架构采用分层设计，充分利用 Go 语言的最新特性，实现高性能、可扩展的遥测数据处理系统。
+基于 Go 1.26 的 OTLP 技术架构采用分层设计，充分利用 Go 语言的最新特性，实现高性能、可扩展的遥测数据处理系统。
 
 ### 1.1 架构原则
 
-- **类型安全**：利用 Go 1.25.1 泛型确保编译时类型检查
+- **类型安全**：利用 Go 1.26 泛型确保编译时类型检查
 - **高性能**：零拷贝、对象池、SIMD 优化
 - **可扩展性**：模块化设计，支持插件化扩展
 - **容错性**：优雅降级，自动恢复机制
@@ -87,18 +87,18 @@ type HighPerformanceCollector[T any] struct {
 
 func (c *HighPerformanceCollector[T]) Collect(ctx context.Context) (<-chan T, error) {
     output := make(chan T, c.bufferSize)
-    
+
     // 启动多个工作协程
     for i := 0; i < c.workers; i++ {
         go c.worker(ctx, output)
     }
-    
+
     return output, nil
 }
 
 func (c *HighPerformanceCollector[T]) worker(ctx context.Context, output chan<- T) {
     defer close(output)
-    
+
     for {
         select {
         case <-ctx.Done():
@@ -108,13 +108,13 @@ func (c *HighPerformanceCollector[T]) worker(ctx context.Context, output chan<- 
         default:
             // 从对象池获取数据对象
             data := c.pool.Get().(T)
-            
+
             // 收集数据
             if err := c.collectData(data); err != nil {
                 c.metrics.Errors.Inc()
                 continue
             }
-            
+
             // 发送到输出通道
             select {
             case output <- data:
@@ -142,28 +142,28 @@ func (s *AdaptiveSampler[T]) ShouldSample(data T) bool {
     s.mutex.RLock()
     rate := s.currentRate
     s.mutex.RUnlock()
-    
+
     // 基于数据特征调整采样率
     if s.shouldIncreaseRate(data) {
         s.adjustRate(rate * 1.1)
     } else if s.shouldDecreaseRate(data) {
         s.adjustRate(rate * 0.9)
     }
-    
+
     return rand.Float64() < rate
 }
 
 func (s *AdaptiveSampler[T]) adjustRate(newRate float64) {
     s.mutex.Lock()
     defer s.mutex.Unlock()
-    
+
     // 限制采样率范围
     if newRate < 0.01 {
         newRate = 0.01
     } else if newRate > 1.0 {
         newRate = 1.0
     }
-    
+
     s.currentRate = newRate
     s.metrics.SampleRate.Set(newRate)
 }
@@ -195,7 +195,7 @@ type ParallelStage[T any] struct {
 
 func (s *ParallelStage[T]) Process(input <-chan T) <-chan T {
     output := make(chan T, cap(input))
-    
+
     // 启动多个工作协程
     for i := 0; i < s.workers; i++ {
         s.wg.Add(1)
@@ -208,13 +208,13 @@ func (s *ParallelStage[T]) Process(input <-chan T) <-chan T {
             }
         }()
     }
-    
+
     // 等待所有工作协程完成
     go func() {
         s.wg.Wait()
         close(output)
     }()
-    
+
     return output
 }
 ```
@@ -247,13 +247,13 @@ func (t *OTTLTransformer[T]) Transform(data T) (T, error) {
     if err != nil {
         return data, fmt.Errorf("OTTL compilation failed: %w", err)
     }
-    
+
     // 执行转换
     result, err := t.executor.Execute(program, data)
     if err != nil {
         return data, fmt.Errorf("OTTL execution failed: %w", err)
     }
-    
+
     return result.(T), nil
 }
 ```
@@ -288,13 +288,13 @@ type GRPCTransporter[T any] struct {
 func (t *GRPCTransporter[T]) Send(data T) error {
     ctx, cancel := context.WithTimeout(context.Background(), t.timeout)
     defer cancel()
-    
+
     // 序列化数据
     payload, err := t.serialize(data)
     if err != nil {
         return fmt.Errorf("serialization failed: %w", err)
     }
-    
+
     // 发送数据
     return t.retry.Do(func() error {
         _, err := t.client.Send(ctx, payload)
@@ -327,14 +327,14 @@ func (r *SmartRouter[T]) Route(data T) error {
             candidates = append(candidates, route)
         }
     }
-    
+
     if len(candidates) == 0 {
         return fmt.Errorf("no matching route found")
     }
-    
+
     // 负载均衡选择目标
     target := r.balancer.Select(candidates)
-    
+
     // 发送数据
     return target.target.Send(data)
 }
@@ -370,19 +370,19 @@ type MemoryStorage[T any] struct {
 func (s *MemoryStorage[T]) Store(key string, data T) error {
     s.mutex.Lock()
     defer s.mutex.Unlock()
-    
+
     // 检查容量限制
     if s.current >= s.maxSize {
         return fmt.Errorf("storage capacity exceeded")
     }
-    
+
     s.data[key] = data
     s.current++
     return nil
 }
 ```
 
-## 3. 基于 Go 1.25.1 的架构优化
+## 3. 基于 Go 1.26 的架构优化
 
 ### 3.1 泛型驱动的组件设计
 
@@ -406,12 +406,12 @@ func (m *ConfigManager[T]) UpdateConfig(newConfig T) error {
             return fmt.Errorf("config validation failed: %w", err)
         }
     }
-    
+
     // 原子更新
     m.mutex.Lock()
     m.config = newConfig
     m.mutex.Unlock()
-    
+
     return nil
 }
 ```
@@ -437,7 +437,7 @@ func (p *WorkerPool[T]) Start() {
 
 func (p *WorkerPool[T]) worker() {
     defer p.wg.Done()
-    
+
     for {
         select {
         case task := <-p.queue:
@@ -500,15 +500,15 @@ func (s *ZeroCopySerializer[T]) Serialize(data T) ([]byte, error) {
     // 从池中获取缓冲区
     buffer := s.bufferPool.Get().(*bytes.Buffer)
     defer s.bufferPool.Put(buffer)
-    
+
     // 重置缓冲区
     buffer.Reset()
-    
+
     // 序列化到缓冲区
     if err := s.encoder.Encode(buffer, data); err != nil {
         return nil, fmt.Errorf("encoding failed: %w", err)
     }
-    
+
     // 返回缓冲区的副本
     return buffer.Bytes(), nil
 }
@@ -531,28 +531,28 @@ type BackpressureController interface {
 
 func (p *BackpressurePipeline[T]) Process(input <-chan T) <-chan T {
     output := make(chan T, cap(input))
-    
+
     go func() {
         defer close(output)
-        
+
         for data := range input {
             // 检查背压
             if p.backpressure.ShouldBackpressure() {
                 // 应用背压策略
                 time.Sleep(time.Duration(p.backpressure.GetBackpressureLevel()) * time.Millisecond)
             }
-            
+
             // 处理数据
             processed := data
             for _, stage := range p.stages {
                 processed = <-stage.Process(processed)
             }
-            
+
             // 输出结果
             output <- processed
         }
     }()
-    
+
     return output
 }
 ```
@@ -582,13 +582,13 @@ func (s *RetryStrategy[T]) Handle(data T, err error) (T, error) {
     for i := 0; i < s.maxRetries; i++ {
         // 应用退避策略
         time.Sleep(s.backoff.Delay(i))
-        
+
         // 重试处理
         if result, retryErr := s.retry(data); retryErr == nil {
             return result, nil
         }
     }
-    
+
     return data, fmt.Errorf("max retries exceeded: %w", err)
 }
 ```
@@ -602,13 +602,13 @@ func (s *RetryStrategy[T]) Handle(data T, err error) (T, error) {
 func BenchmarkOTLPProcessing(b *testing.B) {
     // 初始化测试数据
     data := generateTestData(b.N)
-    
+
     // 创建处理管道
     pipeline := NewOTLPPipeline()
-    
+
     b.ResetTimer()
     b.ReportAllocs()
-    
+
     // 执行基准测试
     for i := 0; i < b.N; i++ {
         if err := pipeline.Process(data[i]); err != nil {
@@ -622,16 +622,16 @@ func BenchmarkMemoryUsage(b *testing.B) {
     var m1, m2 runtime.MemStats
     runtime.GC()
     runtime.ReadMemStats(&m1)
-    
+
     // 执行测试
     b.ResetTimer()
     for i := 0; i < b.N; i++ {
         // 测试代码
     }
-    
+
     runtime.GC()
     runtime.ReadMemStats(&m2)
-    
+
     // 报告内存使用
     b.ReportMetric(float64(m2.Alloc-m1.Alloc)/float64(b.N), "bytes/op")
 }
@@ -646,7 +646,7 @@ func BenchmarkMemoryUsage(b *testing.B) {
 
 ## 6. 结论
 
-基于 Go 1.25.1 的 OTLP 技术架构设计充分利用了语言的最新特性，实现了：
+基于 Go 1.26 的 OTLP 技术架构设计充分利用了语言的最新特性，实现了：
 
 1. **高性能**：通过泛型、零拷贝、对象池等技术实现高性能处理
 2. **可扩展性**：模块化设计支持水平扩展和功能扩展

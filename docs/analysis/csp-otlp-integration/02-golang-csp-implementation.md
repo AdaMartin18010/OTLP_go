@@ -1,8 +1,8 @@
-# Go 1.25.1 CSP 实现
+# Go 1.26 CSP 实现
 
 ## 目录
 
-- [Go 1.25.1 CSP 实现](#go-1251-csp-实现)
+- [Go 1.26 CSP 实现](#go-126-csp-实现)
   - [目录](#目录)
   - [1. Goroutine 与 CSP 进程](#1-goroutine-与-csp-进程)
     - [1.1 基本对应关系](#11-基本对应关系)
@@ -24,7 +24,7 @@
     - [5.1 Pipeline 模式](#51-pipeline-模式)
     - [5.2 Fan-Out/Fan-In 模式](#52-fan-outfan-in-模式)
     - [5.3 Worker Pool 模式](#53-worker-pool-模式)
-  - [6. Go 1.25.1 新特性](#6-go-1251-新特性)
+  - [6. Go 1.26 新特性](#6-go-126-新特性)
     - [6.1 改进的泛型支持](#61-改进的泛型支持)
     - [6.2 结构化并发](#62-结构化并发)
   - [7. 性能优化](#7-性能优化)
@@ -548,7 +548,7 @@ func (p *WorkerPool) Stop() {
 }
 ```
 
-## 6. Go 1.25.1 新特性
+## 6. Go 1.26 新特性
 
 ### 6.1 改进的泛型支持
 
@@ -685,6 +685,6 @@ func batchProcessor(ctx context.Context, input <-chan Task, batchSize int) {
 
 - **Go 并发模式**：<https://go.dev/blog/pipelines>
 - **Context 包**：<https://pkg.go.dev/context>
-- **Go 1.25.1 发布说明**：`docs/language/go-1.25.1.md`
+- **Go 1.26 发布说明**：`docs/language/go-1.26.md`
 - **CSP 理论**：`docs/analysis/csp-otlp/overview.md`
 - **OTLP 集成**：`01-csp-otlp-isomorphism.md`

@@ -6,7 +6,7 @@
   - [目录](#目录)
   - [执行摘要](#执行摘要)
   - [1. 技术背景](#1-技术背景)
-    - [1.1 Go 1.25.1 语言特性](#11-go-1251-语言特性)
+    - [1.1 Go 1.26 语言特性](#11-go-126-语言特性)
     - [1.2 OTLP 语义模型](#12-otlp-语义模型)
   - [2. 语义模型分析](#2-语义模型分析)
     - [2.1 核心语义组件](#21-核心语义组件)
@@ -66,14 +66,14 @@
 
 ## 执行摘要
 
-本报告基于 Go 1.25.1 的最新语言特性，结合 OpenTelemetry Protocol (OTLP) 的语义模型，对 Go 语言中最成熟的 OTLP 开源库进行了全面分析。
+本报告基于 Go 1.26 的最新语言特性，结合 OpenTelemetry Protocol (OTLP) 的语义模型，对 Go 语言中最成熟的 OTLP 开源库进行了全面分析。
 通过语义模型、技术模型、分布式模型的设计和形式化论证，构建了一个完整的可观测性系统技术框架。
 
 ## 1. 技术背景
 
-### 1.1 Go 1.25.1 语言特性
+### 1.1 Go 1.26 语言特性
 
-虽然 Go 1.25.1 尚未正式发布，但基于当前 Go 语言的发展趋势和 OpenTelemetry 生态的需求，我们分析了以下关键特性对 OTLP 实现的影响：
+虽然 Go 1.26 尚未正式发布，但基于当前 Go 语言的发展趋势和 OpenTelemetry 生态的需求，我们分析了以下关键特性对 OTLP 实现的影响：
 
 - **泛型系统**：提供类型安全的语义数据处理
 - **错误处理改进**：增强的错误链和上下文信息
@@ -164,13 +164,13 @@ Timestamp (Log/Event) ∈ [StartTime, EndTime] (Span)
 
 ### 3.1 架构设计
 
-基于 Go 1.25.1 和 OTLP 语义模型的技术架构，采用分层设计模式：
+基于 Go 1.26 和 OTLP 语义模型的技术架构，采用分层设计模式：
 
 ```text
 ┌─────────────────────────────────────────────────────────────┐
 │                    Application Layer                        │
 ├─────────────────────────────────────────────────────────────┤
-│  Semantic API Layer (Go 1.25.1 Generics + Interfaces)       │
+│  Semantic API Layer (Go 1.26 Generics + Interfaces)       │
 ├─────────────────────────────────────────────────────────────┤
 │  OTLP Protocol Layer (gRPC/HTTP + Protocol Buffers)         │
 ├─────────────────────────────────────────────────────────────┤
@@ -184,7 +184,7 @@ Timestamp (Log/Event) ∈ [StartTime, EndTime] (Span)
 
 #### 语义 API 层
 
-利用 Go 1.25.1 的泛型和接口特性，构建类型安全的语义 API：
+利用 Go 1.26 的泛型和接口特性，构建类型安全的语义 API：
 
 ```go
 // 泛型语义值类型
@@ -275,7 +275,7 @@ type BatchProcessor[T SemanticEntity[T]] struct {
 │                        Client Layer                             │
 │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐              │
 │  │   App A     │  │   App B     │  │   App C     │              │
-│  │ (Go 1.25.1) │  │ (Go 1.25.1) │  │ (Go 1.25.1) │              │
+│  │ (Go 1.26) │  │ (Go 1.26) │  │ (Go 1.26) │              │
 │  └─────────────┘  └─────────────┘  └─────────────┘              │
 └─────────────────────────────────────────────────────────────────┘
                                 │
@@ -383,7 +383,7 @@ type FailureRecoveryManager struct {
 **定理 3（时间一致性）**：
 
 ```text
-∀ t ∈ T, l ∈ L: (t, l) ∈ temporal_consistency ⟹ 
+∀ t ∈ T, l ∈ L: (t, l) ∈ temporal_consistency ⟹
     ∃ s ∈ t.spans: s.start_time ≤ l.timestamp ≤ s.end_time
 ```
 
@@ -495,14 +495,14 @@ func callDownstreamService(ctx context.Context) error {
     client := &http.Client{
         Transport: otelhttp.NewTransport(http.DefaultTransport),
     }
-    
+
     req, _ := http.NewRequestWithContext(ctx, "GET", "http://downstream:8080/api", nil)
     resp, err := client.Do(req)
     if err != nil {
         return err
     }
     defer resp.Body.Close()
-    
+
     return nil
 }
 ```
@@ -516,13 +516,13 @@ func processBatch(ctx context.Context, items []Item) error {
         otel.WithBatchSize(100),
         otel.WithExportTimeout(5*time.Second),
     )
-    
+
     for _, item := range items {
         if err := batchProcessor.Process(ctx, item); err != nil {
             return err
         }
     }
-    
+
     return batchProcessor.Flush(ctx)
 }
 ```
@@ -533,7 +533,7 @@ func processBatch(ctx context.Context, items []Item) error {
 
 1. **语义模型完备性**：OTLP 语义模型通过结构化的数据表示和严格的关系定义，为分布式系统的可观测性提供了统一的语义基础。
 
-2. **技术架构先进性**：结合 Go 1.25.1 的类型系统和错误处理特性，可以实现类型安全、语义一致的遥测数据处理系统。
+2. **技术架构先进性**：结合 Go 1.26 的类型系统和错误处理特性，可以实现类型安全、语义一致的遥测数据处理系统。
 
 3. **分布式系统可靠性**：通过形式化方法验证了系统的正确性、一致性和性能界限，为大规模部署提供了理论保障。
 
@@ -568,4 +568,4 @@ func processBatch(ctx context.Context, items []Item) error {
 
 4. **持续优化**：基于性能监控和业务需求，持续优化系统配置和实现。
 
-通过本报告的分析和论证，我们为基于 Go 1.25.1 和 OTLP 的可观测性系统提供了完整的技术框架和实施指导，为构建高性能、高可用的分布式系统奠定了坚实基础。
+通过本报告的分析和论证，我们为基于 Go 1.26 和 OTLP 的可观测性系统提供了完整的技术框架和实施指导，为构建高性能、高可用的分布式系统奠定了坚实基础。

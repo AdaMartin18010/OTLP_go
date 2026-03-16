@@ -2,7 +2,7 @@
 
 ## Provider 初始化
 
-- `src/main.go:newTracerProvider`：`semconv.ServiceName("otlp-go-demo")`、`DeploymentEnvironment("dev")`、`runtime.go=1.25.1`
+- `src/main.go:newTracerProvider`：`semconv.ServiceName("otlp-go-demo")`、`DeploymentEnvironment("dev")`、`runtime.go=1.26`
 - `src/metrics.go:initMetricProvider`：`PeriodicReader` 2s 推送间隔
 
 ## Traces
@@ -23,4 +23,4 @@
 
 ## Resource
 
-- `service.name=otlp-go-demo`、`deployment.environment=dev`、`runtime.go=1.25.1`
+- `service.name=otlp-go-demo`、`deployment.environment=dev`、`runtime.go=1.26`

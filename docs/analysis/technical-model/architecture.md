@@ -10,7 +10,7 @@
     - [2.1 语义 API 层](#21-语义-api-层)
     - [2.2 OTLP 协议层](#22-otlp-协议层)
     - [2.3 传输层](#23-传输层)
-  - [3. Go 1.25.1 特性应用](#3-go-1251-特性应用)
+  - [3. Go 1.26 特性应用](#3-go-126-特性应用)
     - [3.1 泛型应用](#31-泛型应用)
     - [3.2 错误处理改进](#32-错误处理改进)
     - [3.3 并发模型](#33-并发模型)
@@ -27,7 +27,7 @@
 
 ## 1. 架构概览
 
-基于 Go 1.25.1 和 OTLP 语义模型的技术架构，采用分层设计模式，确保高性能、可扩展性和语义一致性。
+基于 Go 1.26 和 OTLP 语义模型的技术架构，采用分层设计模式，确保高性能、可扩展性和语义一致性。
 
 ### 1.1 整体架构图
 
@@ -35,7 +35,7 @@
 ┌─────────────────────────────────────────────────────────────┐
 │                    Application Layer                        │
 ├─────────────────────────────────────────────────────────────┤
-│  Semantic API Layer (Go 1.25.1 Generics + Interfaces)       │
+│  Semantic API Layer (Go 1.26 Generics + Interfaces)       │
 ├─────────────────────────────────────────────────────────────┤
 │  OTLP Protocol Layer (gRPC/HTTP + Protocol Buffers)         │
 ├─────────────────────────────────────────────────────────────┤
@@ -49,7 +49,7 @@
 
 ### 2.1 语义 API 层
 
-利用 Go 1.25.1 的泛型和接口特性，构建类型安全的语义 API：
+利用 Go 1.26 的泛型和接口特性，构建类型安全的语义 API：
 
 ```go
 // 泛型语义值类型
@@ -83,17 +83,17 @@ func (t TraceEntity) GetResource() Resource {
 }
 
 func (t TraceEntity) Validate() error {
-    // 利用 Go 1.25.1 的错误处理改进
+    // 利用 Go 1.26 的错误处理改进
     if t.TraceId == "" {
         return fmt.Errorf("trace ID cannot be empty")
     }
-    
+
     for _, span := range t.Spans {
         if err := span.Validate(); err != nil {
             return fmt.Errorf("span validation failed: %w", err)
         }
     }
-    
+
     return nil
 }
 ```
@@ -122,19 +122,19 @@ func (h GRPCProtocolHandler[T]) Encode(entity T) ([]byte, error) {
     if err := entity.Validate(); err != nil {
         return nil, fmt.Errorf("semantic validation failed: %w", err)
     }
-    
+
     // 2. 序列化
     data, err := h.codec.Encode(entity)
     if err != nil {
         return nil, fmt.Errorf("encoding failed: %w", err)
     }
-    
+
     // 3. 压缩
     compressed, err := h.compressor.Compress(data)
     if err != nil {
         return nil, fmt.Errorf("compression failed: %w", err)
     }
-    
+
     return compressed, nil
 }
 ```
@@ -166,29 +166,29 @@ func (t HTTPTransport) Send(data []byte) error {
         if err != nil {
             return err
         }
-        
+
         // 设置头部
         for k, v := range t.headers {
             req.Header.Set(k, v)
         }
-        
+
         // 执行请求
         resp, err := t.client.Do(req)
         if err != nil {
             return err
         }
         defer resp.Body.Close()
-        
+
         if resp.StatusCode >= 400 {
             return fmt.Errorf("HTTP error: %d", resp.StatusCode)
         }
-        
+
         return nil
     })
 }
 ```
 
-## 3. Go 1.25.1 特性应用
+## 3. Go 1.26 特性应用
 
 ### 3.1 泛型应用
 
@@ -203,7 +203,7 @@ func (c SemanticCollection[T]) Add(item T) error {
     if err := item.Validate(); err != nil {
         return err
     }
-    
+
     c.items = append(c.items, item)
     c.index[item.GetResource().ID] = len(c.items) - 1
     return nil
@@ -331,7 +331,7 @@ type ConcurrentSemanticProcessor[T SemanticEntity[T]] struct {
 
 func (p ConcurrentSemanticProcessor[T]) Start() {
     p.ctx, p.cancel = context.WithCancel(context.Background())
-    
+
     for i := 0; i < p.workers; i++ {
         p.wg.Add(1)
         go p.worker(i)
@@ -340,7 +340,7 @@ func (p ConcurrentSemanticProcessor[T]) Start() {
 
 func (p ConcurrentSemanticProcessor[T]) worker(id int) {
     defer p.wg.Done()
-    
+
     for {
         select {
         case item := <-p.queue:
@@ -441,13 +441,13 @@ type BatchProcessor[T SemanticEntity[T]] struct {
 func (p BatchProcessor[T]) Add(item T) error {
     p.mutex.Lock()
     defer p.mutex.Unlock()
-    
+
     p.buffer = append(p.buffer, item)
-    
+
     if len(p.buffer) >= p.batchSize {
         return p.flush()
     }
-    
+
     if p.timer == nil {
         p.timer = time.AfterFunc(p.flushTimeout, func() {
             p.mutex.Lock()
@@ -455,7 +455,7 @@ func (p BatchProcessor[T]) Add(item T) error {
             p.flush()
         })
     }
-    
+
     return nil
 }
 
@@ -469,16 +469,16 @@ func (p BatchProcessor[T]) flush() error {
     if len(p.buffer) == 0 {
         return nil
     }
-    
+
     batch := make([]T, len(p.buffer))
     copy(batch, p.buffer)
     p.buffer = p.buffer[:0]
-    
+
     if p.timer != nil {
         p.timer.Stop()
         p.timer = nil
     }
-    
+
     // 并发处理批次
     go func() {
         for _, item := range batch {
@@ -487,7 +487,7 @@ func (p BatchProcessor[T]) flush() error {
             }
         }
     }()
-    
+
     return nil
 }
 ```
@@ -553,7 +553,7 @@ func (c SystemHealthChecker) CheckHealth() HealthStatus {
         Timestamp: time.Now(),
         Details:   make(map[string]string),
     }
-    
+
     for _, component := range c.components {
         componentStatus := component.CheckHealth()
         if componentStatus.Status != "healthy" {
@@ -561,7 +561,7 @@ func (c SystemHealthChecker) CheckHealth() HealthStatus {
         }
         status.Details[componentStatus.Status] = componentStatus.Status
     }
-    
+
     return status
 }
 ```
@@ -605,11 +605,11 @@ func (v ConfigValidator) Validate(config Config) error {
     if err := v.validateServerConfig(config.Server); err != nil {
         return fmt.Errorf("server config validation failed: %w", err)
     }
-    
+
     if err := v.validateClientConfig(config.Client); err != nil {
         return fmt.Errorf("client config validation failed: %w", err)
     }
-    
+
     return nil
 }
 
@@ -617,18 +617,18 @@ func (v ConfigValidator) validateServerConfig(config ServerConfig) error {
     if config.Port <= 0 || config.Port > 65535 {
         return fmt.Errorf("invalid port: %d", config.Port)
     }
-    
+
     if config.ReadTimeout <= 0 {
         return fmt.Errorf("read timeout must be positive")
     }
-    
+
     return nil
 }
 ```
 
 ## 7. 总结
 
-基于 Go 1.25.1 的 OTLP 技术架构设计具有以下特点：
+基于 Go 1.26 的 OTLP 技术架构设计具有以下特点：
 
 1. **类型安全** - 利用泛型确保编译时类型检查
 2. **高性能** - 通过对象池、批量处理等优化技术

@@ -12,7 +12,7 @@
       - [因果关系（Causality）](#因果关系causality)
       - [资源关联（Resource Association）](#资源关联resource-association)
       - [时间关系（Temporal Relations）](#时间关系temporal-relations)
-  - [2. Go 1.25.1 语义映射](#2-go-1251-语义映射)
+  - [2. Go 1.26 语义映射](#2-go-1251-语义映射)
     - [2.1 类型系统映射](#21-类型系统映射)
     - [2.2 错误处理语义](#22-错误处理语义)
   - [3. 语义一致性保证](#3-语义一致性保证)
@@ -145,14 +145,14 @@ StartTime ≤ EndTime (Span)
 Timestamp (Log/Event) ∈ [StartTime, EndTime] (Span)
 ```
 
-## 2. Go 1.25.1 语义映射
+## 2. Go 1.26 语义映射
 
 ### 2.1 类型系统映射
 
-Go 1.25.1 的类型系统特性与 OTLP 语义模型的映射：
+Go 1.26 的类型系统特性与 OTLP 语义模型的映射：
 
 ```go
-// 利用 Go 1.25.1 的泛型特性
+// 利用 Go 1.26 的泛型特性
 type SemanticValue[T any] struct {
     Value T
     Type  ValueType
@@ -175,7 +175,7 @@ type Traceable interface {
 ### 2.2 错误处理语义
 
 ```go
-// 利用 Go 1.25.1 的错误处理改进
+// 利用 Go 1.26 的错误处理改进
 type SemanticError struct {
     Code    ErrorCode
     Message string
@@ -200,7 +200,7 @@ func ProcessSemanticData(data SemanticEntity) error {
 ### 3.1 编译时检查
 
 ```go
-// 利用 Go 1.25.1 的编译时检查
+// 利用 Go 1.26 的编译时检查
 type SemanticValidator[T SemanticEntity] struct{}
 
 func (v SemanticValidator[T]) Validate(entity T) error {
@@ -335,7 +335,7 @@ func (c SemanticIntegrityChecker) CheckCompleteness(data OTLPData) error {
 ## 6. 总结
 
 OTLP 语义模型通过结构化的数据表示和严格的关系定义，为分布式系统的可观测性提供了统一的语义基础。
-结合 Go 1.25.1 的类型系统和错误处理特性，可以实现类型安全、语义一致的遥测数据处理系统。
+结合 Go 1.26 的类型系统和错误处理特性，可以实现类型安全、语义一致的遥测数据处理系统。
 
 关键优势：
 

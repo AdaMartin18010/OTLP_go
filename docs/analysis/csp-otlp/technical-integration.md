@@ -6,7 +6,7 @@
 
 ### 核心库（2025年最新）
 
-- **`go.opentelemetry.io/otel` v1.28.0**：核心 API/SDK，支持Go 1.25.1特性
+- **`go.opentelemetry.io/otel` v1.28.0**：核心 API/SDK，支持Go 1.26特性
 - **`go.opentelemetry.io/otel/sdk` v1.28.0**：SDK实现，优化批处理和内存管理
 - **`go.opentelemetry.io/otel/semconv/v1.26.0`**：语义约定，与本仓库示例一致
 
