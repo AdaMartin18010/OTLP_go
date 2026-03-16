@@ -52,7 +52,7 @@ jobs:
         args: '-no-fail -fmt sarif -out results.sarif -stdout ./...'
     
     - name: Upload SARIF file
-      uses: github/codeql-action/upload-sarif@v3
+      uses: github/codeql-action/upload-sarif@v4
       if: always()
       with:
         sarif_file: results.sarif
@@ -213,7 +213,7 @@ jobs:
         exit-code: '0'
     
     - name: Upload Trivy SARIF
-      uses: github/codeql-action/upload-sarif@v3
+      uses: github/codeql-action/upload-sarif@v4
       if: hashFiles('Dockerfile') != '' && always()
       with:
         sarif_file: trivy-results.sarif
@@ -300,7 +300,7 @@ jobs:
         publish_results: true
     
     - name: Upload Scorecard SARIF
-      uses: github/codeql-action/upload-sarif@v3
+      uses: github/codeql-action/upload-sarif@v4
       with:
         sarif_file: scorecard-results.sarif
         category: scorecard
