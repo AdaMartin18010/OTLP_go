@@ -92,7 +92,7 @@ ENTRYPOINT ["/app/server"]
 # ============================================
 # Stage 3: Debug (基于 Alpine，带 Shell)
 # ============================================
-FROM alpine:3.20 AS debug
+FROM alpine:3.23 AS debug
 
 # 安装调试工具
 RUN apk add --no-cache \
