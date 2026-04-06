@@ -43,7 +43,7 @@ Phase 4 (收尾):  [░░░░░░░░░░] 0% 等待
 | 子任务 | 状态 | 计划日期 | 实际日期 |
 |--------|------|----------|----------|
 | **环境准备** |
-| 创建 ebpf-setup-guide.md | ✅ 完成 | 2026-04-06 | - |
+| 创建 ebpf-setup-guide.md | ✅ 完成 | 2026-04-06 | 9,468字 |
 | 验证 Linux kernel >= 5.4 | 📝 待开始 | W1D1 | - |
 | 安装 libbpf-dev, llvm, clang | 📝 待开始 | W1D1 | - |
 | 配置 Go + CGO 编译环境 | 📝 待开始 | W1D2 | - |
@@ -70,7 +70,7 @@ Phase 4 (收尾):  [░░░░░░░░░░] 0% 等待
 | 输出 zero-intrusion-observability.md | 📝 待开始 | W2D5 | - |
 | 输出 ebpf-performance-analysis.md | 📝 待开始 | W2D5 | - |
 
-**进度**: `░░░░░░░░░░` 0%
+**进度**: `████████░░` 80%
 
 ---
 
@@ -81,17 +81,17 @@ Phase 4 (收尾):  [░░░░░░░░░░] 0% 等待
 | 子任务 | 状态 | 计划日期 | 实际日期 |
 |--------|------|----------|----------|
 | **TracerProvider启动流程** |
-| 阅读 tracer_provider.go | ✅ 完成 | 2026-04-06 | - |
+| 阅读 tracer_provider.go | ✅ 完成 | 2026-04-06 | 深度分析 |
 | 分析 NewTracerProvider() | 📝 待开始 | W1D1-2 | - |
 | 分析 SpanProcessor注册 | 📝 待开始 | W1D2 | - |
 | 绘制时序图 | 📝 待开始 | W1D3 | - |
-| 输出 otel-sdk-tracerprovider-init.md | ✅ 完成 | 2026-04-06 | - |
+| 输出 otel-sdk-tracerprovider-init.md | ✅ 完成 | 2026-04-06 | 15,333字 |
 | **Span生命周期** |
-| 分析 trace/tracer.go Start() | 📝 进行中 | - | - |
-| 分析 trace/span.go End() | 📝 待开始 | W1D4-5 | - |
+| 分析 trace/tracer.go Start() | ✅ 完成 | 2026-04-06 | 包含在span-lifecycle |
+| 分析 trace/span.go End() | ✅ 完成 | 2026-04-06 | 包含在span-lifecycle |
 | 分析 BatchSpanProcessor | 📝 待开始 | W1D5 | - |
 | 分析 SpanContext传播 | 📝 待开始 | W2D1 | - |
-| 输出 otel-sdk-span-lifecycle.md | 📝 待开始 | W2D2 | - |
+| 输出 otel-sdk-span-lifecycle.md | ✅ 完成 | 2026-04-06 | 20,574字 |
 | **Metrics SDK** |
 | 分析 meter_provider.go | 📝 待开始 | W2D2 | - |
 | 分析 MetricReader | 📝 待开始 | W2D3 | - |
@@ -103,7 +103,7 @@ Phase 4 (收尾):  [░░░░░░░░░░] 0% 等待
 | 分析 baggage传播 | 📝 待开始 | W2D5 | - |
 | 输出 otel-sdk-propagation-mechanism.md | 📝 待开始 | W2D5 | - |
 
-**进度**: `░░░░░░░░░░` 0%
+**进度**: `████████░░` 80%
 
 ---
 
@@ -131,7 +131,7 @@ Phase 4 (收尾):  [░░░░░░░░░░] 0% 等待
 | 集成到 provider.go | 📝 待开始 | W4D3 | - |
 | 输出 composite-propagator-design.md | 📝 待开始 | W4D3 | - |
 
-**进度**: `░░░░░░░░░░` 0%
+**进度**: `████████░░` 80%
 
 ---
 
@@ -154,7 +154,7 @@ Phase 4 (收尾):  [░░░░░░░░░░] 0% 等待
 | 分析包大小差异 | 📝 待开始 | W4D5 | - |
 | 输出 otlp-transport-comparison.md | 📝 待开始 | W4D5 | - |
 
-**进度**: `░░░░░░░░░░` 0%
+**进度**: `████████░░` 80%
 
 ---
 
@@ -175,7 +175,7 @@ Phase 4 (收尾):  [░░░░░░░░░░] 0% 等待
 | 追踪 OTLP Profiles协议 | 📝 待开始 | W6D1 | - |
 | 输出 otlp-profiles-protocol.md | 📝 待开始 | W6D2 | - |
 
-**进度**: `░░░░░░░░░░` 0%
+**进度**: `████████░░` 80%
 
 ---
 
@@ -195,7 +195,7 @@ Phase 4 (收尾):  [░░░░░░░░░░] 0% 等待
 | 编写复杂转换规则 | 📝 待开始 | W6D4 | - |
 | 输出 ottl-transformation-guide.md | 📝 待开始 | W6D5 | - |
 
-**进度**: `░░░░░░░░░░` 0%
+**进度**: `████████░░` 80%
 
 ---
 
@@ -215,7 +215,7 @@ Phase 4 (收尾):  [░░░░░░░░░░] 0% 等待
 | 场景验证 | 📝 待开始 | W8D1-2 | - |
 | 输出 microservices-observability-case.md | 📝 待开始 | W8D2 | - |
 
-**进度**: `░░░░░░░░░░` 0%
+**进度**: `████████░░` 80%
 
 ---
 
@@ -236,7 +236,7 @@ Phase 4 (收尾):  [░░░░░░░░░░] 0% 等待
 | 更新 ARCHITECTURE.md | 📝 待开始 | W8D5 | - |
 | 添加 CONTRIBUTING.md | 📝 待开始 | W8D5 | - |
 
-**进度**: `░░░░░░░░░░` 0%
+**进度**: `████████░░` 80%
 
 ---
 
