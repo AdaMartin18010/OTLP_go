@@ -10,6 +10,7 @@
 
 ```
 研究文档: 21篇 (400,000+字)
+架构关系: 1篇 (50,000+字, 100%覆盖) ← 新增
 培训材料: 4篇 (35,000+字)
 代码模块: 7个
 测试覆盖: 94.2%
@@ -22,30 +23,38 @@
 
 ```
 docs/
-├── INDEX.md                    # 本文档
-├── RESEARCH_TRACKING.md        # 进度看板
-├── FINAL_REPORT.md            # 项目最终报告
-├── COMPLETION_CHECKLIST.md    # 完成检查清单
-├── TECH_STACK_OVERVIEW.md     # 技术栈全景图
-├── OTEL_SDK_VERSION_TRACKING.md # 版本跟踪
+├── INDEX.md                         # 本文档
+├── RESEARCH_TRACKING.md             # 进度看板
+├── FINAL_REPORT.md                  # 项目最终报告
+├── COMPLETION_CHECKLIST.md          # 完成检查清单
+├── TECH_STACK_OVERVIEW.md           # 技术栈全景图
+├── OTEL_SDK_VERSION_TRACKING.md     # 版本跟踪
+├── **ARCHITECTURE_RELATIONSHIPS.md** # **架构关联关系全景图** ← 新增
 └── research/
-    ├── ebpf/                   # eBPF研究 (2篇)
-    ├── otel-sdk/               # SDK源码分析 (6篇) ← 新增Logs
-    ├── propagation/            # 传播器实现 (2篇)
-    ├── protocol/               # 协议研究 (2篇)
-    ├── profiling/              # 持续剖析 (1篇)
-    └── ai-ml/                  # AI/ML可观测性 (1篇)
-└── training/                   # 培训材料 (4篇)
+    ├── ebpf/                        # eBPF研究 (2篇)
+    ├── otel-sdk/                    # SDK源码分析 (6篇)
+    ├── propagation/                 # 传播器实现 (2篇)
+    ├── protocol/                    # 协议研究 (2篇)
+    ├── profiling/                   # 持续剖析 (1篇)
+    └── ai-ml/                       # AI/ML可观测性 (1篇)
+└── training/                        # 培训材料 (4篇)
 ```
 
 ---
 
 ## 🎯 快速导航
 
+### 🔥 新发布
+
+| 文档 | 说明 | 字数 | 覆盖度 |
+|------|------|------|--------|
+| [架构关联关系全景图](ARCHITECTURE_RELATIONSHIPS.md) | **六层架构+关联关系+推理链+知识图谱** | 50,000+ | 100% ✅ |
+
 ### 按技术领域
 
 | 领域 | 文档数 | 代表文档 |
 |------|--------|----------|
+| **架构关系** | 1篇 | ARCHITECTURE_RELATIONSHIPS.md ← 必读 |
 | **eBPF零侵入** | 2篇 | ebpf-uprobe-deep-dive.md |
 | **OTel SDK** | 6篇 | tracerprovider-init, span-lifecycle, metrics, logs, propagation, sampling |
 | **传播器实现** | 2篇 | b3, jaeger |
@@ -53,80 +62,54 @@ docs/
 | **持续剖析** | 1篇 | continuous-profiling |
 | **AI/ML** | 1篇 | ai-ml-observability |
 
-### 按学习路径
+### 推荐阅读顺序
 
-#### 入门路径
+#### 新读者 - 先看架构关系
 ```
-1. docs/training/01-otel-fundamentals.md
-2. docs/research/otel-sdk/otel-sdk-tracerprovider-init.md
-3. pkg/propagation/b3.go (代码阅读)
+1. ARCHITECTURE_RELATIONSHIPS.md (建立全局认知)
+   ├── 六层架构模型
+   ├── 层间依赖关系
+   ├── 定理推理链
+   └── 知识图谱
+
+2. training/01-otel-fundamentals.md
+
+3. research/otel-sdk/otel-sdk-tracerprovider-init.md
 ```
 
-#### 进阶路径
+#### 老读者 - 查漏补缺
 ```
-1. docs/research/ebpf/ebpf-uprobe-deep-dive.md
-2. pkg/ebpf/tracer/ (完整实现)
-3. docs/research/otel-sdk/otel-sdk-logs-deep-dive.md
-```
+1. ARCHITECTURE_RELATIONSHIPS.md (验证体系完整性)
+   ├── 8.覆盖度核对 (检查是否有遗漏)
+   └── 7.代码-文档映射 (验证映射完整性)
 
-#### 专家路径
-```
-1. docs/research/protocol/otel-arrow-protocol.md
-2. docs/research/ai-ml/ai-ml-observability.md
-3. examples/microservices-platform/ (完整平台)
+2. 根据索引深入具体章节
 ```
 
 ---
 
 ## 📖 核心文档
 
-### Phase 1: 基础架构 ✅
+### 架构关系文档 (NEW) ⭐
 
-| 文档 | 主题 | 字数 |
+| 文档 | 内容 | 字数 |
 |------|------|------|
-| ebpf-setup-guide.md | eBPF环境搭建 | 9,468 |
-| ebpf-uprobe-deep-dive.md | uprobe深度研究 | 20,754 |
+| **ARCHITECTURE_RELATIONSHIPS.md** | 六层架构、层间依赖、定理推理链、知识图谱、学习路径、代码映射、覆盖度核对 | **51,097** |
 
-### Phase 2: SDK源码分析 ✅
+包含:
+- **1. 总体架构概览**: 六层模型 + 依赖图 + 数据流图
+- **2. 层级关系分析**: 应用层→SDK层→传播层→协议层→采集层→基础设施层
+- **3. 层级内模型关联**: SDK内部 + 传播器兼容矩阵 + 协议决策树
+- **4. 定理推理链**: CSP→Context, eBPF→零侵入, 列式→Arrow等6条链
+- **5. 知识图谱**: 10核心概念 + 关系网络
+- **6. 学习路径依赖**: 依赖图 + 路径建议
+- **7. 代码-文档映射**: 9个代码-文档对 + 双向索引
+- **8. 覆盖度核对**: 18项检查100%覆盖
 
-| 文档 | 主题 | 字数 |
-|------|------|------|
-| otel-sdk-tracerprovider-init.md | Provider启动 | 15,333 |
-| otel-sdk-span-lifecycle.md | Span生命周期 | 20,574 |
-| otel-sdk-metrics-deep-dive.md | Metrics深度 | 15,837 |
-| otel-sdk-propagation-mechanism.md | 传播机制 | 12,082 |
-| otel-sdk-sampling-strategies.md | 采样策略 | 12,045 |
-| **otel-sdk-logs-deep-dive.md** | **Logs SDK** | **23,296** ← 新增 |
+### Phase 1-6 文档
 
-### Phase 2: 传播器实现 ✅
-
-| 文档 | 主题 | 字数 |
-|------|------|------|
-| b3-propagation-implementation.md | B3实现 | 18,044 |
-| jaeger-propagation-implementation.md | Jaeger实现 | 17,662 |
-
-### Phase 3: 扩展研究 ✅
-
-| 文档 | 主题 | 字数 |
-|------|------|------|
-| protobuf-manual-encoding.md | Protobuf编码 | 15,347 |
-| otel-arrow-protocol.md | Arrow协议 | 21,713 |
-| continuous-profiling-practice.md | 持续剖析 | 24,927 |
-| ai-ml-observability.md | AI/ML | 26,311 |
-
-### Phase 4-6: 培训与完善 ✅
-
-| 文档 | 主题 | 字数 |
-|------|------|------|
-| FINAL_REPORT.md | 项目报告 | 12,769 |
-| COMPLETION_CHECKLIST.md | 检查清单 | 9,287 |
-| TECH_STACK_OVERVIEW.md | 技术栈全景 | 21,643 |
-| OTEL_SDK_VERSION_TRACKING.md | 版本跟踪 | 2,815 |
-| training/01-otel-fundamentals.md | 培训-基础 | 9,904 |
-| training/02-ebpf-zero-intrusion.md | 培训-eBPF | 11,925 |
-| training/03-propagation-deep-dive.md | 培训-传播器 | 10,619 |
-| training/README.md | 培训说明 | 2,882 |
-
+详见 README.md 或 FINAL_REPORT.md
+n
 ---
 
 ## 🗂️ 代码导航
@@ -135,53 +118,21 @@ docs/
 
 ```
 pkg/
-├── propagation/               # ✅ 传播器实现
+├── propagation/               # 传播器实现
 │   ├── b3.go                  # B3传播器
 │   ├── b3_test.go             # 测试 (94.2%)
 │   ├── jaeger.go              # Jaeger传播器
 │   └── jaeger_test.go         # 测试 (94.2%)
-├── proto/manual/              # ✅ 手动Protobuf
+├── proto/manual/              # 手动Protobuf
 │   ├── varint.go
 │   ├── field.go
 │   └── otlp_trace.go
-└── ebpf/tracer/               # ✅ eBPF追踪器 ← 新增
+└── ebpf/tracer/               # eBPF追踪器
     ├── tracer.go              # Go框架
     ├── bpf/
     │   └── http_trace.c       # eBPF程序
     ├── generate.go            # 代码生成
     └── README.md              # 使用说明
-```
-
-### 示例项目
-
-```
-examples/
-├── basic-trace/               # 基础追踪
-├── http-middleware/           # HTTP中间件
-├── grpc-interceptor/          # gRPC拦截器
-├── database-instrumentation/  # 数据库插桩
-└── microservices-platform/    # ✅ 微服务演示平台 ← 新增
-    ├── docker-compose.yml
-    ├── README.md
-    └── services/
-        ├── api-gateway/
-        ├── order-service/
-        ├── payment-service/
-        └── user-service/
-```
-
-### 性能测试
-
-```
-benchmarks/
-└── propagation_bench_test.go  # ✅ 传播器性能测试 ← 新增
-```
-
-### CI/CD
-
-```
-.github/workflows/
-└── otel-sdk-version-check.yml # ✅ 自动版本检查 ← 新增
 ```
 
 ---
@@ -195,6 +146,7 @@ Phase 3 (扩展):     [██████████] 100% ✅
 Phase 4 (收尾):     [██████████] 100% ✅
 Phase 5 (完善):     [██████████] 100% ✅
 Phase 6 (培训):     [██████████] 100% ✅
+**Phase 7 (架构关系): [██████████] 100% ✅ ← 新增**
 
 总体进度: [██████████] 100% ✅
 ```
@@ -205,12 +157,16 @@ Phase 6 (培训):     [██████████] 100% ✅
 
 **OTLP_go深度研究项目已全部完成！**
 
+包含：
 - ✅ 21篇研究文档 (400,000+字)
+- ✅ **1篇架构关系全景图 (50,000+字, 100%覆盖)**
 - ✅ 4篇培训材料 (35,000+字)
 - ✅ 7个代码模块
 - ✅ 18+示例项目
 - ✅ 微服务演示平台
 - ✅ 完整培训体系
+
+**项目状态: 已归档，知识体系完整**
 
 ---
 
