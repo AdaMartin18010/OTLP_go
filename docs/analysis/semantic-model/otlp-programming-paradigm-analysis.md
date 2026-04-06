@@ -1,7 +1,7 @@
 # OTLP 语义模型与程序设计范式的形式化分析
 
-**版本**: 1.0.0  
-**日期**: 2025-10-06  
+**版本**: 1.0.0
+**日期**: 2025-10-06
 **状态**: ✅ 完整
 
 ---
@@ -314,7 +314,7 @@ data SpanTree
 -- 递归遍历
 traverseSpanTree :: (Span -> a) -> SpanTree -> [a]
 traverseSpanTree f (Leaf s) = [f s]
-traverseSpanTree f (Node s children) = 
+traverseSpanTree f (Node s children) =
     f s : concatMap (traverseSpanTree f) children
 ```
 
@@ -334,7 +334,7 @@ data NonEmptyTrace : Type where
 
 -- 类型级别保证
 processTrace : NonEmptyTrace -> Result
-processTrace (MkTrace root children) = 
+processTrace (MkTrace root children) =
   -- 编译器保证 root 存在
   processRootSpan root
 ```
@@ -413,7 +413,7 @@ transformSpan f span = f span
 
 -- 组合函数
 addAttribute :: Text -> OTLPValue -> Span -> Span
-addAttribute key value span = 
+addAttribute key value span =
     span { spanAttributes = Map.insert key value (spanAttributes span) }
 
 filterSpans :: (Span -> Bool) -> [Span] -> [Span]
@@ -472,13 +472,13 @@ instance Functor Trace where
 -- Applicative: pure, <*>
 instance Applicative TraceBuilder where
     pure span = TraceBuilder [span]
-    (TraceBuilder fs) <*> (TraceBuilder xs) = 
+    (TraceBuilder fs) <*> (TraceBuilder xs) =
         TraceBuilder [f x | f <- fs, x <- xs]
 
 -- Monad: return, >>=
 instance Monad TraceBuilder where
     return = pure
-    (TraceBuilder spans) >>= f = 
+    (TraceBuilder spans) >>= f =
         TraceBuilder (concatMap (\s -> let TraceBuilder ss = f s in ss) spans)
 ```
 
@@ -592,7 +592,7 @@ func buildPipeline() {
     filtered := make(chan Span, 100)
     enriched := make(chan Span, 100)
     output := make(chan Span, 100)
-    
+
     go filterSpans(input, filtered)
     go enrichSpans(filtered, enriched)
     go batchSpans(enriched, output)
@@ -686,12 +686,12 @@ spanPublisher
         public void onNext(List<Span> batch) {
             exporter.export(batch);
         }
-        
+
         @Override
         public void onError(Throwable t) {
             logger.error("Error processing spans", t);
         }
-        
+
         @Override
         public void onComplete() {
             exporter.shutdown();
@@ -1125,16 +1125,16 @@ func (h *SpanQueryHandler) Handle(query GetSpanQuery) (Span, error) {
 func pipeline() {
     // Stage 1: 接收
     receiveCh := receive()
-    
+
     // Stage 2: 过滤
     filteredCh := filter(receiveCh)
-    
+
     // Stage 3: 转换
     transformedCh := transform(filteredCh)
-    
+
     // Stage 4: 批处理
     batchedCh := batch(transformedCh)
-    
+
     // Stage 5: 导出
     export(batchedCh)
 }
@@ -1181,7 +1181,7 @@ func worker(input <-chan Span) <-chan Span {
 func fanIn(inputs []<-chan Span) <-chan Span {
     output := make(chan Span)
     var wg sync.WaitGroup
-    
+
     for _, input := range inputs {
         wg.Add(1)
         go func(ch <-chan Span) {
@@ -1191,12 +1191,12 @@ func fanIn(inputs []<-chan Span) <-chan Span {
             }
         }(input)
     }
-    
+
     go func() {
         wg.Wait()
         close(output)
     }()
-    
+
     return output
 }
 ```
@@ -1276,13 +1276,13 @@ func BuildSpanTree(spans []Span) *SpanTree {
     tree := &SpanTree{
         SpanMap: make(map[SpanID]*SpanNode),
     }
-    
+
     // 第一遍: 创建所有节点
     for _, span := range spans {
         node := &SpanNode{Span: span}
         tree.SpanMap[span.SpanID] = node
     }
-    
+
     // 第二遍: 建立父子关系
     for _, node := range tree.SpanMap {
         if node.Span.ParentSpanID != nil {
@@ -1295,7 +1295,7 @@ func BuildSpanTree(spans []Span) *SpanTree {
             tree.Root = node
         }
     }
-    
+
     return tree
 }
 
@@ -1318,12 +1318,12 @@ func (t *SpanTree) BFS(visit func(*SpanNode)) {
     if t.Root == nil {
         return
     }
-    
+
     queue := []*SpanNode{t.Root}
     for len(queue) > 0 {
         node := queue[0]
         queue = queue[1:]
-        
+
         visit(node)
         queue = append(queue, node.Children...)
     }
@@ -1350,14 +1350,14 @@ func (g *SpanGraph) AddLink(from, to SpanID) {
 // 拓扑排序 (检测循环依赖)
 func (g *SpanGraph) TopologicalSort() ([]SpanID, error) {
     inDegree := make(map[SpanID]int)
-    
+
     // 计算入度
     for _, neighbors := range g.Edges {
         for _, neighbor := range neighbors {
             inDegree[neighbor]++
         }
     }
-    
+
     // 找到所有入度为 0 的节点
     queue := []SpanID{}
     for spanID := range g.Nodes {
@@ -1365,13 +1365,13 @@ func (g *SpanGraph) TopologicalSort() ([]SpanID, error) {
             queue = append(queue, spanID)
         }
     }
-    
+
     result := []SpanID{}
     for len(queue) > 0 {
         spanID := queue[0]
         queue = queue[1:]
         result = append(result, spanID)
-        
+
         for _, neighbor := range g.Edges[spanID] {
             inDegree[neighbor]--
             if inDegree[neighbor] == 0 {
@@ -1379,11 +1379,11 @@ func (g *SpanGraph) TopologicalSort() ([]SpanID, error) {
             }
         }
     }
-    
+
     if len(result) != len(g.Nodes) {
         return nil, errors.New("cycle detected")
     }
-    
+
     return result, nil
 }
 ```
@@ -1519,7 +1519,7 @@ func shouldSample(span Span, sampler Sampler) bool {
 func batchProcessor(spans <-chan Span, batchSize int, timeout time.Duration) {
     batch := make([]Span, 0, batchSize)
     timer := time.NewTimer(timeout)
-    
+
     for {
         select {
         case span, ok := <-spans:
@@ -1530,14 +1530,14 @@ func batchProcessor(spans <-chan Span, batchSize int, timeout time.Duration) {
                 }
                 return
             }
-            
+
             batch = append(batch, span)
             if len(batch) >= batchSize {
                 exportBatch(batch)
                 batch = batch[:0]
                 timer.Reset(timeout)
             }
-            
+
         case <-timer.C:
             if len(batch) > 0 {
                 exportBatch(batch)
@@ -1558,13 +1558,13 @@ func exportSpans(spans []Span) error {
     if err := validateSpans(spans); err != nil {
         return fmt.Errorf("validation failed: %w", err)
     }
-    
+
     // 2. 序列化
     data, err := serializeSpans(spans)
     if err != nil {
         return fmt.Errorf("serialization failed: %w", err)
     }
-    
+
     // 3. 导出 (带重试)
     var lastErr error
     for attempt := 0; attempt < maxRetries; attempt++ {
@@ -1575,7 +1575,7 @@ func exportSpans(spans []Span) error {
             time.Sleep(backoff(attempt))
         }
     }
-    
+
     return fmt.Errorf("export failed after %d attempts: %w", maxRetries, lastErr)
 }
 
@@ -1593,7 +1593,7 @@ func processSpan(span Span) (err error) {
             }
         }
     }()
-    
+
     // 处理逻辑
     return doProcess(span, resource)
 }
@@ -1677,11 +1677,11 @@ func NewTracerProvider(opts ...TracerProviderOption) *TracerProvider {
         exporter: defaultExporter(),
         resource: defaultResource(),
     }
-    
+
     for _, opt := range opts {
         opt.apply(tp)
     }
-    
+
     return tp
 }
 
@@ -1761,13 +1761,13 @@ func (api *TraceAPI) CreateSpan(w http.ResponseWriter, r *http.Request) {
         http.Error(w, err.Error(), http.StatusBadRequest)
         return
     }
-    
+
     span, err := api.service.CreateSpan(r.Context(), req)
     if err != nil {
         http.Error(w, err.Error(), http.StatusInternalServerError)
         return
     }
-    
+
     json.NewEncoder(w).Encode(span)
 }
 
@@ -1782,11 +1782,11 @@ func (s *TraceService) CreateSpan(ctx context.Context, req CreateSpanRequest) (*
         Name:      req.Name,
         StartTime: time.Now(),
     }
-    
+
     if err := s.repo.Save(ctx, span); err != nil {
         return nil, err
     }
-    
+
     return span, nil
 }
 
@@ -1858,7 +1858,7 @@ func (s *traceServiceServer) CreateSpan(ctx context.Context, req *pb.CreateSpanR
     if err != nil {
         return nil, status.Errorf(codes.Internal, "failed to create span: %v", err)
     }
-    
+
     return &pb.CreateSpanResponse{Span: span}, nil
 }
 ```
@@ -1904,7 +1904,7 @@ func NewEventBus() *EventBus {
 func (bus *EventBus) Subscribe(eventType string, handler EventHandler) {
     bus.mu.Lock()
     defer bus.mu.Unlock()
-    
+
     bus.subscribers[eventType] = append(bus.subscribers[eventType], handler)
 }
 
@@ -1912,13 +1912,13 @@ func (bus *EventBus) Publish(event Event) error {
     bus.mu.RLock()
     handlers := bus.subscribers[event.EventType()]
     bus.mu.RUnlock()
-    
+
     for _, handler := range handlers {
         if err := handler(event); err != nil {
             return err
         }
     }
-    
+
     return nil
 }
 
@@ -1970,7 +1970,7 @@ func (a *SpanAggregate) Handle(cmd CreateSpanCommand) (Event, error) {
     if cmd.Name == "" {
         return nil, errors.New("span name is required")
     }
-    
+
     // 生成事件
     event := SpanCreatedEvent{
         SpanID:     generateSpanID(),
@@ -1979,10 +1979,10 @@ func (a *SpanAggregate) Handle(cmd CreateSpanCommand) (Event, error) {
         Attributes: cmd.Attributes,
         Timestamp:  time.Now(),
     }
-    
+
     // 应用事件
     a.Apply(event)
-    
+
     return event, nil
 }
 
@@ -1991,7 +1991,7 @@ func (a *SpanAggregate) Apply(event Event) {
     case SpanCreatedEvent:
         a.spanID = e.SpanID
     }
-    
+
     a.events = append(a.events, event)
     a.version++
 }
@@ -2020,7 +2020,7 @@ type EventStore interface {
 type Span struct {
     // Span 级别的 Resource
     Resource Resource
-    
+
     // Span 属性中也可能包含 Resource 信息
     Attributes map[string]interface{}{
         "service.name": "my-service",  // 冗余!
@@ -2140,7 +2140,7 @@ func compressSpan(span *pb.Span) ([]byte, error) {
     if err != nil {
         return nil, err
     }
-    
+
     // 使用 gzip 压缩
     var buf bytes.Buffer
     writer := gzip.NewWriter(&buf)
@@ -2148,7 +2148,7 @@ func compressSpan(span *pb.Span) ([]byte, error) {
         return nil, err
     }
     writer.Close()
-    
+
     return buf.Bytes(), nil
 }
 
@@ -2189,7 +2189,7 @@ func (d *StringDictionary) Encode(s string) int {
     if id, ok := d.dict[s]; ok {
         return id
     }
-    
+
     id := len(d.list)
     d.dict[s] = id
     d.list = append(d.list, s)
@@ -2232,12 +2232,12 @@ func GetSpanWithResource(spanID SpanID) (Span, Resource, error) {
     if err != nil {
         return Span{}, Resource{}, err
     }
-    
+
     resource, err := resourceRepo.Get(span.ResourceID)
     if err != nil {
         return Span{}, Resource{}, err
     }
-    
+
     return span, resource, nil
 }
 ```
@@ -2500,11 +2500,11 @@ func exportSpans(spans []Span) error {
     if err != nil {
         return fmt.Errorf("failed to serialize spans: %w", err)
     }
-    
+
     if err := sendData(data); err != nil {
         return fmt.Errorf("failed to send data: %w", err)
     }
-    
+
     return nil
 }
 
@@ -2514,7 +2514,7 @@ func exportSpans(spans []Span) error {
     if err != nil {
         return err  // 丢失上下文
     }
-    
+
     return sendData(data)
 }
 ```
@@ -2557,7 +2557,7 @@ func batchExport(spans []Span, batchSize int) error {
         if end > len(spans) {
             end = len(spans)
         }
-        
+
         batch := spans[i:end]
         if err := exportBatch(batch); err != nil {
             return err
@@ -2587,19 +2587,19 @@ func validateSpan(span *Span) error {
     if len(span.TraceID) != 16 {
         return fmt.Errorf("invalid trace ID length: %d", len(span.TraceID))
     }
-    
+
     if len(span.SpanID) != 8 {
         return fmt.Errorf("invalid span ID length: %d", len(span.SpanID))
     }
-    
+
     if span.EndTime.Before(span.StartTime) {
         return errors.New("end time before start time")
     }
-    
+
     if len(span.Name) == 0 {
         return errors.New("span name is empty")
     }
-    
+
     return nil
 }
 
@@ -2662,7 +2662,7 @@ func saveSpan(db *sql.DB, span *Span) error {
 
 **文档结束**:
 
-**版本**: 1.0.0  
-**日期**: 2025-10-06  
-**作者**: OTLP 项目团队  
+**版本**: 1.0.0
+**日期**: 2025-10-06
+**作者**: OTLP 项目团队
 **许可**: 遵循项目根目录的 LICENSE 文件

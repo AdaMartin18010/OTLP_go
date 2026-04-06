@@ -1,7 +1,7 @@
 # OTLP 语义模型与 Golang 编程范式集成分析
 
-**版本**: 1.0.0  
-**日期**: 2025-10-06  
+**版本**: 1.0.0
+**日期**: 2025-10-06
 **状态**: ✅ 完整
 
 ---
@@ -131,7 +131,7 @@ Resource 表示生成遥测数据的实体 (Entity)
 type Resource struct {
     // 资源属性 (必需)
     Attributes pcommon.Map
-    
+
     // 丢弃的属性数量 (可选,默认 0)
     DroppedAttributesCount uint32
 }
@@ -142,16 +142,16 @@ func NewResource(attrs map[string]interface{}) (*Resource, error) {
     if _, ok := attrs["service.name"]; !ok {
         return nil, errors.New("service.name is required")
     }
-    
+
     // 约束 2: 键唯一性 (Map 自动保证)
     resource := &Resource{
         Attributes: pcommon.NewMap(),
     }
-    
+
     for k, v := range attrs {
         resource.Attributes.PutStr(k, fmt.Sprint(v))
     }
-    
+
     return resource, nil
 }
 ```
@@ -164,9 +164,9 @@ func NewResource(attrs map[string]interface{}) (*Resource, error) {
 Span 表示分布式追踪中的一个操作
 
 形式化定义:
-  Span = (TraceID, SpanID, ParentSpanID, Name, Kind, 
+  Span = (TraceID, SpanID, ParentSpanID, Name, Kind,
           StartTime, EndTime, Attributes, Events, Links, Status)
-  
+
   TraceID: Bytes[16]
   SpanID: Bytes[8]
   ParentSpanID: Bytes[8] | Empty
@@ -194,34 +194,34 @@ Span 表示分布式追踪中的一个操作
 type Span struct {
     // 追踪 ID (必需,16 字节)
     TraceID pcommon.TraceID
-    
+
     // Span ID (必需,8 字节)
     SpanID pcommon.SpanID
-    
+
     // 父 Span ID (可选,8 字节)
     ParentSpanID pcommon.SpanID
-    
+
     // Span 名称 (必需)
     Name string
-    
+
     // Span 类型 (必需)
     Kind ptrace.SpanKind
-    
+
     // 开始时间 (必需,纳秒)
     StartTimeUnixNano uint64
-    
+
     // 结束时间 (必需,纳秒)
     EndTimeUnixNano uint64
-    
+
     // 属性 (可选)
     Attributes pcommon.Map
-    
+
     // 事件 (可选)
     Events ptrace.SpanEventSlice
-    
+
     // 链接 (可选)
     Links ptrace.SpanLinkSlice
-    
+
     // 状态 (可选)
     Status ptrace.Status
 }
@@ -232,12 +232,12 @@ func NewSpan(traceID pcommon.TraceID, spanID pcommon.SpanID, name string) (*Span
     if traceID.IsEmpty() {
         return nil, errors.New("traceID must not be empty")
     }
-    
+
     // 约束 2: SpanID 非零
     if spanID.IsEmpty() {
         return nil, errors.New("spanID must not be empty")
     }
-    
+
     span := &Span{
         TraceID:           traceID,
         SpanID:            spanID,
@@ -245,18 +245,18 @@ func NewSpan(traceID pcommon.TraceID, spanID pcommon.SpanID, name string) (*Span
         Kind:              ptrace.SpanKindInternal,
         StartTimeUnixNano: uint64(time.Now().UnixNano()),
     }
-    
+
     return span, nil
 }
 
 // 约束 3: StartTime ≤ EndTime
 func (s *Span) End() error {
     endTime := uint64(time.Now().UnixNano())
-    
+
     if endTime < s.StartTimeUnixNano {
         return errors.New("endTime must be >= startTime")
     }
-    
+
     s.EndTimeUnixNano = endTime
     return nil
 }
@@ -314,13 +314,13 @@ AnyValue = String(string)
 type Value interface {
     // Type 返回值的类型
     Type() ValueType
-    
+
     // AsString 返回字符串值 (如果类型匹配)
     AsString() (string, bool)
-    
+
     // AsInt 返回整数值 (如果类型匹配)
     AsInt() (int64, bool)
-    
+
     // ... 其他类型的访问器
 }
 
@@ -484,11 +484,11 @@ Scope: 遥测数据的逻辑分组 (如库、模块)
   2. Scope 表示 "哪个组件" 生成数据 (逻辑分组)
   3. 一个 Resource 可以包含多个 Scope
   4. 例: 同一个服务 (Resource) 的不同库 (Scope)
-  
+
   反例: 如果合并 Resource 和 Scope
     - 无法区分服务级别和库级别的属性
     - 无法支持多租户场景 (多个服务共享同一主机)
-  
+
   结论: Resource 和 Scope 是正交的概念,不冗余 ∎
 ```
 
@@ -505,19 +505,19 @@ Scope: 遥测数据的逻辑分组 (如库、模块)
   1. Span.Name 是一等公民 (First-Class Citizen)
      - 必需字段,不能为空
      - 用于 Span 的主要标识
-  
+
   2. Attributes 是二等公民 (Second-Class Citizen)
      - 可选字段,可以为空
      - 用于补充信息
-  
+
   3. 语义差异:
      - Name: "做什么" (What)
      - Attributes: "怎么做" (How/Why/Where)
-  
+
   4. 查询优化:
      - Name 通常被索引
      - Attributes 可能不被索引
-  
+
   结论: Span.Name 和 Attributes 语义不同,不冗余 ∎
 ```
 
@@ -537,17 +537,17 @@ Scope: 遥测数据的逻辑分组 (如库、模块)
      - 全局唯一标识一个 Trace
      - 碰撞概率: P(collision) ≈ n²/(2^129)
      - n = 10^15 (1PB traces): P ≈ 10^-9 (可忽略)
-  
+
   2. SpanID (8 字节 = 64 位)
      - 在同一 Trace 内唯一
      - 假设单 Trace 最多 10^6 spans
      - 碰撞概率: P ≈ (10^6)²/(2^65) ≈ 10^-8 (可忽略)
-  
+
   3. 空间效率:
      - TraceID: 16 bytes per span
      - SpanID: 8 bytes per span
      - 总计: 24 bytes per span (可接受)
-  
+
   结论: 长度设计在唯一性和空间效率间取得平衡 ∎
 ```
 
@@ -566,19 +566,19 @@ Scope: 遥测数据的逻辑分组 (如库、模块)
   1. Span.Status 表示 Span 的执行结果
      - 枚举类型: UNSET, OK, ERROR
      - 标准化语义
-  
+
   2. Attributes["error"] 表示错误的详细信息
      - 字符串类型: 错误消息、堆栈跟踪
      - 非标准化,灵活
-  
+
   3. 使用场景:
      - Status: 用于快速过滤 (WHERE status = ERROR)
      - Attributes["error"]: 用于详细分析
-  
+
   4. 分离关注点:
      - Status: 结构化数据 (索引友好)
      - Attributes: 非结构化数据 (搜索友好)
-  
+
   结论: Status 和 Attributes["error"] 服务不同目的,不冗余 ∎
 ```
 
@@ -706,10 +706,10 @@ func (s *Span[SpanStarted]) End() *Span[SpanEnded] {
 func Example() {
     span := NewSpan(traceID, spanID, "operation")
     // span.End() // 编译错误: SpanNotStarted 没有 End() 方法
-    
+
     started := span.Start()
     // started.Start() // 编译错误: SpanStarted 没有 Start() 方法
-    
+
     ended := started.End()
     // ended.End() // 编译错误: SpanEnded 没有 End() 方法
 }
@@ -753,7 +753,7 @@ var spanPool = NewPool(func() *Span {
 func ProcessRequest() {
     span := spanPool.Get()
     defer spanPool.Put(span)
-    
+
     // 使用 span
     span.Name = "operation"
     // ...
@@ -797,7 +797,7 @@ func (s *ImmutableSpan) WithAttribute(key string, value pcommon.Value) *Immutabl
         newAttrs[k] = v
     }
     newAttrs[key] = value
-    
+
     return &ImmutableSpan{
         traceID:    s.traceID,
         spanID:     s.spanID,
@@ -825,7 +825,7 @@ func Example() {
         WithAttribute("http.method", pcommon.NewValueStr("GET")).
         WithAttribute("http.status_code", pcommon.NewValueInt(200)).
         WithEnd()
-    
+
     // 原始 span 未被修改 (不可变)
 }
 ```
@@ -873,11 +873,11 @@ func HandleRequest(span *Span, req *http.Request, resp *http.Response, err error
     transform := Compose(
         AddHTTPAttributes(req.Method, req.URL.String(), resp.StatusCode),
     )
-    
+
     if err != nil {
         transform = Compose(transform, SetError(err))
     }
-    
+
     return transform(span)
 }
 ```
@@ -942,11 +942,11 @@ func Example() {
         WithAttribute("http.url", pcommon.NewValueStr("/api/users")).
         WithAttribute("http.status_code", pcommon.NewValueInt(200)).
         Build()
-    
+
     if err != nil {
         log.Fatal(err)
     }
-    
+
     // 使用 span
 }
 ```
@@ -1000,16 +1000,16 @@ type UserService struct {
 func (s *UserService) GetUser(ctx context.Context, userID string) (*User, error) {
     ctx, span := s.tracer.Start(ctx, "GetUser")
     defer span.End()
-    
+
     span.SetAttributes(attribute.String("user.id", userID))
-    
+
     user, err := s.repo.FindByID(ctx, userID)
     if err != nil {
         span.RecordError(err)
         span.SetStatus(codes.Error, err.Error())
         return nil, err
     }
-    
+
     return user, nil
 }
 
@@ -1076,7 +1076,7 @@ func (p *BatchSpanProcessor) OnEnd(span Span) {
 func (p *BatchSpanProcessor) worker() {
     ticker := time.NewTicker(p.timeout)
     defer ticker.Stop()
-    
+
     for {
         select {
         case span := <-p.queue:
@@ -1194,14 +1194,14 @@ func main() {
         log.Fatal(err)
     }
     defer tp.Shutdown(context.Background())
-    
+
     otel.SetTracerProvider(tp)
-    
+
     // 使用 tracer
     tracer := tp.Tracer("my-component")
     ctx, span := tracer.Start(context.Background(), "operation")
     defer span.End()
-    
+
     // ...
 }
 ```
@@ -1255,7 +1255,7 @@ defer span.End()
 func ServiceA(ctx context.Context) {
     ctx, span := tracer.Start(ctx, "ServiceA")
     defer span.End()
-    
+
     ServiceB(ctx) // 传递 ctx
 }
 
@@ -1269,7 +1269,7 @@ func ServiceB(ctx context.Context) {
 func ServiceA(ctx context.Context) {
     ctx, span := tracer.Start(ctx, "ServiceA")
     defer span.End()
-    
+
     ServiceB(context.Background()) // 错误: 创建新 context
 }
 ```
@@ -1322,7 +1322,7 @@ if err != nil {
 
 **文档结束**:
 
-**版本**: 1.0.0  
-**日期**: 2025-10-06  
-**作者**: OTLP 项目团队  
+**版本**: 1.0.0
+**日期**: 2025-10-06
+**作者**: OTLP 项目团队
 **许可**: 遵循项目根目录的 LICENSE 文件

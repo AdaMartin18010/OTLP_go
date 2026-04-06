@@ -1,7 +1,7 @@
 # OTLP 设计模式与最佳实践
 
-**版本**: 1.0.0  
-**日期**: 2025-10-06  
+**版本**: 1.0.0
+**日期**: 2025-10-06
 **状态**: ✅ 完整
 
 ---
@@ -91,7 +91,7 @@ package telemetry
 import (
     "context"
     "time"
-    
+
     "go.opentelemetry.io/otel"
     "go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
     "go.opentelemetry.io/otel/sdk/resource"
@@ -173,7 +173,7 @@ func (b *TelemetryBuilder) Build(ctx context.Context) (*trace.TracerProvider, er
     if b.insecure {
         opts = append(opts, otlptracegrpc.WithInsecure())
     }
-    
+
     exporter, err := otlptracegrpc.New(ctx, opts...)
     if err != nil {
         return nil, err
@@ -195,7 +195,7 @@ func (b *TelemetryBuilder) Build(ctx context.Context) (*trace.TracerProvider, er
 // 使用示例
 func ExampleBuilder() {
     ctx := context.Background()
-    
+
     tp, err := NewTelemetryBuilder().
         WithService("my-service", "1.0.0").
         WithEndpoint("localhost:4317").
@@ -203,11 +203,11 @@ func ExampleBuilder() {
         WithBatchConfig(10*time.Second, 1024).
         WithSampler(trace.TraceIDRatioBased(0.1)).
         Build(ctx)
-    
+
     if err != nil {
         panic(err)
     }
-    
+
     otel.SetTracerProvider(tp)
 }
 ```
@@ -232,7 +232,7 @@ package factory
 import (
     "context"
     "fmt"
-    
+
     "go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
     "go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
     "go.opentelemetry.io/otel/exporters/stdout/stdouttrace"
@@ -307,18 +307,18 @@ func (f *ExporterFactory) createStdoutExporter() (trace.SpanExporter, error) {
 func ExampleFactory() {
     ctx := context.Background()
     factory := NewExporterFactory()
-    
+
     config := ExporterConfig{
         Type:     ExporterTypeGRPC,
         Endpoint: "localhost:4317",
         Insecure: true,
     }
-    
+
     exporter, err := factory.CreateExporter(ctx, config)
     if err != nil {
         panic(err)
     }
-    
+
     tp := trace.NewTracerProvider(
         trace.WithBatcher(exporter),
     )
@@ -346,7 +346,7 @@ package singleton
 import (
     "context"
     "sync"
-    
+
     "go.opentelemetry.io/otel/sdk/trace"
 )
 
@@ -392,21 +392,21 @@ func (g *GlobalTracerProvider) Shutdown(ctx context.Context) error {
 // 使用示例
 func ExampleSingleton() {
     ctx := context.Background()
-    
+
     // 初始化
     instance := GetInstance()
     err := instance.Initialize(ctx)
     if err != nil {
         panic(err)
     }
-    
+
     // 获取 Provider
     tp := instance.GetProvider()
     tracer := tp.Tracer("my-component")
-    
+
     _, span := tracer.Start(ctx, "operation")
     defer span.End()
-    
+
     // 清理
     defer instance.Shutdown(ctx)
 }
@@ -451,7 +451,7 @@ func (t *ResourceTemplate) Clone() *ResourceTemplate {
     // 深拷贝属性
     attrs := make([]attribute.KeyValue, len(t.attributes))
     copy(attrs, t.attributes)
-    
+
     return &ResourceTemplate{
         attributes: attrs,
     }
@@ -478,19 +478,19 @@ func ExamplePrototype() {
         attribute.String("service.namespace", "production"),
         attribute.String("deployment.environment", "prod"),
     )
-    
+
     // 克隆并定制
     service1 := baseTemplate.Clone().
         AddAttribute(attribute.String("service.name", "api-service")).
         AddAttribute(attribute.String("service.version", "1.0.0"))
-    
+
     service2 := baseTemplate.Clone().
         AddAttribute(attribute.String("service.name", "worker-service")).
         AddAttribute(attribute.String("service.version", "2.0.0"))
-    
+
     res1 := service1.Build()
     res2 := service2.Build()
-    
+
     _, _ = res1, res2
 }
 ```
@@ -519,7 +519,7 @@ package adapter
 import (
     "context"
     "log"
-    
+
     "go.opentelemetry.io/otel/sdk/trace"
 )
 
@@ -548,7 +548,7 @@ func (a *SpanExporterAdapter) ExportSpans(ctx context.Context, spans []trace.Rea
         fields["span_id"] = span.SpanContext().SpanID().String()
         fields["name"] = span.Name()
         fields["duration"] = span.EndTime().Sub(span.StartTime()).String()
-        
+
         a.logger.Log("INFO", "span exported", fields)
     }
     return nil
@@ -569,7 +569,7 @@ func (l *SimpleLogger) Log(level string, message string, fields map[string]inter
 func ExampleAdapter() {
     logger := &SimpleLogger{}
     adapter := NewSpanExporterAdapter(logger)
-    
+
     tp := trace.NewTracerProvider(
         trace.WithBatcher(adapter),
     )
@@ -598,7 +598,7 @@ import (
     "context"
     "log"
     "time"
-    
+
     "go.opentelemetry.io/otel/sdk/trace"
 )
 
@@ -624,16 +624,16 @@ func NewLoggingDecorator(exporter SpanExporter) *LoggingDecorator {
 func (d *LoggingDecorator) ExportSpans(ctx context.Context, spans []trace.ReadOnlySpan) error {
     log.Printf("Exporting %d spans", len(spans))
     start := time.Now()
-    
+
     err := d.exporter.ExportSpans(ctx, spans)
-    
+
     duration := time.Since(start)
     if err != nil {
         log.Printf("Export failed after %v: %v", duration, err)
     } else {
         log.Printf("Export succeeded in %v", duration)
     }
-    
+
     return err
 }
 
@@ -663,13 +663,13 @@ func (d *MetricsDecorator) ExportSpans(ctx context.Context, spans []trace.ReadOn
     start := time.Now()
     err := d.exporter.ExportSpans(ctx, spans)
     duration := time.Since(start)
-    
+
     d.exportCount++
     d.totalDuration += duration
     if err != nil {
         d.exportErrors++
     }
-    
+
     return err
 }
 
@@ -684,10 +684,10 @@ func (d *MetricsDecorator) Shutdown(ctx context.Context) error {
 func ExampleDecorator(baseExporter SpanExporter) SpanExporter {
     // 添加日志装饰器
     decorated := NewLoggingDecorator(baseExporter)
-    
+
     // 添加指标装饰器
     decorated2 := NewMetricsDecorator(decorated)
-    
+
     return decorated2
 }
 ```
@@ -713,7 +713,7 @@ import (
     "context"
     "sync"
     "time"
-    
+
     "go.opentelemetry.io/otel/sdk/trace"
 )
 
@@ -722,7 +722,7 @@ type CachingExporterProxy struct {
     exporter trace.SpanExporter
     cache    []trace.ReadOnlySpan
     cacheMu  sync.Mutex
-    
+
     cacheSize    int
     flushTimeout time.Duration
     timer        *time.Timer
@@ -742,15 +742,15 @@ func NewCachingExporterProxy(exporter trace.SpanExporter, cacheSize int, flushTi
 func (p *CachingExporterProxy) ExportSpans(ctx context.Context, spans []trace.ReadOnlySpan) error {
     p.cacheMu.Lock()
     defer p.cacheMu.Unlock()
-    
+
     // 添加到缓存
     p.cache = append(p.cache, spans...)
-    
+
     // 检查是否需要刷新
     if len(p.cache) >= p.cacheSize {
         return p.flush(ctx)
     }
-    
+
     // 启动定时器
     if p.timer == nil {
         p.timer = time.AfterFunc(p.flushTimeout, func() {
@@ -759,7 +759,7 @@ func (p *CachingExporterProxy) ExportSpans(ctx context.Context, spans []trace.Re
             p.flush(context.Background())
         })
     }
-    
+
     return nil
 }
 
@@ -768,15 +768,15 @@ func (p *CachingExporterProxy) flush(ctx context.Context) error {
     if len(p.cache) == 0 {
         return nil
     }
-    
+
     err := p.exporter.ExportSpans(ctx, p.cache)
     p.cache = p.cache[:0]
-    
+
     if p.timer != nil {
         p.timer.Stop()
         p.timer = nil
     }
-    
+
     return err
 }
 
@@ -784,12 +784,12 @@ func (p *CachingExporterProxy) flush(ctx context.Context) error {
 func (p *CachingExporterProxy) Shutdown(ctx context.Context) error {
     p.cacheMu.Lock()
     defer p.cacheMu.Unlock()
-    
+
     // 刷新剩余缓存
     if err := p.flush(ctx); err != nil {
         return err
     }
-    
+
     return p.exporter.Shutdown(ctx)
 }
 ```
@@ -814,7 +814,7 @@ package composite
 import (
     "context"
     "sync"
-    
+
     "go.opentelemetry.io/otel/sdk/trace"
 )
 
@@ -839,7 +839,7 @@ func (c *CompositeExporter) AddExporter(exporter trace.SpanExporter) {
 func (c *CompositeExporter) ExportSpans(ctx context.Context, spans []trace.ReadOnlySpan) error {
     var wg sync.WaitGroup
     errCh := make(chan error, len(c.exporters))
-    
+
     for _, exporter := range c.exporters {
         wg.Add(1)
         go func(exp trace.SpanExporter) {
@@ -849,15 +849,15 @@ func (c *CompositeExporter) ExportSpans(ctx context.Context, spans []trace.ReadO
             }
         }(exporter)
     }
-    
+
     wg.Wait()
     close(errCh)
-    
+
     // 返回第一个错误
     for err := range errCh {
         return err
     }
-    
+
     return nil
 }
 
@@ -865,7 +865,7 @@ func (c *CompositeExporter) ExportSpans(ctx context.Context, spans []trace.ReadO
 func (c *CompositeExporter) Shutdown(ctx context.Context) error {
     var wg sync.WaitGroup
     errCh := make(chan error, len(c.exporters))
-    
+
     for _, exporter := range c.exporters {
         wg.Add(1)
         go func(exp trace.SpanExporter) {
@@ -875,14 +875,14 @@ func (c *CompositeExporter) Shutdown(ctx context.Context) error {
             }
         }(exporter)
     }
-    
+
     wg.Wait()
     close(errCh)
-    
+
     for err := range errCh {
         return err
     }
-    
+
     return nil
 }
 
@@ -890,7 +890,7 @@ func (c *CompositeExporter) Shutdown(ctx context.Context) error {
 func ExampleComposite(exp1, exp2, exp3 trace.SpanExporter) {
     // 创建组合导出器
     composite := NewCompositeExporter(exp1, exp2, exp3)
-    
+
     // 使用组合导出器
     tp := trace.NewTracerProvider(
         trace.WithBatcher(composite),
@@ -924,7 +924,7 @@ import (
     "context"
     "math/rand"
     "time"
-    
+
     "go.opentelemetry.io/otel/sdk/trace"
 )
 
@@ -977,13 +977,13 @@ func NewAdaptiveSampleStrategy(baseRatio float64) *AdaptiveSampleStrategy {
 
 func (s *AdaptiveSampleStrategy) ShouldSample(span trace.ReadOnlySpan) bool {
     s.totalCount++
-    
+
     // 错误时总是采样
     if span.Status().Code != 0 {
         s.errorCount++
         return true
     }
-    
+
     // 根据错误率调整采样率
     if s.totalCount > 100 {
         errorRate := float64(s.errorCount) / float64(s.totalCount)
@@ -993,7 +993,7 @@ func (s *AdaptiveSampleStrategy) ShouldSample(span trace.ReadOnlySpan) bool {
             s.currentRatio = s.baseRatio
         }
     }
-    
+
     return rand.Float64() < s.currentRatio
 }
 
@@ -1022,7 +1022,7 @@ func (c *SamplingContext) Sample(span trace.ReadOnlySpan) bool {
 // 使用示例
 func ExampleStrategy() {
     ctx := NewSamplingContext(&AlwaysSampleStrategy{})
-    
+
     // 运行时切换策略
     if time.Now().Hour() < 6 {
         // 凌晨低流量时使用高采样率
@@ -1054,7 +1054,7 @@ package observer
 import (
     "log"
     "sync"
-    
+
     "go.opentelemetry.io/otel/sdk/trace"
 )
 
@@ -1088,7 +1088,7 @@ func (s *SpanSubject) Attach(observer SpanObserver) {
 func (s *SpanSubject) Detach(observer SpanObserver) {
     s.mu.Lock()
     defer s.mu.Unlock()
-    
+
     for i, obs := range s.observers {
         if obs == observer {
             s.observers = append(s.observers[:i], s.observers[i+1:]...)
@@ -1101,7 +1101,7 @@ func (s *SpanSubject) Detach(observer SpanObserver) {
 func (s *SpanSubject) NotifyStart(span trace.ReadOnlySpan) {
     s.mu.RLock()
     defer s.mu.RUnlock()
-    
+
     for _, observer := range s.observers {
         observer.OnSpanStart(span)
     }
@@ -1111,7 +1111,7 @@ func (s *SpanSubject) NotifyStart(span trace.ReadOnlySpan) {
 func (s *SpanSubject) NotifyEnd(span trace.ReadOnlySpan) {
     s.mu.RLock()
     defer s.mu.RUnlock()
-    
+
     for _, observer := range s.observers {
         observer.OnSpanEnd(span)
     }
@@ -1147,11 +1147,11 @@ func (o *MetricsObserver) OnSpanEnd(span trace.ReadOnlySpan) {
 // 使用示例
 func ExampleObserver() {
     subject := NewSpanSubject()
-    
+
     // 添加观察者
     subject.Attach(&LoggingObserver{})
     subject.Attach(&MetricsObserver{})
-    
+
     // 模拟 Span 事件
     // subject.NotifyStart(span)
     // subject.NotifyEnd(span)
@@ -1177,7 +1177,7 @@ package chain
 
 import (
     "context"
-    
+
     "go.opentelemetry.io/otel/attribute"
     "go.opentelemetry.io/otel/sdk/trace"
 )
@@ -1214,7 +1214,7 @@ func (p *ValidationProcessor) Process(ctx context.Context, span trace.ReadOnlySp
     if span.Name() == "" {
         return nil // 跳过无效 Span
     }
-    
+
     return p.ProcessNext(ctx, span)
 }
 
@@ -1227,7 +1227,7 @@ func (p *EnrichmentProcessor) Process(ctx context.Context, span trace.ReadOnlySp
     // 添加额外属性
     // 注意: ReadOnlySpan 不能修改,这里仅作示例
     _ = attribute.String("enriched", "true")
-    
+
     return p.ProcessNext(ctx, span)
 }
 
@@ -1252,7 +1252,7 @@ func (p *FilterProcessor) Process(ctx context.Context, span trace.ReadOnlySpan) 
     if p.excludeNames[span.Name()] {
         return nil // 跳过
     }
-    
+
     return p.ProcessNext(ctx, span)
 }
 
@@ -1280,12 +1280,12 @@ func ExampleChain(exporter trace.SpanExporter) SpanProcessor {
     enrichment := &EnrichmentProcessor{}
     filter := NewFilterProcessor([]string{"health-check", "metrics"})
     export := NewExportProcessor(exporter)
-    
+
     // 链接处理器
     validation.SetNext(enrichment)
     enrichment.SetNext(filter)
     filter.SetNext(export)
-    
+
     return validation
 }
 ```
@@ -1310,7 +1310,7 @@ package template
 import (
     "context"
     "fmt"
-    
+
     "go.opentelemetry.io/otel/sdk/trace"
 )
 
@@ -1330,23 +1330,23 @@ func (t *ExporterTemplate) ExportSpans(ctx context.Context, spans []trace.ReadOn
     if err := t.preProcess(ctx, spans); err != nil {
         return err
     }
-    
+
     // 2. 验证
     if err := impl.Validate(ctx, spans); err != nil {
         return err
     }
-    
+
     // 3. 转换
     data, err := impl.Transform(ctx, spans)
     if err != nil {
         return err
     }
-    
+
     // 4. 导出
     if err := impl.Export(ctx, data); err != nil {
         return err
     }
-    
+
     // 5. 后置处理
     return t.postProcess(ctx, spans)
 }
@@ -1402,10 +1402,10 @@ func (e *JSONExporter) Export(ctx context.Context, data interface{}) error {
 func ExampleTemplate() {
     template := NewExporterTemplate("json-exporter")
     impl := &JSONExporter{endpoint: "http://localhost:8080"}
-    
+
     ctx := context.Background()
     var spans []trace.ReadOnlySpan
-    
+
     template.ExportSpans(ctx, spans, impl)
 }
 ```
@@ -1434,7 +1434,7 @@ package concurrent
 import (
     "context"
     "sync"
-    
+
     "go.opentelemetry.io/otel/sdk/trace"
 )
 
@@ -1471,7 +1471,7 @@ func (p *WorkerPool) Start() {
 // worker Worker 协程
 func (p *WorkerPool) worker(id int) {
     defer p.wg.Done()
-    
+
     for {
         select {
         case span, ok := <-p.taskCh:
@@ -1480,7 +1480,7 @@ func (p *WorkerPool) worker(id int) {
             }
             // 处理 Span
             p.exporter.ExportSpans(p.ctx, []trace.ReadOnlySpan{span})
-            
+
         case <-p.ctx.Done():
             return
         }
@@ -1507,7 +1507,7 @@ func ExampleWorkerPool(exporter trace.SpanExporter) {
     pool := NewWorkerPool(10, exporter)
     pool.Start()
     defer pool.Stop()
-    
+
     // 提交任务
     // for _, span := range spans {
     //     pool.Submit(span)
@@ -1534,7 +1534,7 @@ package pipeline
 
 import (
     "context"
-    
+
     "go.opentelemetry.io/otel/sdk/trace"
 )
 
@@ -1606,7 +1606,7 @@ func BatchStage(batchSize int) Stage {
         go func() {
             defer close(out)
             batch := make([]trace.ReadOnlySpan, 0, batchSize)
-            
+
             for span := range in {
                 batch = append(batch, span)
                 if len(batch) >= batchSize {
@@ -1620,7 +1620,7 @@ func BatchStage(batchSize int) Stage {
                     batch = batch[:0]
                 }
             }
-            
+
             // 处理剩余
             for _, s := range batch {
                 select {
@@ -1637,7 +1637,7 @@ func BatchStage(batchSize int) Stage {
 // 使用示例
 func ExamplePipeline() {
     ctx := context.Background()
-    
+
     // 创建流水线
     pipeline := NewPipeline(
         FilterStage(func(span trace.ReadOnlySpan) bool {
@@ -1645,13 +1645,13 @@ func ExamplePipeline() {
         }),
         BatchStage(100),
     )
-    
+
     // 输入 channel
     input := make(chan trace.ReadOnlySpan)
-    
+
     // 执行流水线
     output := pipeline.Execute(ctx, input)
-    
+
     // 消费输出
     go func() {
         for span := range output {
@@ -1681,7 +1681,7 @@ package fanout
 import (
     "context"
     "sync"
-    
+
     "go.opentelemetry.io/otel/sdk/trace"
 )
 
@@ -1702,7 +1702,7 @@ func (f *FanOutFanIn) ExportSpans(ctx context.Context, spans []trace.ReadOnlySpa
     // Fan-Out: 分发到多个 exporter
     var wg sync.WaitGroup
     errCh := make(chan error, len(f.exporters))
-    
+
     for _, exporter := range f.exporters {
         wg.Add(1)
         go func(exp trace.SpanExporter) {
@@ -1712,16 +1712,16 @@ func (f *FanOutFanIn) ExportSpans(ctx context.Context, spans []trace.ReadOnlySpa
             }
         }(exporter)
     }
-    
+
     // Fan-In: 等待所有结果
     wg.Wait()
     close(errCh)
-    
+
     // 收集错误
     for err := range errCh {
         return err // 返回第一个错误
     }
-    
+
     return nil
 }
 
@@ -1729,7 +1729,7 @@ func (f *FanOutFanIn) ExportSpans(ctx context.Context, spans []trace.ReadOnlySpa
 func (f *FanOutFanIn) Shutdown(ctx context.Context) error {
     var wg sync.WaitGroup
     errCh := make(chan error, len(f.exporters))
-    
+
     for _, exporter := range f.exporters {
         wg.Add(1)
         go func(exp trace.SpanExporter) {
@@ -1739,14 +1739,14 @@ func (f *FanOutFanIn) Shutdown(ctx context.Context) error {
             }
         }(exporter)
     }
-    
+
     wg.Wait()
     close(errCh)
-    
+
     for err := range errCh {
         return err
     }
-    
+
     return nil
 }
 ```
@@ -1773,7 +1773,7 @@ import (
     "errors"
     "sync"
     "time"
-    
+
     "go.opentelemetry.io/otel/sdk/trace"
 )
 
@@ -1813,7 +1813,7 @@ func NewCircuitBreaker(exporter trace.SpanExporter, failureThreshold, successThr
 // ExportSpans 导出 Spans (带断路器保护)
 func (cb *CircuitBreaker) ExportSpans(ctx context.Context, spans []trace.ReadOnlySpan) error {
     cb.mu.Lock()
-    
+
     // 检查状态
     if cb.state == StateOpen {
         // 检查是否可以尝试恢复
@@ -1825,20 +1825,20 @@ func (cb *CircuitBreaker) ExportSpans(ctx context.Context, spans []trace.ReadOnl
             return errors.New("circuit breaker is open")
         }
     }
-    
+
     cb.mu.Unlock()
-    
+
     // 尝试导出
     err := cb.exporter.ExportSpans(ctx, spans)
-    
+
     cb.mu.Lock()
     defer cb.mu.Unlock()
-    
+
     if err != nil {
         cb.onFailure()
         return err
     }
-    
+
     cb.onSuccess()
     return nil
 }
@@ -1847,7 +1847,7 @@ func (cb *CircuitBreaker) ExportSpans(ctx context.Context, spans []trace.ReadOnl
 func (cb *CircuitBreaker) onFailure() {
     cb.failureCount++
     cb.lastFailureTime = time.Now()
-    
+
     if cb.state == StateHalfOpen {
         // 半开状态失败,立即打开
         cb.state = StateOpen
@@ -1862,7 +1862,7 @@ func (cb *CircuitBreaker) onFailure() {
 // onSuccess 处理成功
 func (cb *CircuitBreaker) onSuccess() {
     cb.failureCount = 0
-    
+
     if cb.state == StateHalfOpen {
         cb.successCount++
         if cb.successCount >= cb.successThreshold {
@@ -1950,7 +1950,7 @@ type ApplicationService struct {
 func (s *ApplicationService) ProcessOrder(ctx context.Context, order *Order) error {
     ctx, span := s.tracer.Start(ctx, "ProcessOrder")
     defer span.End()
-    
+
     // 业务逻辑
     return nil
 }
@@ -1994,7 +1994,7 @@ package plugin
 import (
     "context"
     "fmt"
-    
+
     "go.opentelemetry.io/otel/sdk/trace"
 )
 
@@ -2073,11 +2073,11 @@ func (p *AttributeEnricherPlugin) Shutdown(ctx context.Context) error {
 // 使用示例
 func ExamplePlugin() {
     registry := NewPluginRegistry()
-    
+
     // 注册插件
     plugin := &AttributeEnricherPlugin{}
     registry.Register(plugin)
-    
+
     // 使用插件
     p, _ := registry.Get("attribute-enricher")
     p.Initialize(map[string]interface{}{})
@@ -2134,7 +2134,7 @@ type ServiceA struct {
 func (s *ServiceA) HandleRequest(ctx context.Context, req *Request) error {
     ctx, span := s.tracer.Start(ctx, "ServiceA.HandleRequest")
     defer span.End()
-    
+
     // 调用 Service B
     return s.client.Call(ctx, req)
 }
@@ -2147,7 +2147,7 @@ type ServiceBClient struct {
 func (c *ServiceBClient) Call(ctx context.Context, req *Request) error {
     ctx, span := c.tracer.Start(ctx, "ServiceB.Call")
     defer span.End()
-    
+
     // 发送请求到 Service B
     // Context 会自动传播 trace context
     return nil
@@ -2173,7 +2173,7 @@ package eventdriven
 
 import (
     "context"
-    
+
     "go.opentelemetry.io/otel/sdk/trace"
 )
 
@@ -2228,10 +2228,10 @@ func (p *SpanEventProcessor) OnEnd(span trace.ReadOnlySpan) {
 // 使用示例
 func ExampleEventDriven() {
     bus := NewEventBus()
-    
+
     // 订阅事件
     spanEndCh := bus.Subscribe("span.end")
-    
+
     // 处理事件
     go func() {
         for event := range spanEndCh {
@@ -2262,7 +2262,7 @@ package telemetry
 import (
     "context"
     "log"
-    
+
     "go.opentelemetry.io/otel"
     "go.opentelemetry.io/otel/sdk/trace"
 )
@@ -2274,22 +2274,22 @@ func Setup(ctx context.Context, serviceName, serviceVersion string) (func(), err
     if err != nil {
         return nil, err
     }
-    
+
     // 2. 创建 Exporter
     exporter, err := createExporter(ctx)
     if err != nil {
         return nil, err
     }
-    
+
     // 3. 创建 TracerProvider
     tp := trace.NewTracerProvider(
         trace.WithResource(res),
         trace.WithBatcher(exporter),
     )
-    
+
     // 4. 设置全局 Provider
     otel.SetTracerProvider(tp)
-    
+
     // 5. 返回清理函数
     return func() {
         if err := tp.Shutdown(context.Background()); err != nil {
@@ -2304,16 +2304,16 @@ func Setup(ctx context.Context, serviceName, serviceVersion string) (func(), err
 ```go
 func main() {
     ctx := context.Background()
-    
+
     // 初始化
     shutdown, err := telemetry.Setup(ctx, "my-service", "1.0.0")
     if err != nil {
         log.Fatal(err)
     }
-    
+
     // 确保清理
     defer shutdown()
-    
+
     // 应用逻辑
     // ...
 }
@@ -2331,15 +2331,15 @@ func createResource(ctx context.Context, serviceName, serviceVersion string) (*r
             semconv.ServiceName(serviceName),
             semconv.ServiceVersion(serviceVersion),
             semconv.ServiceNamespace("production"),
-            
+
             // 部署信息
             semconv.DeploymentEnvironment("prod"),
             attribute.String("deployment.region", "us-west-2"),
-            
+
             // 主机信息
             semconv.HostName(hostname),
             semconv.HostArch(runtime.GOARCH),
-            
+
             // 进程信息
             semconv.ProcessPID(os.Getpid()),
             semconv.ProcessRuntimeName("go"),
@@ -2383,7 +2383,7 @@ func processWithErrorHandling(ctx context.Context) (err error) {
             // 记录错误
             span.RecordError(err)
             span.SetStatus(codes.Error, err.Error())
-            
+
             // 添加错误上下文
             span.SetAttributes(
                 attribute.String("error.type", fmt.Sprintf("%T", err)),
@@ -2392,7 +2392,7 @@ func processWithErrorHandling(ctx context.Context) (err error) {
         }
         span.End()
     }()
-    
+
     // 业务逻辑
     return doWork(ctx)
 }
@@ -2432,10 +2432,10 @@ func configureBatching() *trace.TracerProvider {
         trace.WithBatcher(exporter,
             // 批次大小
             trace.WithMaxExportBatchSize(512),
-            
+
             // 批次超时
             trace.WithBatchTimeout(5*time.Second),
-            
+
             // 队列大小
             trace.WithMaxQueueSize(2048),
         ),
@@ -2451,7 +2451,7 @@ func configureSampling() *trace.TracerProvider {
     sampler := trace.ParentBased(
         trace.TraceIDRatioBased(0.1), // 10% 采样
     )
-    
+
     return trace.NewTracerProvider(
         trace.WithSampler(sampler),
     )
@@ -2467,10 +2467,10 @@ func configureResourceLimits() *trace.TracerProvider {
             // 属性限制
             AttributeCountLimit:      128,
             AttributeValueLengthLimit: 1024,
-            
+
             // 事件限制
             EventCountLimit:          128,
-            
+
             // 链接限制
             LinkCountLimit:           128,
         }),
@@ -2486,19 +2486,19 @@ func configureResourceLimits() *trace.TracerProvider {
 func TestWithInMemoryExporter(t *testing.T) {
     // 创建内存导出器
     exporter := tracetest.NewInMemoryExporter()
-    
+
     // 创建 TracerProvider
     tp := trace.NewTracerProvider(
         trace.WithSyncer(exporter),
     )
-    
+
     tracer := tp.Tracer("test")
-    
+
     // 执行测试
     ctx, span := tracer.Start(context.Background(), "test-operation")
     span.SetAttributes(attribute.String("key", "value"))
     span.End()
-    
+
     // 验证
     spans := exporter.GetSpans()
     require.Len(t, spans, 1)
@@ -2526,14 +2526,14 @@ func (m *MockExporter) Shutdown(ctx context.Context) error {
 func TestWithMock(t *testing.T) {
     mockExporter := new(MockExporter)
     mockExporter.On("ExportSpans", mock.Anything, mock.Anything).Return(nil)
-    
+
     tp := trace.NewTracerProvider(
         trace.WithBatcher(mockExporter),
     )
-    
+
     // 测试逻辑
     // ...
-    
+
     mockExporter.AssertExpectations(t)
 }
 ```
@@ -2581,7 +2581,7 @@ func (h *HealthChecker) Check(ctx context.Context) error {
     tracer := h.tp.Tracer("health-check")
     _, span := tracer.Start(ctx, "health-check")
     defer span.End()
-    
+
     return nil
 }
 ```
@@ -2784,7 +2784,7 @@ exporter, _ := otlptracegrpc.New(ctx,
 
 **文档结束**:
 
-**版本**: 1.0.0  
-**日期**: 2025-10-06  
-**作者**: OTLP 项目团队  
+**版本**: 1.0.0
+**日期**: 2025-10-06
+**作者**: OTLP 项目团队
 **许可**: 遵循项目根目录的 LICENSE 文件

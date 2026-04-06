@@ -75,14 +75,14 @@ func validateHistogram(h *HistogramDataPoint) error {
     if len(h.BucketCounts) != len(h.ExplicitBounds)+1 {
         return fmt.Errorf("bucket count mismatch")
     }
-    
+
     // 边界单调性
     for i := 1; i < len(h.ExplicitBounds); i++ {
         if h.ExplicitBounds[i-1] >= h.ExplicitBounds[i] {
             return fmt.Errorf("bounds not monotonic")
         }
     }
-    
+
     // 总计数一致性
     var sum uint64
     for _, count := range h.BucketCounts {
@@ -91,7 +91,7 @@ func validateHistogram(h *HistogramDataPoint) error {
     if sum != h.Count {
         return fmt.Errorf("count mismatch: sum=%d, count=%d", sum, h.Count)
     }
-    
+
     return nil
 }
 ```
@@ -105,7 +105,7 @@ func TestSpanCreation(t *testing.T) {
     tracer := otel.Tracer("test")
     ctx, span := tracer.Start(context.Background(), "test-span")
     defer span.End()
-    
+
     // 验证 SpanContext
     sc := span.SpanContext()
     assert.True(t, sc.IsValid())
@@ -123,16 +123,16 @@ func TestHistogramProperties(t *testing.T) {
         if len(values) == 0 {
             return true
         }
-        
+
         hist := NewHistogram([]float64{1, 10, 100})
         for _, v := range values {
             hist.Record(v)
         }
-        
+
         // 验证不变量
         return validateHistogram(hist.DataPoint()) == nil
     }
-    
+
     if err := quick.Check(f, nil); err != nil {
         t.Error(err)
     }

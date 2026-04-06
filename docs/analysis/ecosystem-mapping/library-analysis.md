@@ -27,6 +27,7 @@
     - [5.2 生产环境表现](#52-生产环境表现)
   - [6. 最佳实践建议](#6-最佳实践建议)
     - [6.1 库选择策略](#61-库选择策略)
+    - [6.3 参考落地清单（新增）](#63-参考落地清单新增)
     - [6.2 集成模式](#62-集成模式)
   - [7. 总结](#7-总结)
 
@@ -97,14 +98,14 @@ import (
 func main() {
     // 创建 Tracer
     tracer := otel.Tracer("my-service")
-    
+
     // 创建 Meter
     meter := otel.Meter("my-service")
-    
+
     // 创建 Span
     ctx, span := tracer.Start(context.Background(), "operation")
     defer span.End()
-    
+
     // 记录指标
     counter, _ := meter.Int64Counter("requests_total")
     counter.Add(ctx, 1)
@@ -309,7 +310,7 @@ defer logger.Sync()
 // 在 Span 中记录日志
 func processRequest(ctx context.Context) {
     span := trace.SpanFromContext(ctx)
-    
+
     logger.Info("Processing request",
         zap.String("trace_id", span.SpanContext().TraceID().String()),
         zap.String("span_id", span.SpanContext().SpanID().String()),
@@ -469,17 +470,17 @@ func callDownstreamService(ctx context.Context) error {
     client := &http.Client{
         Transport: otelhttp.NewTransport(http.DefaultTransport),
     }
-    
+
     // 创建请求
     req, _ := http.NewRequestWithContext(ctx, "GET", "http://downstream:8080/api", nil)
-    
+
     // 发送请求
     resp, err := client.Do(req)
     if err != nil {
         return err
     }
     defer resp.Body.Close()
-    
+
     return nil
 }
 ```
@@ -494,14 +495,14 @@ func processBatch(ctx context.Context, items []Item) error {
         otel.WithBatchSize(100),
         otel.WithExportTimeout(5*time.Second),
     )
-    
+
     // 处理批次
     for _, item := range items {
         if err := batchProcessor.Process(ctx, item); err != nil {
             return err
         }
     }
-    
+
     // 刷新批次
     return batchProcessor.Flush(ctx)
 }

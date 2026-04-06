@@ -88,7 +88,7 @@ processors:
         where attributes["input"] == "0"
       - set(attributes["state"], "q1")
         where attributes["input"] == "1"
-  
+
   # 状态 q1: 读取 1,出栈
   transform/q1:
     traces:
@@ -103,7 +103,7 @@ exporters:
   # 接受状态
   otlp/accept:
     endpoint: backend-accept:4317
-  
+
   # 拒绝状态
   otlp/reject:
     endpoint: backend-reject:4317
@@ -151,11 +151,11 @@ Condition ::= BooleanExpression
 # 原始递归函数: 阶乘 (通过嵌套)
 transform:
   # factorial(5) = 5 * 4 * 3 * 2 * 1
-  - set(attributes["result"], 
-      attributes["n"] * 
-      (attributes["n"]-1) * 
-      (attributes["n"]-2) * 
-      (attributes["n"]-3) * 
+  - set(attributes["result"],
+      attributes["n"] *
+      (attributes["n"]-1) *
+      (attributes["n"]-2) *
+      (attributes["n"]-3) *
       (attributes["n"]-4))
     where attributes["n"] == 5
 ```
@@ -194,27 +194,27 @@ type PipelineState struct {
 func DetectDeadlock(pipeline Pipeline) bool {
     visited := make(map[PipelineState]bool)
     queue := []PipelineState{pipeline.InitialState()}
-    
+
     for len(queue) > 0 {
         state := queue[0]
         queue = queue[1:]
-        
+
         if visited[state] {
             continue
         }
         visited[state] = true
-        
+
         // 检查是否为死锁状态
         if IsDeadlock(state) {
             return true
         }
-        
+
         // 生成后继状态
         for _, nextState := range state.Successors() {
             queue = append(queue, nextState)
         }
     }
-    
+
     return false
 }
 
@@ -222,19 +222,19 @@ func IsDeadlock(state PipelineState) bool {
     // 所有队列非空,但所有处理器都在等待
     allQueuesNonEmpty := true
     allProcessorsWaiting := true
-    
+
     for _, q := range state.Queues {
         if len(q) == 0 {
             allQueuesNonEmpty = false
         }
     }
-    
+
     for _, p := range state.Processors {
         if p.State != "WAITING" {
             allProcessorsWaiting = false
         }
     }
-    
+
     return allQueuesNonEmpty && allProcessorsWaiting
 }
 ```
@@ -320,7 +320,7 @@ func Processor(queueCh <-chan Data, batchCh chan<- Data) {
 func Batcher(batchCh <-chan Data, exportCh chan<- []Data) {
     buffer := []Data{}
     timer := time.NewTimer(10 * time.Second)
-    
+
     for {
         select {
         case data := <-batchCh:
@@ -377,11 +377,11 @@ func (a *ProcessorActor) Run() {
             result := a.process(msg.Data)
             // 发送给下游 Actor
             nextActor.mailbox <- Message{Type: "DATA", Data: result}
-            
+
         case "CONFIG":
             // 更新状态
             a.state.Config = msg.Config
-            
+
         case "STOP":
             return
         }
@@ -452,7 +452,7 @@ Pipeline = (νqueue)(νbatch)
 π-演算支持通道的传递,可以建模动态配置:
 
 ```text
-ConfigUpdate(agent, newConfig) = 
+ConfigUpdate(agent, newConfig) =
     (νreply)
     agent̄⟨newConfig, reply⟩.
     reply(ack).
@@ -530,9 +530,9 @@ PRAM = (P₁, P₂, ..., Pₙ, M)
 func ParallelBatch(items []Item, processors int) []Item {
     results := make([]Item, len(items))
     var wg sync.WaitGroup
-    
+
     chunkSize := len(items) / processors
-    
+
     for i := 0; i < processors; i++ {
         wg.Add(1)
         go func(id int) {
@@ -542,14 +542,14 @@ func ParallelBatch(items []Item, processors int) []Item {
             if id == processors-1 {
                 end = len(items)
             }
-            
+
             // 并行处理
             for j := start; j < end; j++ {
                 results[j] = process(items[j])
             }
         }(i)
     }
-    
+
     wg.Wait()
     return results
 }
@@ -589,11 +589,11 @@ func Reduce(service string, spans []Span) ServiceStats {
         SpanCount:   len(spans),
         TotalDuration: 0,
     }
-    
+
     for _, span := range spans {
         stats.TotalDuration += span.Duration
     }
-    
+
     stats.AvgDuration = stats.TotalDuration / int64(len(spans))
     return stats
 }
@@ -606,13 +606,13 @@ func MapReduceAggregation(spans []Span) []ServiceStats {
         key, value := Map(span)
         mapped[key] = append(mapped[key], value)
     }
-    
+
     // Reduce 阶段
     results := []ServiceStats{}
     for service, spans := range mapped {
         results = append(results, Reduce(service, spans))
     }
-    
+
     return results
 }
 ```
@@ -634,7 +634,7 @@ Superstep:
 func BSPBatchProcessing(batches [][]Item, supersteps int) {
     for step := 0; step < supersteps; step++ {
         var wg sync.WaitGroup
-        
+
         // 1. Local Computation
         for i, batch := range batches {
             wg.Add(1)
@@ -645,10 +645,10 @@ func BSPBatchProcessing(batches [][]Item, supersteps int) {
                 }
             }(i, batch)
         }
-        
+
         // 2. Barrier Synchronization
         wg.Wait()
-        
+
         // 3. Communication (Exchange data between batches)
         if step < supersteps-1 {
             batches = redistribute(batches)
@@ -779,9 +779,9 @@ type BatchProcessor struct {
 func (b *BatchProcessor) Add(item Item) {
     b.mu.Lock()
     defer b.mu.Unlock()
-    
+
     b.buffer = append(b.buffer, item)
-    
+
     if len(b.buffer) >= batchSize {
         b.flush()
     }
@@ -913,11 +913,11 @@ func (b *LinearizableBatcher) Add(item Item) uint64 {
     // 分配全局序列号 (线性化点)
     seq := b.seqNum.Add(1)
     item.SeqNum = seq
-    
+
     b.mu.Lock()
     b.buffer = append(b.buffer, item)
     b.mu.Unlock()
-    
+
     return seq
 }
 ```
@@ -1129,7 +1129,7 @@ func (v *RuntimeVerifier) Check(state SystemState) {
         if !inv(state) {
             v.violations.Add(1)
             log.Errorf("Invariant %d violated: %+v", i, state)
-            
+
             // 可选: 触发告警或回滚
             if v.violations.Load() > 10 {
                 panic("Too many invariant violations")

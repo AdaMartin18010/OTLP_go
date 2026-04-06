@@ -60,7 +60,7 @@ const (
     CONST = "const"
     TYPE = "type"
     FUNC = "func"
-    
+
     // 控制流关键字
     IF = "if"
     ELSE = "else"
@@ -73,13 +73,13 @@ const (
     CONTINUE = "continue"
     GOTO = "goto"
     FALLTHROUGH = "fallthrough"
-    
+
     // 并发关键字
     GO = "go"
     CHAN = "chan"
     SELECT = "select"
     DEFER = "defer"
-    
+
     // 类型关键字
     INTERFACE = "interface"
     STRUCT = "struct"
@@ -353,13 +353,13 @@ func (r TypeCheckRule) Check(ast ASTNode, env *SemanticEnvironment) error {
 func (r TypeCheckRule) checkBinaryExpr(expr *BinaryExpr, env *SemanticEnvironment) error {
     leftType := expr.Left.Type()
     rightType := expr.Right.Type()
-    
+
     // 检查操作符兼容性
     if !r.isCompatible(leftType, rightType, expr.Op) {
-        return fmt.Errorf("incompatible types: %s %s %s", 
+        return fmt.Errorf("incompatible types: %s %s %s",
             leftType, expr.Op, rightType)
     }
-    
+
     return nil
 }
 
@@ -403,18 +403,18 @@ func (tc TypeConsistency) checkAssignment(stmt *AssignStmt, env *SemanticEnviron
     if len(stmt.Lhs) != len(stmt.Rhs) {
         return fmt.Errorf("assignment count mismatch")
     }
-    
+
     for i, lhs := range stmt.Lhs {
         rhs := stmt.Rhs[i]
-        
+
         lhsType := lhs.Type()
         rhsType := rhs.Type()
-        
+
         if !tc.isAssignable(lhsType, rhsType) {
             return fmt.Errorf("cannot assign %s to %s", rhsType, lhsType)
         }
     }
-    
+
     return nil
 }
 ```
@@ -482,7 +482,7 @@ func (b *CFGBuilder) Build(ast ASTNode) *ControlFlowGraph {
         Nodes: make([]*CFGNode, 0),
         Edges: make([]*CFGEdge, 0),
     }
-    
+
     b.buildNode(ast, cfg)
     return cfg
 }
@@ -510,30 +510,30 @@ func (b *CFGBuilder) buildIfStmt(stmt *IfStmt, cfg *ControlFlowGraph) *CFGNode {
         Statement: stmt,
     }
     cfg.Nodes = append(cfg.Nodes, condNode)
-    
+
     // 构建 then 分支
     thenNode := b.buildNode(stmt.Body, cfg)
-    
+
     // 构建 else 分支
     var elseNode *CFGNode
     if stmt.Else != nil {
         elseNode = b.buildNode(stmt.Else, cfg)
     }
-    
+
     // 创建合并节点
     mergeNode := &CFGNode{
         ID: len(cfg.Nodes),
         Type: MergeNode,
     }
     cfg.Nodes = append(cfg.Nodes, mergeNode)
-    
+
     // 添加边
     cfg.Edges = append(cfg.Edges, &CFGEdge{
         From: condNode,
         To: thenNode,
         Type: TrueEdge,
     })
-    
+
     if elseNode != nil {
         cfg.Edges = append(cfg.Edges, &CFGEdge{
             From: condNode,
@@ -552,13 +552,13 @@ func (b *CFGBuilder) buildIfStmt(stmt *IfStmt, cfg *ControlFlowGraph) *CFGNode {
             Type: FalseEdge,
         })
     }
-    
+
     cfg.Edges = append(cfg.Edges, &CFGEdge{
         From: thenNode,
         To: mergeNode,
         Type: UnconditionalEdge,
     })
-    
+
     return mergeNode
 }
 ```
@@ -584,9 +584,9 @@ func (ra *ReachabilityAnalysis) dfs(nodeID int) {
     if ra.reachable[nodeID] {
         return
     }
-    
+
     ra.reachable[nodeID] = true
-    
+
     node := ra.cfg.Nodes[nodeID]
     for _, edge := range node.OutEdges {
         ra.dfs(edge.To.ID)
@@ -624,20 +624,20 @@ func (ld *LoopDetection) DetectLoops() []*Loop {
     ld.visited = make(map[int]bool)
     ld.recStack = make(map[int]bool)
     ld.loops = make([]*Loop, 0)
-    
+
     for _, node := range ld.cfg.Nodes {
         if !ld.visited[node.ID] {
             ld.dfs(node.ID)
         }
     }
-    
+
     return ld.loops
 }
 
 func (ld *LoopDetection) dfs(nodeID int) {
     ld.visited[nodeID] = true
     ld.recStack[nodeID] = true
-    
+
     node := ld.cfg.Nodes[nodeID]
     for _, edge := range node.OutEdges {
         if !ld.visited[edge.To.ID] {
@@ -652,7 +652,7 @@ func (ld *LoopDetection) dfs(nodeID int) {
             ld.loops = append(ld.loops, loop)
         }
     }
-    
+
     ld.recStack[nodeID] = false
 }
 ```
@@ -747,9 +747,9 @@ func (e *Executor) executeGoStmt(stmt *GoStmt) error {
         Stack: make([]Value, 0),
         PC: 0,
     }
-    
+
     e.state.Goroutines[goroutine.ID] = goroutine
-    
+
     // 调度执行
     return e.scheduler.Schedule(goroutine, stmt.Call)
 }
@@ -777,19 +777,19 @@ func (s *Scheduler) scheduleNext() error {
     if len(s.runnable) == 0 {
         return fmt.Errorf("no runnable goroutines")
     }
-    
+
     // 选择下一个 goroutine
     next := s.selectNext()
-    
+
     // 切换上下文
     if s.current != nil {
         s.current.State = Runnable
         s.runnable = append(s.runnable, s.current)
     }
-    
+
     s.current = next
     s.current.State = Running
-    
+
     // 执行
     return s.executeCurrent()
 }
@@ -799,7 +799,7 @@ func (s *Scheduler) selectNext() *Goroutine {
     if len(s.runnable) == 0 {
         return nil
     }
-    
+
     next := s.runnable[0]
     s.runnable = s.runnable[1:]
     return next
@@ -866,16 +866,16 @@ func (b *DFGBuilder) Build(cfg *ControlFlowGraph) *DataFlowGraph {
         Edges: make([]*DFGEdge, 0),
         Variables: make(map[string]*Variable),
     }
-    
+
     // 构建数据流节点
     for _, cfgNode := range cfg.Nodes {
         dfgNode := b.buildDFGNode(cfgNode, dfg)
         dfg.Nodes = append(dfg.Nodes, dfgNode)
     }
-    
+
     // 构建数据流边
     b.buildDFGEdges(cfg, dfg)
-    
+
     return dfg
 }
 
@@ -886,10 +886,10 @@ func (b *DFGBuilder) buildDFGNode(cfgNode *CFGNode, dfg *DataFlowGraph) *DFGNode
         Defs: make([]*Variable, 0),
         Uses: make([]*Variable, 0),
     }
-    
+
     // 分析定义和使用
     b.analyzeDefUse(cfgNode.Statement, dfgNode, dfg)
-    
+
     return dfgNode
 }
 ```
@@ -909,22 +909,22 @@ type LiveVariableAnalysis struct {
 func (lva *LiveVariableAnalysis) Analyze() (map[int]map[string]bool, map[int]map[string]bool) {
     lva.liveIn = make(map[int]map[string]bool)
     lva.liveOut = make(map[int]map[string]bool)
-    
+
     // 初始化
     for _, node := range lva.dfg.Nodes {
         lva.liveIn[node.ID] = make(map[string]bool)
         lva.liveOut[node.ID] = make(map[string]bool)
     }
-    
+
     // 迭代直到收敛
     changed := true
     for changed {
         changed = false
-        
+
         for _, node := range lva.dfg.Nodes {
             oldLiveIn := make(map[string]bool)
             oldLiveOut := make(map[string]bool)
-            
+
             // 复制当前值
             for v := range lva.liveIn[node.ID] {
                 oldLiveIn[v] = true
@@ -932,21 +932,21 @@ func (lva *LiveVariableAnalysis) Analyze() (map[int]map[string]bool, map[int]map
             for v := range lva.liveOut[node.ID] {
                 oldLiveOut[v] = true
             }
-            
+
             // 计算新的 liveOut
             lva.computeLiveOut(node)
-            
+
             // 计算新的 liveIn
             lva.computeLiveIn(node)
-            
+
             // 检查是否改变
-            if !lva.equal(oldLiveIn, lva.liveIn[node.ID]) || 
+            if !lva.equal(oldLiveIn, lva.liveIn[node.ID]) ||
                !lva.equal(oldLiveOut, lva.liveOut[node.ID]) {
                 changed = true
             }
         }
     }
-    
+
     return lva.liveIn, lva.liveOut
 }
 
@@ -961,17 +961,17 @@ func (lva *LiveVariableAnalysis) computeLiveOut(node *DFGNode) {
 
 func (lva *LiveVariableAnalysis) computeLiveIn(node *DFGNode) {
     // liveIn[n] = use[n] union (liveOut[n] - def[n])
-    
+
     // 复制 liveOut
     for v := range lva.liveOut[node.ID] {
         lva.liveIn[node.ID][v] = true
     }
-    
+
     // 减去 def
     for _, def := range node.Defs {
         delete(lva.liveIn[node.ID], def.Name)
     }
-    
+
     // 加上 use
     for _, use := range node.Uses {
         lva.liveIn[node.ID][use.Name] = true
@@ -992,22 +992,22 @@ type ReachingDefinitionAnalysis struct {
 func (rda *ReachingDefinitionAnalysis) Analyze() (map[int]map[int]bool, map[int]map[int]bool) {
     rda.reachIn = make(map[int]map[int]bool)
     rda.reachOut = make(map[int]map[int]bool)
-    
+
     // 初始化
     for _, node := range rda.dfg.Nodes {
         rda.reachIn[node.ID] = make(map[int]bool)
         rda.reachOut[node.ID] = make(map[int]bool)
     }
-    
+
     // 迭代直到收敛
     changed := true
     for changed {
         changed = false
-        
+
         for _, node := range rda.dfg.Nodes {
             oldReachIn := make(map[int]bool)
             oldReachOut := make(map[int]bool)
-            
+
             // 复制当前值
             for d := range rda.reachIn[node.ID] {
                 oldReachIn[d] = true
@@ -1015,21 +1015,21 @@ func (rda *ReachingDefinitionAnalysis) Analyze() (map[int]map[int]bool, map[int]
             for d := range rda.reachOut[node.ID] {
                 oldReachOut[d] = true
             }
-            
+
             // 计算新的 reachIn
             rda.computeReachIn(node)
-            
+
             // 计算新的 reachOut
             rda.computeReachOut(node)
-            
+
             // 检查是否改变
-            if !rda.equal(oldReachIn, rda.reachIn[node.ID]) || 
+            if !rda.equal(oldReachIn, rda.reachIn[node.ID]) ||
                !rda.equal(oldReachOut, rda.reachOut[node.ID]) {
                 changed = true
             }
         }
     }
-    
+
     return rda.reachIn, rda.reachOut
 }
 
@@ -1044,15 +1044,15 @@ func (rda *ReachingDefinitionAnalysis) computeReachIn(node *DFGNode) {
 
 func (rda *ReachingDefinitionAnalysis) computeReachOut(node *DFGNode) {
     // reachOut[n] = (reachIn[n] - kill[n]) union gen[n]
-    
+
     // 复制 reachIn
     for d := range rda.reachIn[node.ID] {
         rda.reachOut[node.ID][d] = true
     }
-    
+
     // 减去 kill
     rda.killDefinitions(node)
-    
+
     // 加上 gen
     rda.genDefinitions(node)
 }

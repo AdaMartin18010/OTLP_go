@@ -140,14 +140,14 @@ type RetryPolicy struct {
 func (rp *RetryPolicy) Execute(fn func() error) error {
     var lastErr error
     interval := rp.InitialInterval
-    
+
     for attempt := 0; attempt <= rp.MaxRetries; attempt++ {
         if err := fn(); err == nil {
             return nil
         } else {
             lastErr = err
         }
-        
+
         if attempt < rp.MaxRetries {
             time.Sleep(interval)
             interval = time.Duration(float64(interval) * rp.Multiplier)
@@ -156,7 +156,7 @@ func (rp *RetryPolicy) Execute(fn func() error) error {
             }
         }
     }
-    
+
     return fmt.Errorf("max retries exceeded: %w", lastErr)
 }
 ```
@@ -229,7 +229,7 @@ type CircuitBreaker struct {
 
 func (cb *CircuitBreaker) Execute(fn func() error) error {
     state := cb.state.Load().(string)
-    
+
     switch state {
     case "OPEN":
         // 检查是否可以进入半开状态
@@ -239,15 +239,15 @@ func (cb *CircuitBreaker) Execute(fn func() error) error {
             return cb.tryExecute(fn)
         }
         return errors.New("circuit breaker open")
-        
+
     case "HALF_OPEN":
         return cb.tryExecute(fn)
-        
+
     case "CLOSED":
         if err := fn(); err != nil {
             cb.failureCount.Add(1)
             cb.lastFailTime.Store(time.Now())
-            
+
             if cb.failureCount.Load() >= cb.threshold {
                 cb.state.Store("OPEN")
             }
@@ -256,7 +256,7 @@ func (cb *CircuitBreaker) Execute(fn func() error) error {
         cb.failureCount.Store(0)
         return nil
     }
-    
+
     return nil
 }
 
@@ -265,14 +265,14 @@ func (cb *CircuitBreaker) tryExecute(fn func() error) error {
         cb.state.Store("OPEN")
         return err
     }
-    
+
     cb.successCount.Add(1)
     if cb.successCount.Load() >= 3 {
         cb.state.Store("CLOSED")
         cb.successCount.Store(0)
         cb.failureCount.Store(0)
     }
-    
+
     return nil
 }
 ```
@@ -351,11 +351,11 @@ func (cm *CheckpointManager) SaveCheckpoint(state SystemState) error {
             "node_id": state.NodeID,
         },
     }
-    
+
     if err := cm.storage.Save(checkpoint); err != nil {
         return fmt.Errorf("failed to save checkpoint: %w", err)
     }
-    
+
     cm.lastCheckpoint = checkpoint.Timestamp
     return nil
 }
@@ -365,7 +365,7 @@ func (cm *CheckpointManager) Recover() (SystemState, error) {
     if err != nil {
         return SystemState{}, err
     }
-    
+
     log.Infof("Recovering from checkpoint at %v", checkpoint.Timestamp)
     return checkpoint.State, nil
 }
@@ -394,17 +394,17 @@ func (wm *WALManager) Append(op string, data []byte) error {
         Data:      data,
         Timestamp: time.Now(),
     }
-    
+
     // 1. 写入 WAL
     if err := wm.writeLog(entry); err != nil {
         return err
     }
-    
+
     // 2. 应用操作
     if err := wm.apply(entry); err != nil {
         return err
     }
-    
+
     // 3. 标记已提交
     wm.committed.Store(entry.SeqNum)
     return nil
@@ -415,9 +415,9 @@ func (wm *WALManager) Replay() error {
     if err != nil {
         return err
     }
-    
+
     lastCommitted := wm.committed.Load()
-    
+
     for _, entry := range entries {
         if entry.SeqNum > lastCommitted {
             if err := wm.apply(entry); err != nil {
@@ -426,7 +426,7 @@ func (wm *WALManager) Replay() error {
             wm.committed.Store(entry.SeqNum)
         }
     }
-    
+
     return nil
 }
 ```
@@ -450,7 +450,7 @@ type ErrorPattern struct {
 
 func (ta *TraceAnalyzer) Analyze(trace Trace) []Issue {
     var issues []Issue
-    
+
     // 检测错误模式
     for _, pattern := range ta.errorPatterns {
         if pattern.Condition(trace) {
@@ -461,7 +461,7 @@ func (ta *TraceAnalyzer) Analyze(trace Trace) []Issue {
             })
         }
     }
-    
+
     return issues
 }
 
@@ -510,11 +510,11 @@ var ErrorPatterns = []ErrorPattern{
 func (t *Trace) CriticalPath() []Span {
     // 构建 Span 依赖图
     graph := t.buildDependencyGraph()
-    
+
     // 计算每个 Span 的最早开始时间和最晚结束时间
     est := make(map[string]time.Time)  // Earliest Start Time
     lft := make(map[string]time.Time)  // Latest Finish Time
-    
+
     // 正向遍历计算 EST
     for _, span := range graph.TopologicalSort() {
         if span.ParentSpanID == "" {
@@ -524,7 +524,7 @@ func (t *Trace) CriticalPath() []Span {
             est[span.SpanID] = maxTime(span.StartTime, parentEST)
         }
     }
-    
+
     // 反向遍历计算 LFT
     for i := len(graph.Nodes) - 1; i >= 0; i-- {
         span := graph.Nodes[i]
@@ -540,7 +540,7 @@ func (t *Trace) CriticalPath() []Span {
             lft[span.SpanID] = minTime(span.EndTime, minChildLFT)
         }
     }
-    
+
     // 识别关键路径 (Slack = 0 的 Span)
     var criticalPath []Span
     for _, span := range t.Spans {
@@ -549,7 +549,7 @@ func (t *Trace) CriticalPath() []Span {
             criticalPath = append(criticalPath, span)
         }
     }
-    
+
     return criticalPath
 }
 ```
@@ -572,13 +572,13 @@ func (le *LogEntry) CorrelateWithTrace(trace Trace) *Span {
     if le.TraceID != trace.TraceID {
         return nil
     }
-    
+
     for _, span := range trace.Spans {
         if span.SpanID == le.SpanID {
             return &span
         }
     }
-    
+
     return nil
 }
 
@@ -589,7 +589,7 @@ func FindLogsForTrace(traceID string) []LogEntry {
         WHERE trace_id = '%s'
         ORDER BY timestamp ASC
     `, traceID)
-    
+
     return executeQuery(query)
 }
 
@@ -598,7 +598,7 @@ func FindTraceForLog(logEntry LogEntry) Trace {
     if logEntry.TraceID == "" {
         return Trace{}
     }
-    
+
     return fetchTrace(logEntry.TraceID)
 }
 ```
@@ -612,7 +612,7 @@ type LogAggregator struct {
 
 func (la *LogAggregator) AggregateErrors(logs []LogEntry) map[string]int {
     errorCounts := make(map[string]int)
-    
+
     for _, log := range logs {
         if log.Level == "ERROR" {
             // 提取错误模式 (去除变量部分)
@@ -620,7 +620,7 @@ func (la *LogAggregator) AggregateErrors(logs []LogEntry) map[string]int {
             errorCounts[pattern]++
         }
     }
-    
+
     return errorCounts
 }
 
@@ -653,16 +653,16 @@ func (ad *AnomalyDetector) Detect(value float64) bool {
         ad.history = append(ad.history, value)
         return false
     }
-    
+
     mean, stddev := ad.statistics()
     zScore := (value - mean) / stddev
-    
+
     isAnomaly := math.Abs(zScore) > ad.threshold
-    
+
     if !isAnomaly {
         ad.history = append(ad.history[1:], value)
     }
-    
+
     return isAnomaly
 }
 
@@ -673,14 +673,14 @@ func (ad *AnomalyDetector) statistics() (float64, float64) {
         sum += v
     }
     mean := sum / float64(len(ad.history))
-    
+
     // 计算标准差
     variance := 0.0
     for _, v := range ad.history {
         variance += math.Pow(v-mean, 2)
     }
     stddev := math.Sqrt(variance / float64(len(ad.history)))
-    
+
     return mean, stddev
 }
 ```
@@ -700,14 +700,14 @@ func (mlad *MLAnomalyDetector) Train(metrics []MetricPoint) {
 func (mlad *MLAnomalyDetector) Detect(metric MetricPoint) (bool, float64) {
     features := mlad.extractFeatures([]MetricPoint{metric})
     score := mlad.model.AnomalyScore(features[0])
-    
+
     // score > 0.5 表示异常
     return score > 0.5, score
 }
 
 func (mlad *MLAnomalyDetector) extractFeatures(metrics []MetricPoint) [][]float64 {
     var features [][]float64
-    
+
     for _, m := range metrics {
         feature := []float64{
             m.Value,
@@ -717,7 +717,7 @@ func (mlad *MLAnomalyDetector) extractFeatures(metrics []MetricPoint) [][]float6
         }
         features = append(features, feature)
     }
-    
+
     return features
 }
 ```
@@ -742,14 +742,14 @@ func (cg *CausalGraph) FindRootCause(symptom string) []string {
     // 1. 从症状节点开始反向遍历
     visited := make(map[string]bool)
     var rootCauses []string
-    
+
     cg.dfs(symptom, visited, &rootCauses)
-    
+
     // 2. 按影响范围排序
     sort.Slice(rootCauses, func(i, j int) bool {
         return cg.impactScore(rootCauses[i]) > cg.impactScore(rootCauses[j])
     })
-    
+
     return rootCauses
 }
 
@@ -758,9 +758,9 @@ func (cg *CausalGraph) dfs(nodeID string, visited map[string]bool, rootCauses *[
         return
     }
     visited[nodeID] = true
-    
+
     node := cg.nodes[nodeID]
-    
+
     // 如果节点失败且没有上游依赖失败,则为根因
     upstreamFailed := false
     for _, upstream := range cg.getUpstream(nodeID) {
@@ -769,7 +769,7 @@ func (cg *CausalGraph) dfs(nodeID string, visited map[string]bool, rootCauses *[
             cg.dfs(upstream, visited, rootCauses)
         }
     }
-    
+
     if node.Status == "failed" && !upstreamFailed {
         *rootCauses = append(*rootCauses, nodeID)
     }
@@ -800,15 +800,15 @@ type Evidence struct {
 func (wa *WhyAnalysis) Ask5Whys(initialQuestion string) *WhyAnalysis {
     current := &WhyAnalysis{Question: initialQuestion}
     root := current
-    
+
     for i := 0; i < 5; i++ {
         // 查找证据
         evidence := wa.findEvidence(current.Question)
         current.Evidence = evidence
-        
+
         // 生成答案
         current.Answer = wa.generateAnswer(evidence)
-        
+
         // 生成下一个问题
         if i < 4 {
             nextQuestion := fmt.Sprintf("Why %s?", current.Answer)
@@ -816,7 +816,7 @@ func (wa *WhyAnalysis) Ask5Whys(initialQuestion string) *WhyAnalysis {
             current = current.Next
         }
     }
-    
+
     return root
 }
 
@@ -851,7 +851,7 @@ type Snapshot struct {
 func (tt *TimeTravel) ReplayTo(targetTime time.Time) SystemState {
     // 1. 找到最接近的快照
     snapshot := tt.findClosestSnapshot(targetTime)
-    
+
     // 2. 从快照开始重放事件
     state := snapshot.State
     for _, event := range snapshot.Events {
@@ -860,7 +860,7 @@ func (tt *TimeTravel) ReplayTo(targetTime time.Time) SystemState {
         }
         state = state.Apply(event)
     }
-    
+
     return state
 }
 
@@ -875,16 +875,16 @@ func (tt *TimeTravel) DebugAt(targetTime time.Time) *Debugger {
 // 使用示例
 func debugIssue() {
     tt := NewTimeTravel()
-    
+
     // 回到故障发生前 5 分钟
     issueTime := time.Parse(time.RFC3339, "2025-01-01T10:30:00Z")
     debugger := tt.DebugAt(issueTime.Add(-5 * time.Minute))
-    
+
     // 单步执行
     for debugger.HasNext() {
         event := debugger.Step()
         fmt.Printf("[%v] %s\n", event.Timestamp, event.Description)
-        
+
         if event.Type == "ERROR" {
             fmt.Printf("Found error: %v\n", event.Data)
             break
@@ -920,19 +920,19 @@ func (ls *GoldenSignals) Collect() {
         P95: calculatePercentile(0.95),
         P99: calculatePercentile(0.99),
     }
-    
+
     // 2. Traffic (流量)
     ls.Traffic = &TrafficMetric{
         RequestsPerSecond: calculateRPS(),
         BytesPerSecond:    calculateBPS(),
     }
-    
+
     // 3. Errors (错误率)
     ls.Errors = &ErrorMetric{
         ErrorRate:   calculateErrorRate(),
         ErrorCount:  countErrors(),
     }
-    
+
     // 4. Saturation (饱和度)
     ls.Saturation = &SaturationMetric{
         CPUUsage:    getCPUUsage(),
@@ -948,17 +948,17 @@ const (
             rate(http_request_duration_seconds_bucket[5m])
         )
     `
-    
+
     TrafficQuery = `
         rate(http_requests_total[5m])
     `
-    
+
     ErrorsQuery = `
         rate(http_requests_total{status=~"5.."}[5m])
         /
         rate(http_requests_total[5m])
     `
-    
+
     SaturationQuery = `
         avg(rate(container_cpu_usage_seconds_total[5m])) by (pod)
     `
@@ -981,14 +981,14 @@ func (red *REDMetrics) Collect(service string) {
     red.Rate = prometheus.Query(fmt.Sprintf(`
         rate(http_requests_total{service="%s"}[5m])
     `, service))
-    
+
     // Errors: 错误率
     red.Errors = prometheus.Query(fmt.Sprintf(`
         rate(http_requests_total{service="%s",status=~"5.."}[5m])
         /
         rate(http_requests_total{service="%s"}[5m])
     `, service, service))
-    
+
     // Duration: 响应时间
     red.Duration = prometheus.Query(fmt.Sprintf(`
         histogram_quantile(0.95,
@@ -1041,17 +1041,17 @@ func (use *USEMetrics) CollectForResource(resource string) {
         use.Utilization = getCPUUtilization()
         use.Saturation = getRunQueueLength()
         use.Errors = getCPUThrottlingCount()
-        
+
     case "Memory":
         use.Utilization = getMemoryUtilization()
         use.Saturation = getSwapUsage()
         use.Errors = getOOMKillCount()
-        
+
     case "Disk":
         use.Utilization = getDiskUtilization()
         use.Saturation = getDiskQueueLength()
         use.Errors = getDiskErrorCount()
-        
+
     case "Network":
         use.Utilization = getNetworkUtilization()
         use.Saturation = getNetworkBufferUtilization()
@@ -1064,15 +1064,15 @@ const (
     CPUUtilizationQuery = `
         avg(rate(container_cpu_usage_seconds_total[5m])) by (pod)
     `
-    
+
     CPUSaturationQuery = `
         avg(container_cpu_cfs_throttled_seconds_total) by (pod)
     `
-    
+
     MemoryUtilizationQuery = `
         container_memory_usage_bytes / container_spec_memory_limit_bytes
     `
-    
+
     MemorySaturationQuery = `
         container_memory_swap
     `
@@ -1136,10 +1136,10 @@ func (sc *StartupCheck) Check(ctx context.Context) error {
 func (hc *HealthChecker) ServeHTTP(w http.ResponseWriter, r *http.Request) {
     ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
     defer cancel()
-    
+
     results := make(map[string]string)
     allHealthy := true
-    
+
     for _, check := range hc.checks {
         if err := check.Check(ctx); err != nil {
             results[check.Name()] = fmt.Sprintf("FAIL: %v", err)
@@ -1148,13 +1148,13 @@ func (hc *HealthChecker) ServeHTTP(w http.ResponseWriter, r *http.Request) {
             results[check.Name()] = "OK"
         }
     }
-    
+
     if allHealthy {
         w.WriteHeader(http.StatusOK)
     } else {
         w.WriteHeader(http.StatusServiceUnavailable)
     }
-    
+
     json.NewEncoder(w).Encode(results)
 }
 ```
@@ -1240,7 +1240,7 @@ func (sla *SLA) CalculatePenalty(actualAvailability float64) float64 {
     if actualAvailability >= sla.SLO.Target {
         return 0
     }
-    
+
     breach := sla.SLO.Target - actualAvailability
     return sla.Penalty(breach)
 }
@@ -1282,25 +1282,25 @@ type PIDController struct {
 func (pid *PIDController) Update(measured float64) float64 {
     now := time.Now()
     dt := now.Sub(pid.lastTime).Seconds()
-    
+
     // 计算误差
     error := pid.setpoint - measured
-    
+
     // 比例项
     P := pid.Kp * error
-    
+
     // 积分项
     pid.integral += error * dt
     I := pid.Ki * pid.integral
-    
+
     // 微分项
     derivative := (error - pid.lastError) / dt
     D := pid.Kd * derivative
-    
+
     // 更新状态
     pid.lastError = error
     pid.lastTime = now
-    
+
     // 输出控制量
     return P + I + D
 }
@@ -1313,17 +1313,17 @@ type AdaptiveSampler struct {
 
 func (as *AdaptiveSampler) AdjustSamplingRate() {
     currentCPU := getCPUUsage()
-    
+
     // PID 控制器输出调整量
     adjustment := as.pid.Update(currentCPU)
-    
+
     // 应用调整
     currentRate := getSamplingRate()
     newRate := currentRate + adjustment
-    
+
     // 限制范围 [0.01, 1.0]
     newRate = math.Max(0.01, math.Min(1.0, newRate))
-    
+
     setSamplingRate(newRate)
 }
 ```
@@ -1342,23 +1342,23 @@ type AdaptiveSamplingStrategy struct {
 
 func (ass *AdaptiveSamplingStrategy) ShouldSample(span Span) bool {
     rate := ass.baseRate
-    
+
     // 错误 Span 提高采样率
     if span.Status == "ERROR" {
         rate *= ass.errorBoost
     }
-    
+
     // 慢请求提高采样率
     if span.Duration() > 1*time.Second {
         rate *= ass.latencyBoost
     }
-    
+
     // 根据系统负载调整
     load := getSystemLoad()
     if load > 0.8 {
         rate *= ass.loadFactor
     }
-    
+
     return rand.Float64() < rate
 }
 
@@ -1385,13 +1385,13 @@ type TokenBucket struct {
 
 func (tb *TokenBucket) Allow() bool {
     tb.refill()
-    
+
     for {
         tokens := tb.tokens.Load()
         if tokens <= 0 {
             return false
         }
-        
+
         if tb.tokens.CompareAndSwap(tokens, tokens-1) {
             return true
         }
@@ -1401,15 +1401,15 @@ func (tb *TokenBucket) Allow() bool {
 func (tb *TokenBucket) refill() {
     now := time.Now()
     last := tb.lastRefill.Load().(time.Time)
-    
+
     elapsed := now.Sub(last).Seconds()
     tokensToAdd := int64(elapsed * tb.rate)
-    
+
     if tokensToAdd > 0 {
         for {
             current := tb.tokens.Load()
             new := min(current+tokensToAdd, tb.capacity)
-            
+
             if tb.tokens.CompareAndSwap(current, new) {
                 tb.lastRefill.Store(now)
                 break
@@ -1423,7 +1423,7 @@ func (c *Collector) ProcessWithRateLimit(data []byte) error {
     if !c.rateLimiter.Allow() {
         return errors.New("rate limit exceeded")
     }
-    
+
     return c.process(data)
 }
 ```
@@ -1446,10 +1446,10 @@ func (cm *ConfigManager) ApplyConfig(newConfig *Config) error {
     if err := cm.validator.Validate(newConfig); err != nil {
         return fmt.Errorf("invalid config: %w", err)
     }
-    
+
     // 2. 保存当前配置到历史
     cm.history = append(cm.history, *cm.current)
-    
+
     // 3. 应用新配置
     cm.pending = newConfig
     if err := cm.apply(newConfig); err != nil {
@@ -1457,17 +1457,17 @@ func (cm *ConfigManager) ApplyConfig(newConfig *Config) error {
         cm.rollback()
         return err
     }
-    
+
     // 5. 健康检查
     if !cm.healthCheck() {
         cm.rollback()
         return errors.New("health check failed after config update")
     }
-    
+
     // 6. 提交配置
     cm.current = newConfig
     cm.pending = nil
-    
+
     return nil
 }
 
@@ -1475,7 +1475,7 @@ func (cm *ConfigManager) rollback() {
     if len(cm.history) == 0 {
         return
     }
-    
+
     lastGood := cm.history[len(cm.history)-1]
     cm.apply(&lastGood)
     cm.current = &lastGood
@@ -1508,23 +1508,23 @@ func (ce *ChaosExperiment) Inject(ctx context.Context, fn func() error) error {
     if rand.Float64() > ce.probability {
         return fn()
     }
-    
+
     switch ce.faultType {
     case LatencyFault:
         time.Sleep(ce.duration)
         return fn()
-        
+
     case ErrorFault:
         return errors.New("injected error")
-        
+
     case DropFault:
         return nil  // 丢弃请求
-        
+
     case PartitionFault:
         // 模拟网络分区
         return errors.New("network partition")
     }
-    
+
     return fn()
 }
 
@@ -1536,7 +1536,7 @@ func (c *Collector) ProcessWithChaos(data []byte) error {
         faultType:   LatencyFault,
         duration:    500 * time.Millisecond,
     }
-    
+
     return experiment.Inject(context.Background(), func() error {
         return c.process(data)
     })
@@ -1556,10 +1556,10 @@ type FaultLocalizer struct {
 
 func (fl *FaultLocalizer) BinarySearch() Component {
     left, right := 0, len(fl.components)-1
-    
+
     for left < right {
         mid := (left + right) / 2
-        
+
         // 测试前半部分
         if fl.testComponents(fl.components[left:mid+1]) {
             // 前半部分正常,故障在后半部分
@@ -1569,7 +1569,7 @@ func (fl *FaultLocalizer) BinarySearch() Component {
             right = mid
         }
     }
-    
+
     return fl.components[left]
 }
 
@@ -1589,9 +1589,9 @@ func (fl *FaultLocalizer) testComponents(components []Component) bool {
 func (fl *FaultLocalizer) TraceDependencyChain(service string) []string {
     visited := make(map[string]bool)
     var chain []string
-    
+
     fl.dfs(service, visited, &chain)
-    
+
     return chain
 }
 
@@ -1600,9 +1600,9 @@ func (fl *FaultLocalizer) dfs(service string, visited map[string]bool, chain *[]
         return
     }
     visited[service] = true
-    
+
     *chain = append(*chain, service)
-    
+
     // 检查依赖
     for _, dep := range fl.getDependencies(service) {
         if !fl.isHealthy(dep) {
@@ -1629,7 +1629,7 @@ type FlameNode struct {
 
 func (fg *FlameGraph) BuildFromTrace(trace Trace) {
     fg.root = &FlameNode{Name: "root"}
-    
+
     for _, span := range trace.Spans {
         fg.addSpan(fg.root, span)
     }
@@ -1644,12 +1644,12 @@ func (fg *FlameGraph) addSpan(node *FlameNode, span Span) {
             break
         }
     }
-    
+
     if child == nil {
         child = &FlameNode{Name: span.Name}
         node.Children = append(node.Children, child)
     }
-    
+
     child.Value += span.Duration().Nanoseconds()
 }
 
@@ -1659,14 +1659,14 @@ func (fg *FlameGraph) FindBottleneck() *FlameNode {
 
 func (fg *FlameGraph) findMax(node *FlameNode) *FlameNode {
     max := node
-    
+
     for _, child := range node.Children {
         candidate := fg.findMax(child)
         if candidate.Value > max.Value {
             max = candidate
         }
     }
-    
+
     return max
 }
 ```
@@ -1682,20 +1682,20 @@ type ExceptionPropagation struct {
 
 func (ep *ExceptionPropagation) TracePropagation(exception Exception) []PropagationPath {
     var paths []PropagationPath
-    
+
     // 从异常源开始 BFS
     queue := []Node{{Service: exception.Source, Depth: 0}}
     visited := make(map[string]bool)
-    
+
     for len(queue) > 0 {
         node := queue[0]
         queue = queue[1:]
-        
+
         if visited[node.Service] {
             continue
         }
         visited[node.Service] = true
-        
+
         // 检查是否有相同异常
         if ep.hasException(node.Service, exception.Type) {
             paths = append(paths, PropagationPath{
@@ -1704,7 +1704,7 @@ func (ep *ExceptionPropagation) TracePropagation(exception Exception) []Propagat
                 Depth: node.Depth,
             })
         }
-        
+
         // 添加下游服务
         for _, downstream := range ep.graph.GetDownstream(node.Service) {
             queue = append(queue, Node{
@@ -1713,7 +1713,7 @@ func (ep *ExceptionPropagation) TracePropagation(exception Exception) []Propagat
             })
         }
     }
-    
+
     return paths
 }
 ```
@@ -1744,7 +1744,7 @@ func (dg *DependencyGraph) BuildFromTraces(traces []Trace) {
                     Type: span.ServiceType,
                 }
             }
-            
+
             // 添加边 (调用关系)
             if span.ParentSpanID != "" {
                 parentSpan := trace.FindSpan(span.ParentSpanID)
@@ -1759,14 +1759,14 @@ func (dg *DependencyGraph) BuildFromTraces(traces []Trace) {
 func (dg *DependencyGraph) FindCriticalPath() []string {
     // 使用 PageRank 算法找到关键服务
     ranks := dg.pageRank()
-    
+
     var critical []string
     for service, rank := range ranks {
         if rank > 0.1 {  // 阈值
             critical = append(critical, service)
         }
     }
-    
+
     return critical
 }
 
@@ -1775,26 +1775,26 @@ func (dg *DependencyGraph) pageRank() map[string]float64 {
     for service := range dg.nodes {
         ranks[service] = 1.0 / float64(len(dg.nodes))
     }
-    
+
     damping := 0.85
     iterations := 100
-    
+
     for i := 0; i < iterations; i++ {
         newRanks := make(map[string]float64)
-        
+
         for service := range dg.nodes {
             sum := 0.0
             for _, upstream := range dg.GetUpstream(service) {
                 outDegree := len(dg.edges[upstream])
                 sum += ranks[upstream] / float64(outDegree)
             }
-            
+
             newRanks[service] = (1-damping)/float64(len(dg.nodes)) + damping*sum
         }
-        
+
         ranks = newRanks
     }
-    
+
     return ranks
 }
 ```
@@ -1821,14 +1821,14 @@ type Region struct {
 func (tal *TopologyAwareLocalizer) LocalizeByTopology(issue Issue) *Region {
     // 1. 收集受影响的服务实例
     affectedInstances := tal.getAffectedInstances(issue)
-    
+
     // 2. 按区域聚合
     regionCounts := make(map[string]int)
     for _, instance := range affectedInstances {
         region := tal.topology.GetRegion(instance)
         regionCounts[region]++
     }
-    
+
     // 3. 找到受影响最严重的区域
     maxCount := 0
     var faultyRegion string
@@ -1838,7 +1838,7 @@ func (tal *TopologyAwareLocalizer) LocalizeByTopology(issue Issue) *Region {
             faultyRegion = region
         }
     }
-    
+
     return tal.topology.regions[faultyRegion]
 }
 ```
@@ -1856,7 +1856,7 @@ type ObservabilityData struct {
     Timestamp  time.Time
     Resource   Resource
     Attributes map[string]interface{}
-    
+
     // 可选字段
     Trace  *Trace
     Logs   []LogEntry
@@ -1866,10 +1866,10 @@ type ObservabilityData struct {
 func (od *ObservabilityData) Correlate() {
     // 1. 通过 TraceID 关联 Logs
     od.Logs = findLogsByTraceID(od.TraceID)
-    
+
     // 2. 通过 Resource 关联 Metrics
     od.Metrics = findMetricsByResource(od.Resource)
-    
+
     // 3. 构建完整上下文
     od.buildContext()
 }
@@ -1923,7 +1923,7 @@ func (uc *UnifiedContext) Inject(carrier interface{}) {
         for k, v := range uc.BaggageItems {
             c.Set(fmt.Sprintf("baggage-%s", k), v)
         }
-        
+
     case map[string]string:
         c["trace_id"] = uc.TraceID
         c["span_id"] = uc.SpanID
@@ -1942,7 +1942,7 @@ func (uc *UnifiedContext) Extract(carrier interface{}) error {
             uc.TraceID = parts[1]
             uc.SpanID = parts[2]
         }
-        
+
         for k, v := range c {
             if strings.HasPrefix(k, "baggage-") {
                 key := strings.TrimPrefix(k, "baggage-")
@@ -1950,7 +1950,7 @@ func (uc *UnifiedContext) Extract(carrier interface{}) error {
             }
         }
     }
-    
+
     return nil
 }
 ```
@@ -1977,7 +1977,7 @@ type AlertManager struct {
 
 func (am *AlertManager) Evaluate(metrics map[string]float64) []Alert {
     var alerts []Alert
-    
+
     for _, rule := range am.rules {
         if am.evaluateCondition(rule.Condition, metrics) {
             alert := Alert{
@@ -1986,14 +1986,14 @@ func (am *AlertManager) Evaluate(metrics map[string]float64) []Alert {
                 Timestamp:   time.Now(),
                 Annotations: rule.Annotations,
             }
-            
+
             // 去重
             if !am.deduplicator.IsDuplicate(alert) {
                 alerts = append(alerts, alert)
             }
         }
     }
-    
+
     // 聚合相关告警
     return am.aggregator.Aggregate(alerts)
 }
@@ -2011,7 +2011,7 @@ groups:
         annotations:
           summary: "High error rate detected"
           description: "Error rate is {{ $value }}%"
-      
+
       - alert: HighLatency
         expr: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m])) > 1
         for: 10m
@@ -2046,7 +2046,7 @@ type RestartPodAction struct {
 func (rpa *RestartPodAction) Execute(ctx context.Context, anomaly Anomaly) error {
     podName := anomaly.Metadata["pod_name"]
     namespace := anomaly.Metadata["namespace"]
-    
+
     return rpa.k8sClient.CoreV1().Pods(namespace).Delete(ctx, podName, metav1.DeleteOptions{})
 }
 
@@ -2058,14 +2058,14 @@ type ScaleUpAction struct {
 func (sua *ScaleUpAction) Execute(ctx context.Context, anomaly Anomaly) error {
     deployment := anomaly.Metadata["deployment"]
     namespace := anomaly.Metadata["namespace"]
-    
+
     scale, err := sua.k8sClient.AppsV1().Deployments(namespace).GetScale(ctx, deployment, metav1.GetOptions{})
     if err != nil {
         return err
     }
-    
+
     scale.Spec.Replicas++
-    
+
     _, err = sua.k8sClient.AppsV1().Deployments(namespace).UpdateScale(ctx, deployment, scale, metav1.UpdateOptions{})
     return err
 }
@@ -2083,7 +2083,7 @@ func (da *DegradeAction) Execute(ctx context.Context, anomaly Anomaly) error {
             "complex_transform": false,
         },
     }
-    
+
     return da.configManager.ApplyConfig(degradedConfig)
 }
 ```
@@ -2100,10 +2100,10 @@ type Predictor struct {
 func (p *Predictor) PredictFailure(metrics []MetricPoint) (bool, time.Time) {
     // 1. 特征提取
     features := p.extractFeatures(metrics)
-    
+
     // 2. 预测未来值
     future := p.model.Forecast(features, 24)  // 预测未来 24 小时
-    
+
     // 3. 检测是否会超过阈值
     for i, value := range future {
         if value > threshold {
@@ -2111,7 +2111,7 @@ func (p *Predictor) PredictFailure(metrics []MetricPoint) (bool, time.Time) {
             return true, failureTime
         }
     }
-    
+
     return false, time.Time{}
 }
 
@@ -2140,14 +2140,14 @@ func (am *ARIMAModel) Forecast(data []float64, steps int) []float64 {
 func investigateCascadingFailure() {
     // 1. 查看支付服务的 Traces
     traces := fetchTraces("service.name=payment AND status=ERROR")
-    
+
     // 2. 分析依赖链
     for _, trace := range traces {
         deps := analyzeDependencies(trace)
         fmt.Printf("Dependencies: %v\n", deps)
         // Output: [payment -> order -> inventory -> database]
     }
-    
+
     // 3. 检查每个依赖的健康状态
     healthStatus := map[string]string{
         "payment":   "degraded",
@@ -2155,19 +2155,19 @@ func investigateCascadingFailure() {
         "inventory": "healthy",
         "database":  "failed",  // 根因!
     }
-    
+
     // 4. 查看数据库指标
     dbMetrics := fetchMetrics("service.name=database")
     fmt.Printf("DB Connections: %d/%d\n", dbMetrics.ActiveConnections, dbMetrics.MaxConnections)
     // Output: DB Connections: 1000/1000 (连接池耗尽)
-    
+
     // 5. 查看数据库日志
     dbLogs := fetchLogs("service.name=database AND level=ERROR")
     // Output: "Too many connections"
-    
+
     // 6. 根因: 数据库连接池耗尽导致级联故障
     fmt.Println("Root Cause: Database connection pool exhausted")
-    
+
     // 7. 修复: 增加连接池大小
     scaleDatabase()
 }
@@ -2183,15 +2183,15 @@ func investigateCascadingFailure() {
 func investigateMemoryLeak() {
     // 1. 采集 heap profile
     pprof.WriteHeapProfile(f)
-    
+
     // 2. 分析 profile
     // go tool pprof -http=:8080 heap.prof
-    
+
     // 3. 发现大量 Span 对象未释放
     // Top objects:
     // 500MB: []Span
     // 200MB: map[string]*Span
-    
+
     // 4. 检查 Span 生命周期
     spans := getAllSpans()
     for _, span := range spans {
@@ -2200,10 +2200,10 @@ func investigateMemoryLeak() {
             fmt.Printf("Old span: %s, age: %v\n", span.SpanID, age)
         }
     }
-    
+
     // 5. 发现: 尾部采样缓冲区未清理
     // 根因: decision_wait 超时后未删除 Span
-    
+
     // 6. 修复: 添加定期清理逻辑
     go func() {
         ticker := time.NewTicker(10 * time.Minute)
@@ -2226,31 +2226,31 @@ func handleNetworkPartition() {
     partitions := detectPartitions()
     fmt.Printf("Detected partitions: %v\n", partitions)
     // Output: [region-us-west, region-us-east]
-    
+
     // 2. 确定多数派
     majority := findMajority(partitions)
     fmt.Printf("Majority: %s\n", majority)
     // Output: region-us-west (3 nodes vs 2 nodes)
-    
+
     // 3. 少数派进入只读模式
     if !isMajority() {
         enterReadOnlyMode()
     }
-    
+
     // 4. 等待分区恢复
     waitForPartitionHealing()
-    
+
     // 5. 同步数据
     if isPartitionHealed() {
         syncData()
     }
-    
+
     // 6. 解决冲突
     conflicts := detectConflicts()
     for _, conflict := range conflicts {
         resolveConflict(conflict)
     }
-    
+
     // 7. 恢复正常模式
     exitReadOnlyMode()
 }

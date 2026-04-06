@@ -46,7 +46,7 @@ agent_description:
       value: observability
     - key: k8s.pod.name
       value: otel-collector-edge-7d9f8b-x7k2m
-  
+
   # 非识别属性（用于分组和路由）
   non_identifying_attributes:
     - key: region
@@ -55,7 +55,7 @@ agent_description:
       value: us-west-1a
     - key: tenant
       value: team-platform
-  
+
   # 支持的能力
   capabilities:
     reports_effective_config: true      # 上报生效配置
@@ -65,7 +65,7 @@ agent_description:
     accepts_packages: true              # 接受包分发
     accepts_restart_command: true       # 接受重启命令
     reports_package_statuses: true      # 上报包状态
-  
+
   # 支持的插件类型
   supported_plugins:
     - ottl      # OTTL 转换规则
@@ -114,12 +114,12 @@ remote_config:
     body: |
       # Base64 编码的配置内容
       cmVjZWl2ZXJzOgogIG90bHA6CiAgICBwcm90b2NvbHM6...
-  
+
   # 数字签名（可选，用于安全验证）
   signature:
     type: RSA_SHA256
     signature_data: "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA..."
-  
+
   # 配置元数据
   metadata:
     version: "v1.2.3"
@@ -145,29 +145,29 @@ processors:
   batch:
     timeout: 10s
     send_batch_size: 1024
-  
+
   # 内存限制器
   memory_limiter:
     check_interval: 1s
     limit_mib: 512
     spike_limit_mib: 128
-  
+
   # OTTL 转换规则（动态下发）
   transform:
     error_mode: ignore
     traces:
       # 生产环境脱敏
-      - set(attributes["user.id"], SHA256(attributes["user.id"])) 
+      - set(attributes["user.id"], SHA256(attributes["user.id"]))
         where resource.attributes["env"] == "prod"
-      
+
       # 超时标记
-      - set(status.message, "timeout_exceeded") 
+      - set(status.message, "timeout_exceeded")
         where duration > Duration("3s")
-      
+
       # 降维处理
       - delete_key(attributes, "http.request.header.cookie")
       - delete_key(attributes, "http.request.header.authorization")
-  
+
   # 尾部采样（保留错误和慢请求）
   tail_sampling:
     decision_wait: 10s
@@ -199,7 +199,7 @@ exporters:
       enabled: true
       num_consumers: 10
       queue_size: 5000
-  
+
   # 备份后端
   otlp/backup:
     endpoint: traces-backup.example.com:4317
@@ -212,7 +212,7 @@ service:
       receivers: [otlp]
       processors: [memory_limiter, batch, transform, tail_sampling]
       exporters: [otlp/primary, otlp/backup]
-  
+
   # 遥测配置
   telemetry:
     logs:
@@ -227,10 +227,10 @@ service:
 message RemoteConfig {
   // 配置内容
   AgentConfigMap config = 1;
-  
+
   // 配置哈希（用于去重和校验）
   bytes config_hash = 2;
-  
+
   // 数字签名（可选）
   Signature signature = 3;
 }
@@ -243,7 +243,7 @@ message AgentConfigMap {
 message AgentConfigFile {
   // 文件内容（Base64 编码）
   bytes body = 1;
-  
+
   // 内容类型（yaml/json/toml）
   string content_type = 2;
 }
@@ -256,11 +256,11 @@ sequenceDiagram
     participant S as OPAMP Server
     participant A as Agent
     participant C as Collector
-    
+
     S->>A: RemoteConfig (hash + signature)
     A->>A: 验证签名
     A->>A: 检查 hash 是否已应用
-    
+
     alt 配置有变更
         A->>A: 解码配置内容
         A->>A: 验证配置格式
@@ -271,7 +271,7 @@ sequenceDiagram
     else 配置无变更
         A->>S: RemoteConfigStatus (UNCHANGED)
     end
-    
+
     alt 应用失败
         A->>A: 回滚到上一版本
         A->>S: RemoteConfigStatus (FAILED + error_message)
@@ -291,25 +291,25 @@ certificate_offer:
       MIIDXTCCAkWgAwIBAgIJAKL3vZ5Z5Z5ZMA0GCSqGSIb3DQEBCwUAMEUxCzAJBgNV
       ...
       -----END CERTIFICATE-----
-    
+
     private_key_data: |
       -----BEGIN PRIVATE KEY-----
       MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQC...
       -----END PRIVATE KEY-----
-    
+
     ca_cert_data: |
       -----BEGIN CERTIFICATE-----
       MIIDXTCCAkWgAwIBAgIJAKL3vZ5Z5Z5ZMA0GCSqGSIb3DQEBCwUAMEUxCzAJBgNV
       ...
       -----END CERTIFICATE-----
-  
+
   # 证书元数据
   metadata:
     valid_from: "2025-10-05T00:00:00Z"
     valid_until: "2026-10-05T00:00:00Z"
     serial_number: "0A:B3:C5:D7:E9:F1"
     fingerprint: "sha256:1a2b3c4d5e6f..."
-  
+
   # 签名（防篡改）
   signature:
     type: RSA_SHA256
@@ -324,25 +324,25 @@ func handleCertificateOffer(offer *protobufs.CertificateOffer) error {
     if err := verifyCertificateSignature(offer); err != nil {
         return fmt.Errorf("signature verification failed: %w", err)
     }
-    
+
     // 2. 验证证书有效期
     cert, err := x509.ParseCertificate(offer.Certificate.CertData)
     if err != nil {
         return fmt.Errorf("invalid certificate: %w", err)
     }
-    
+
     // 3. 原子替换证书文件
     if err := atomicWriteCertificate(cert, offer.Certificate); err != nil {
         return fmt.Errorf("failed to write certificate: %w", err)
     }
-    
+
     // 4. 重新加载 TLS 配置
     if err := reloadTLSConfig(); err != nil {
         // 回滚到旧证书
         rollbackCertificate()
         return fmt.Errorf("failed to reload TLS: %w", err)
     }
-    
+
     // 5. 上报成功状态
     reportCertificateStatus(protobufs.CertificateStatus_INSTALLED)
     return nil
@@ -358,7 +358,7 @@ func handleCertificateOffer(offer *protobufs.CertificateOffer) error {
 package_available:
   # 包类型
   type: WASM_PLUGIN
-  
+
   # 包信息
   package:
     name: custom-processor
@@ -368,7 +368,7 @@ package_available:
       content_hash: sha256:9f8e7d6c5b4a3...
       signature: RSA_SHA256:MIIBIjANBgkqhkiG9w0...
       size_bytes: 2048576
-  
+
   # 应用策略
   deployment:
     # 立即应用还是等待确认
@@ -386,30 +386,30 @@ func handlePackageAvailable(pkg *protobufs.PackageAvailable) error {
     if err != nil {
         return fmt.Errorf("download failed: %w", err)
     }
-    
+
     // 2. 验证哈希
     hash := sha256.Sum256(data)
     if hex.EncodeToString(hash[:]) != pkg.Package.File.ContentHash {
         return fmt.Errorf("hash mismatch")
     }
-    
+
     // 3. 验证签名
     if err := verifySignature(data, pkg.Package.File.Signature); err != nil {
         return fmt.Errorf("signature verification failed: %w", err)
     }
-    
+
     // 4. 安装插件
     pluginPath := filepath.Join("/opt/plugins", pkg.Package.Name+".wasm")
     if err := os.WriteFile(pluginPath, data, 0644); err != nil {
         return fmt.Errorf("install failed: %w", err)
     }
-    
+
     // 5. 加载插件（热加载）
     if err := loadWASMPlugin(pluginPath); err != nil {
         os.Remove(pluginPath)  // 清理失败的插件
         return fmt.Errorf("load failed: %w", err)
     }
-    
+
     // 6. 上报状态
     reportPackageStatus(pkg.Package.Name, protobufs.PackageStatus_INSTALLED)
     return nil
@@ -422,7 +422,7 @@ func handlePackageAvailable(pkg *protobufs.PackageAvailable) error {
 # 完整升级流程配置
 package_available:
   type: AGENT_BINARY
-  
+
   package:
     name: otel-collector
     version: v0.95.0
@@ -431,11 +431,11 @@ package_available:
       content_hash: sha256:a1b2c3d4e5f6...
       signature: RSA_SHA256:MIIBIjANBgkqhkiG9w0...
       size_bytes: 104857600  # 100MB
-  
+
   deployment:
     auto_apply: false  # 需要人工确认
     requires_restart: true
-    
+
     # 升级策略
     strategy:
       type: rolling_update
@@ -451,11 +451,11 @@ sequenceDiagram
     participant A as Agent (Old)
     participant N as Agent (New)
     participant M as Monitor
-    
+
     S->>A: PackageAvailable (v0.95.0)
     A->>A: 下载 + 验证
     A->>S: PackageStatus (DOWNLOADED)
-    
+
     S->>A: Command (RESTART)
     A->>A: 保存当前状态
     A->>N: 启动新版本
@@ -477,7 +477,7 @@ sequenceDiagram
 health_report:
   # 整体健康状态
   healthy: true
-  
+
   # 详细指标
   metrics:
     # 资源使用
@@ -485,22 +485,22 @@ health_report:
     memory_usage_bytes: 536870912  # 512MB
     memory_limit_bytes: 1073741824  # 1GB
     goroutines_count: 128
-    
+
     # 处理指标
     spans_received_per_sec: 15000
     spans_exported_per_sec: 14850
     spans_dropped_per_sec: 150
     export_latency_p99_ms: 85
-    
+
     # 队列状态
     queue_size: 2048
     queue_capacity: 5000
     queue_utilization_percent: 40.96
-    
+
     # 错误率
     export_error_rate_percent: 1.0
     pipeline_error_count: 5
-  
+
   # 最近错误
   recent_errors:
     - timestamp: "2025-10-05T10:25:30Z"
@@ -509,7 +509,7 @@ health_report:
     - timestamp: "2025-10-05T10:20:15Z"
       message: "memory limiter: dropping data"
       count: 2
-  
+
   # 配置状态
   config_status:
     config_hash: "sha256:a3f5b8c9d2e1..."
@@ -528,17 +528,17 @@ auto_healing:
       condition: export_error_rate_percent > 5
       action: rollback_config
       cooldown: 5m
-    
+
     - name: high_memory
       condition: memory_usage_bytes > 0.9 * memory_limit_bytes
       action: apply_memory_limit
       cooldown: 1m
-    
+
     - name: queue_overflow
       condition: queue_utilization_percent > 90
       action: increase_sampling
       cooldown: 2m
-  
+
   # 回滚策略
   rollback:
     max_attempts: 3
@@ -557,7 +557,7 @@ remote_config:
     processors:
       probabilistic_sampler:
         sampling_percentage: 5  # 从 10% 降至 5%
-      
+
       memory_limiter:
         limit_mib: 400  # 从 512MB 降至 400MB
         spike_limit_mib: 100
@@ -572,7 +572,7 @@ rollout_plan:
   config:
     config_hash: "sha256:feature_new_exporter"
     body: "..."  # 新配置内容
-  
+
   # 灰度策略
   stages:
     # 阶段 1：Staging 环境
@@ -585,7 +585,7 @@ rollout_plan:
       success_criteria:
         min_healthy_percent: 95
         max_error_rate: 1
-    
+
     # 阶段 2：生产环境金丝雀（单个区域）
     - name: prod_canary
       selector:
@@ -597,7 +597,7 @@ rollout_plan:
       success_criteria:
         min_healthy_percent: 98
         max_error_rate: 0.5
-    
+
     # 阶段 3：生产环境扩展
     - name: prod_rollout
       selector:
@@ -608,7 +608,7 @@ rollout_plan:
       success_criteria:
         min_healthy_percent: 98
         max_error_rate: 0.5
-    
+
     # 阶段 4：全量发布
     - name: prod_full
       selector:
@@ -618,7 +618,7 @@ rollout_plan:
       success_criteria:
         min_healthy_percent: 99
         max_error_rate: 0.1
-  
+
   # 自动回滚
   auto_rollback:
     enabled: true
@@ -639,7 +639,7 @@ server:
   listen:
     grpc: 0.0.0.0:4320
     http: 0.0.0.0:8080  # 管理 UI
-  
+
   # TLS 配置
   tls:
     enabled: true
@@ -647,7 +647,7 @@ server:
     key_file: /etc/opamp/server.key
     client_ca_file: /etc/opamp/ca.crt
     client_auth: require_and_verify
-  
+
   # 配置存储
   config_store:
     type: git
@@ -658,7 +658,7 @@ server:
       auth:
         type: ssh_key
         ssh_key_file: /etc/opamp/git_deploy_key
-  
+
   # 包仓库
   package_registry:
     type: s3
@@ -666,12 +666,12 @@ server:
       bucket: opamp-packages
       region: us-west-2
       endpoint: https://s3.us-west-2.amazonaws.com
-  
+
   # 数据库（存储 Agent 状态）
   database:
     type: postgresql
     dsn: postgres://opamp:password@postgres:5432/opamp?sslmode=require
-  
+
   # 认证
   auth:
     type: jwt
@@ -688,36 +688,36 @@ opamp:
   # Server 地址
   server:
     endpoint: wss://opamp.example.com:4320/v1/opamp
-    
+
     # TLS 配置
     tls:
       insecure: false
       cert_file: /etc/certs/agent.crt
       key_file: /etc/certs/agent.key
       ca_file: /etc/certs/ca.crt
-    
+
     # 认证
     headers:
       Authorization: "Bearer ${OPAMP_TOKEN}"
-  
+
   # Agent 身份
   agent:
     # 从环境变量读取
     instance_id: "${HOSTNAME}"
-    
+
     # 标签（用于配置选择）
     labels:
       env: "${ENV}"
       region: "${REGION}"
       tenant: "${TENANT}"
-  
+
   # 能力配置
   capabilities:
     accepts_remote_config: true
     reports_health: true
     accepts_packages: true
     accepts_restart_command: true
-  
+
   # 健康上报
   health:
     report_interval: 30s
@@ -727,10 +727,10 @@ opamp:
       - goroutines
       - spans_rate
       - export_latency
-  
+
   # 本地配置文件路径
   local_config_path: /etc/otelcol/config.yaml
-  
+
   # 包存储路径
   packages_dir: /opt/otelcol/packages
 ```
@@ -827,16 +827,16 @@ func NewConfigRepository() *ConfigRepository {
 func (r *ConfigRepository) GetConfig(agentID string, labels map[string]string) (*protobufs.AgentRemoteConfig, error) {
     r.mu.RLock()
     defer r.mu.RUnlock()
-    
+
     // 根据标签匹配配置
     env := labels["env"]
     region := labels["region"]
-    
+
     configKey := fmt.Sprintf("%s-%s", env, region)
     if config, ok := r.configs[configKey]; ok {
         return config, nil
     }
-    
+
     // 返回默认配置
     return r.getDefaultConfig(), nil
 }
@@ -855,7 +855,7 @@ processors:
   batch:
     timeout: 10s
     send_batch_size: 1024
-  
+
   memory_limiter:
     check_interval: 1s
     limit_mib: 512
@@ -873,7 +873,7 @@ service:
       processors: [memory_limiter, batch]
       exporters: [otlp]
 `
-    
+
     return &protobufs.AgentRemoteConfig{
         Config: &protobufs.AgentConfigMap{
             ConfigMap: map[string]*protobufs.AgentConfigFile{
@@ -913,17 +913,17 @@ func (s *OPAMPServer) Start(addr string, tlsConfig *tls.Config) error {
         ListenEndpoint: addr,
         TLSConfig:      tlsConfig,
     }
-    
+
     srv := server.New(&NopLogger{})
     if err := srv.Start(settings); err != nil {
         return fmt.Errorf("failed to start server: %w", err)
     }
-    
+
     s.server = srv
-    
+
     // 启动健康检查监控
     go s.monitorAgentHealth()
-    
+
     log.Printf("OPAMP Server started on %s", addr)
     return nil
 }
@@ -937,7 +937,7 @@ func (s *OPAMPServer) onAgentConnecting(request *http.Request) types.ConnectionR
             HTTPStatusCode: http.StatusUnauthorized,
         }
     }
-    
+
     // 验证 Authorization header
     authHeader := request.Header.Get("Authorization")
     if !s.validateToken(authHeader) {
@@ -947,7 +947,7 @@ func (s *OPAMPServer) onAgentConnecting(request *http.Request) types.ConnectionR
             HTTPStatusCode: http.StatusForbidden,
         }
     }
-    
+
     return types.ConnectionResponse{
         Accept: true,
         HTTPStatusCode: http.StatusSwitchingProtocols,
@@ -960,15 +960,15 @@ func (s *OPAMPServer) onAgentConnected(conn types.Connection) {
 
 func (s *OPAMPServer) onMessage(conn types.Connection, message *protobufs.AgentToServer) *protobufs.ServerToAgent {
     instanceID := string(message.InstanceUid)
-    
+
     // 更新 Agent 状态
     s.updateAgentState(instanceID, message)
-    
+
     // 构建响应
     response := &protobufs.ServerToAgent{
         InstanceUid: message.InstanceUid,
     }
-    
+
     // 处理配置请求
     if message.RemoteConfigStatus != nil {
         config, err := s.getConfigForAgent(instanceID, message)
@@ -979,17 +979,17 @@ func (s *OPAMPServer) onMessage(conn types.Connection, message *protobufs.AgentT
             response.Flags = protobufs.ServerToAgentFlags_ServerToAgentFlags_ReportFullState
         }
     }
-    
+
     // 处理健康报告
     if message.Health != nil {
         s.processHealthReport(instanceID, message.Health)
     }
-    
+
     // 处理包状态
     if message.PackageStatuses != nil {
         s.processPackageStatus(instanceID, message.PackageStatuses)
     }
-    
+
     return response
 }
 
@@ -1000,7 +1000,7 @@ func (s *OPAMPServer) onConnectionClose(conn types.Connection) {
 func (s *OPAMPServer) updateAgentState(instanceID string, message *protobufs.AgentToServer) {
     s.agentsMux.Lock()
     defer s.agentsMux.Unlock()
-    
+
     agent, exists := s.agents[instanceID]
     if !exists {
         agent = &AgentState{
@@ -1008,13 +1008,13 @@ func (s *OPAMPServer) updateAgentState(instanceID string, message *protobufs.Age
         }
         s.agents[instanceID] = agent
     }
-    
+
     agent.LastHeartbeat = time.Now()
-    
+
     if message.EffectiveConfig != nil {
         agent.EffectiveConfig = message.EffectiveConfig
     }
-    
+
     if message.Health != nil {
         agent.Health = message.Health
     }
@@ -1028,13 +1028,13 @@ func (s *OPAMPServer) getConfigForAgent(instanceID string, message *protobufs.Ag
             labels[attr.Key] = attr.Value.GetStringValue()
         }
     }
-    
+
     // 从配置仓库获取配置
     config, err := s.configRepo.GetConfig(instanceID, labels)
     if err != nil {
         return nil, err
     }
-    
+
     return config, nil
 }
 
@@ -1049,10 +1049,10 @@ func (s *OPAMPServer) processHealthReport(instanceID string, health *protobufs.C
 func (s *OPAMPServer) processPackageStatus(instanceID string, status *protobufs.PackageStatuses) {
     for name, pkgStatus := range status.Packages {
         if pkgStatus.ErrorMessage != "" {
-            log.Printf("Package %s installation failed on agent %s: %s", 
+            log.Printf("Package %s installation failed on agent %s: %s",
                 name, instanceID, pkgStatus.ErrorMessage)
         } else {
-            log.Printf("Package %s successfully installed on agent %s (hash: %x)", 
+            log.Printf("Package %s successfully installed on agent %s (hash: %x)",
                 name, instanceID, pkgStatus.AgentHasHash)
         }
     }
@@ -1061,7 +1061,7 @@ func (s *OPAMPServer) processPackageStatus(instanceID string, status *protobufs.
 func (s *OPAMPServer) monitorAgentHealth() {
     ticker := time.NewTicker(30 * time.Second)
     defer ticker.Stop()
-    
+
     for range ticker.C {
         s.agentsMux.RLock()
         now := time.Now()
@@ -1102,15 +1102,15 @@ func loadTLSConfig(certFile, keyFile, caFile string) (*tls.Config, error) {
     if err != nil {
         return nil, err
     }
-    
+
     caCert, err := ioutil.ReadFile(caFile)
     if err != nil {
         return nil, err
     }
-    
+
     caCertPool := x509.NewCertPool()
     caCertPool.AppendCertsFromPEM(caCert)
-    
+
     return &tls.Config{
         Certificates: []tls.Certificate{cert},
         ClientAuth:   tls.RequireAndVerifyClientCert,
@@ -1129,13 +1129,13 @@ func main() {
     if err != nil {
         log.Fatalf("Failed to load TLS config: %v", err)
     }
-    
+
     // 创建并启动 Server
     server := NewOPAMPServer()
     if err := server.Start("0.0.0.0:4320", tlsConfig); err != nil {
         log.Fatalf("Failed to start server: %v", err)
     }
-    
+
     // 等待中断信号
     select {}
 }
@@ -1190,9 +1190,9 @@ func NewOPAMPAgent(configFile string) *OPAMPAgent {
 
 func (a *OPAMPAgent) Start(serverURL string, tlsConfig *tls.Config) error {
     logger := &SimpleLogger{}
-    
+
     opampClient := client.NewWebSocket(logger)
-    
+
     settings := types.StartSettings{
         OpAMPServerURL: serverURL,
         TLSConfig:      tlsConfig,
@@ -1211,21 +1211,21 @@ func (a *OPAMPAgent) Start(serverURL string, tlsConfig *tls.Config) error {
             protobufs.AgentCapabilities_AgentCapabilities_AcceptsPackages |
             protobufs.AgentCapabilities_AgentCapabilities_AcceptsRestartCommand,
     }
-    
+
     if err := opampClient.Start(context.Background(), settings); err != nil {
         return fmt.Errorf("failed to start OPAMP client: %w", err)
     }
-    
+
     a.client = opampClient
-    
+
     // 发送初始状态
     if err := a.sendAgentDescription(); err != nil {
         log.Printf("Failed to send agent description: %v", err)
     }
-    
+
     // 启动健康报告
     go a.reportHealth()
-    
+
     log.Printf("OPAMP Agent started, instance ID: %s", a.instanceID)
     return nil
 }
@@ -1253,12 +1253,12 @@ func (a *OPAMPAgent) onMessage(ctx context.Context, msg *types.MessageData) {
             a.sendConfigStatus(true, "")
         }
     }
-    
+
     // 处理包更新
     if msg.PackagesAvailable != nil {
         a.downloadAndInstallPackages(msg.PackagesAvailable)
     }
-    
+
     // 处理重启命令
     if msg.AgentIdentification != nil {
         log.Println("Received restart command")
@@ -1283,7 +1283,7 @@ func (a *OPAMPAgent) getEffectiveConfig(ctx context.Context) (*protobufs.Effecti
     if err != nil {
         return nil, err
     }
-    
+
     return &protobufs.EffectiveConfig{
         ConfigMap: &protobufs.AgentConfigMap{
             ConfigMap: map[string]*protobufs.AgentConfigFile{
@@ -1298,7 +1298,7 @@ func (a *OPAMPAgent) getEffectiveConfig(ctx context.Context) (*protobufs.Effecti
 
 func (a *OPAMPAgent) sendAgentDescription() error {
     hostname, _ := os.Hostname()
-    
+
     description := &protobufs.AgentDescription{
         IdentifyingAttributes: []*protobufs.KeyValue{
             {Key: "service.name", Value: &protobufs.AnyValue{Value: &protobufs.AnyValue_StringValue{StringValue: "otel-collector"}}},
@@ -1311,7 +1311,7 @@ func (a *OPAMPAgent) sendAgentDescription() error {
             {Key: "os.type", Value: &protobufs.AnyValue{Value: &protobufs.AnyValue_StringValue{StringValue: "linux"}}},
         },
     }
-    
+
     return a.client.SetAgentDescription(description)
 }
 
@@ -1320,12 +1320,12 @@ func (a *OPAMPAgent) applyRemoteConfig(config *protobufs.AgentRemoteConfig) erro
     if err := a.validateConfig(config); err != nil {
         return fmt.Errorf("config validation failed: %w", err)
     }
-    
+
     // 2. 备份当前配置
     if err := a.backupCurrentConfig(); err != nil {
         return fmt.Errorf("failed to backup config: %w", err)
     }
-    
+
     // 3. 写入新配置
     for filename, fileContent := range config.Config.ConfigMap {
         filepath := fmt.Sprintf("/etc/otelcol/%s", filename)
@@ -1335,14 +1335,14 @@ func (a *OPAMPAgent) applyRemoteConfig(config *protobufs.AgentRemoteConfig) erro
             return fmt.Errorf("failed to write config: %w", err)
         }
     }
-    
+
     // 4. 重载 Collector
     if err := a.reloadCollector(); err != nil {
         // 回滚
         a.restoreBackup()
         return fmt.Errorf("failed to reload collector: %w", err)
     }
-    
+
     a.effectiveConfig = config.Config
     return nil
 }
@@ -1377,32 +1377,32 @@ func (a *OPAMPAgent) sendConfigStatus(success bool, errorMsg string) {
         LastRemoteConfigHash: []byte("config-hash"),
         Status:               protobufs.RemoteConfigStatuses_RemoteConfigStatuses_APPLIED,
     }
-    
+
     if !success {
         status.Status = protobufs.RemoteConfigStatuses_RemoteConfigStatuses_FAILED
         status.ErrorMessage = errorMsg
     }
-    
+
     a.client.SetRemoteConfigStatus(status)
 }
 
 func (a *OPAMPAgent) reportHealth() {
     ticker := time.NewTicker(30 * time.Second)
     defer ticker.Stop()
-    
+
     for range ticker.C {
         health := &protobufs.ComponentHealth{
             Healthy:              true,
             StartTimeUnixNano:    uint64(time.Now().UnixNano()),
             LastError:            "",
         }
-        
+
         // 检查 Collector 健康状态
         if !a.collectorCmd.IsHealthy() {
             health.Healthy = false
             health.LastError = "Collector is not responding"
         }
-        
+
         a.client.SetHealth(health)
     }
 }
@@ -1440,15 +1440,15 @@ func loadAgentTLSConfig(certFile, keyFile, caFile string) (*tls.Config, error) {
     if err != nil {
         return nil, err
     }
-    
+
     caCert, err := ioutil.ReadFile(caFile)
     if err != nil {
         return nil, err
     }
-    
+
     caCertPool := x509.NewCertPool()
     caCertPool.AppendCertsFromPEM(caCert)
-    
+
     return &tls.Config{
         Certificates: []tls.Certificate{cert},
         RootCAs:      caCertPool,
@@ -1466,18 +1466,18 @@ func main() {
     if err != nil {
         log.Fatalf("Failed to load TLS config: %v", err)
     }
-    
+
     // 创建并启动 Agent
     agent := NewOPAMPAgent("/etc/otelcol/config.yaml")
     if err := agent.Start("wss://opamp.example.com:4320/v1/opamp", tlsConfig); err != nil {
         log.Fatalf("Failed to start agent: %v", err)
     }
-    
+
     // 等待中断信号
     sigChan := make(chan os.Signal, 1)
     signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
     <-sigChan
-    
+
     log.Println("Shutting down...")
     agent.Stop()
 }

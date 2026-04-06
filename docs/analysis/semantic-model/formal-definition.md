@@ -121,7 +121,7 @@ is_root(s) ≡ s.parent_span_id = None
 ∀s ∈ Span: s.start_time ≤ s.end_time
 
 // 父子 Span 时间包含关系
-∀s1, s2 ∈ Span: parent_of(s1, s2) ⟹ 
+∀s1, s2 ∈ Span: parent_of(s1, s2) ⟹
     s1.start_time ≤ s2.start_time ∧ s2.end_time ≤ s1.end_time
 ```
 
@@ -228,7 +228,7 @@ where SeverityNumber ∈ [1, 24] ∩ ℕ
 ```math
 // Severity 级别映射
 severity_level: SeverityNumber → Level
-severity_level(n) = 
+severity_level(n) =
     | TRACE if 1 ≤ n ≤ 4
     | DEBUG if 5 ≤ n ≤ 8
     | INFO  if 9 ≤ n ≤ 12
@@ -238,7 +238,7 @@ severity_level(n) =
 
 // Severity 比较
 severity_compare: SeverityNumber × SeverityNumber → {LT, EQ, GT}
-severity_compare(n1, n2) = 
+severity_compare(n1, n2) =
     | LT if n1 < n2
     | EQ if n1 = n2
     | GT if n1 > n2
@@ -269,7 +269,7 @@ severity_compare(n1, n2) =
 ∀l ∈ LogRecord: l.time ≤ l.observed_time
 
 // 2. Metric 数据点时间单调
-∀m ∈ Metric, ∀i, j: i < j ⟹ 
+∀m ∈ Metric, ∀i, j: i < j ⟹
     m.data.data_points[i].time ≤ m.data.data_points[j].time
 ```
 
@@ -277,7 +277,7 @@ severity_compare(n1, n2) =
 
 ```math
 // 1. Log-Trace 关联有效性
-∀l ∈ LogRecord: 
+∀l ∈ LogRecord:
     l.trace_id ≠ None ⟹ ∃t ∈ Trace: t.trace_id = l.trace_id
 
 // 2. Exemplar-Trace 关联有效性

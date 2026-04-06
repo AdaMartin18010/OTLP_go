@@ -180,7 +180,7 @@ func (p *Process) Run() {
 func DistributedService() {
     // 请求处理goroutine池
     requestPool := make(chan Request, 100)
-    
+
     // 启动多个worker goroutines
     for i := 0; i < runtime.NumCPU(); i++ {
         go func(id int) {
@@ -189,7 +189,7 @@ func DistributedService() {
             }
         }(i)
     }
-    
+
     // 负载均衡器goroutine
     go func() {
         for req := range incomingRequests {
@@ -235,11 +235,11 @@ var messageChan = make(chan Message, 100)
 // 同步通信模式
 func syncCommunication() {
     ch := make(chan string)
-    
+
     go func() {
         ch <- "Hello from goroutine"
     }()
-    
+
     msg := <-ch // 阻塞等待
     fmt.Println(msg)
 }
@@ -247,11 +247,11 @@ func syncCommunication() {
 // 异步通信模式
 func asyncCommunication() {
     ch := make(chan string, 10) // 缓冲channel
-    
+
     go func() {
         ch <- "Non-blocking message"
     }()
-    
+
     select {
     case msg := <-ch:
         fmt.Println(msg)
@@ -293,7 +293,7 @@ type GRPCService struct {
 func (s *GRPCService) ProcessStream(stream pb.Service_ProcessStreamServer) error {
     // 启动处理goroutine
     go s.handleRequests(stream)
-    
+
     for {
         select {
         case response := <-s.responseChan:
@@ -329,7 +329,7 @@ func (wp *WorkerPool) Start() {
 
 func (wp *WorkerPool) worker(id int) {
     defer wp.wg.Done()
-    
+
     for job := range wp.jobQueue {
         result := wp.processJob(job, id)
         wp.resultChan <- result
@@ -347,7 +347,7 @@ func fanOut(input <-chan Data, outputs []chan<- Data) {
             close(output)
         }
     }()
-    
+
     for data := range input {
         // 负载均衡分发
         output := outputs[data.ID%len(outputs)]
@@ -357,7 +357,7 @@ func fanOut(input <-chan Data, outputs []chan<- Data) {
 
 func fanIn(inputs []<-chan Data, output chan<- Data) {
     var wg sync.WaitGroup
-    
+
     for _, input := range inputs {
         wg.Add(1)
         go func(ch <-chan Data) {
@@ -367,7 +367,7 @@ func fanIn(inputs []<-chan Data, output chan<- Data) {
             }
         }(input)
     }
-    
+
     go func() {
         wg.Wait()
         close(output)
@@ -396,11 +396,11 @@ func optimizedMemoryUsage() {
             return make([]byte, 1024)
         },
     }
-    
+
     // 重用对象，减少GC压力
     buf := pool.Get().([]byte)
     defer pool.Put(buf)
-    
+
     // 使用缓冲区
     processData(buf)
 }
@@ -476,7 +476,7 @@ func createDataPipeline() {
     rawData := make(chan RawData, 1000)
     processedData := make(chan ProcessedData, 1000)
     exportedData := make(chan ExportedData, 1000)
-    
+
     // 数据清洗阶段
     go func() {
         for data := range rawData {
@@ -485,7 +485,7 @@ func createDataPipeline() {
         }
         close(processedData)
     }()
-    
+
     // 数据转换阶段
     go func() {
         for data := range processedData {
@@ -494,7 +494,7 @@ func createDataPipeline() {
         }
         close(exportedData)
     }()
-    
+
     // 数据导出阶段
     go func() {
         for data := range exportedData {

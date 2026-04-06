@@ -12,7 +12,7 @@
       - [因果关系（Causality）](#因果关系causality)
       - [资源关联（Resource Association）](#资源关联resource-association)
       - [时间关系（Temporal Relations）](#时间关系temporal-relations)
-  - [2. Go 1.26 语义映射](#2-go-1251-语义映射)
+  - [2. Go 1.26 语义映射](#2-go-126-语义映射)
     - [2.1 类型系统映射](#21-类型系统映射)
     - [2.2 错误处理语义](#22-错误处理语义)
   - [3. 语义一致性保证](#3-语义一致性保证)
@@ -231,14 +231,14 @@ func (v RuntimeSemanticValidator) ValidateTrace(trace Trace) error {
             Message: "trace ID format is invalid",
         }
     }
-    
+
     // 验证 Span 因果关系
     for _, span := range trace.Spans {
         if err := v.validateSpanCausality(span, trace.Spans); err != nil {
             return err
         }
     }
-    
+
     return nil
 }
 ```
@@ -279,7 +279,7 @@ resource_association ⊆ Resource × Σ
 
 ```text
 temporal_consistency ⊆ Span × LogRecord
-(s, l) ∈ temporal_consistency ⟺ 
+(s, l) ∈ temporal_consistency ⟺
     s.StartTime ≤ l.Timestamp ≤ s.EndTime ∧
     s.TraceId = l.TraceId
 ```
@@ -297,7 +297,7 @@ temporal_consistency ⊆ Span × LogRecord
 2. **因果关系不变式**：
 
    ```text
-   ∀ s ∈ Spans: s.ParentSpanId ≠ nil ⟹ 
+   ∀ s ∈ Spans: s.ParentSpanId ≠ nil ⟹
        ∃ s' ∈ Spans: s'.SpanId = s.ParentSpanId
    ```
 
@@ -317,17 +317,17 @@ func (c SemanticIntegrityChecker) CheckCompleteness(data OTLPData) error {
     if err := c.checkResourceCompleteness(data.Resource); err != nil {
         return err
     }
-    
+
     // 检查信号完整性
     if err := c.checkSignalCompleteness(data.Signals); err != nil {
         return err
     }
-    
+
     // 检查关系完整性
     if err := c.checkRelationCompleteness(data.Relations); err != nil {
         return err
     }
-    
+
     return nil
 }
 ```

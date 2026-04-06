@@ -1,7 +1,7 @@
 # Golang CSP 编程模型深度解析
 
-> **文档版本**: v1.0  
-> **最后更新**: 2025-10-04  
+> **文档版本**: v1.0
+> **最后更新**: 2025-10-04
 > **关联文档**: [CSP 综合分析](../golang-1.26-otlp-integration/2025-updates/01-golang-1.26-csp-comprehensive-analysis.md)
 
 ---
@@ -93,18 +93,18 @@ func worker(id int, jobs <-chan int, results chan<- int) {
 func main() {
     jobs := make(chan int, 100)
     results := make(chan int, 100)
-    
+
     // 启动 3 个 worker
     for w := 1; w <= 3; w++ {
         go worker(w, jobs, results)
     }
-    
+
     // 发送任务
     for j := 1; j <= 5; j++ {
         jobs <- j
     }
     close(jobs)
-    
+
     // 收集结果
     for a := 1; a <= 5; a++ {
         <-results
@@ -202,12 +202,12 @@ default:
 ```go
 func doWork(ctx context.Context) error {
     result := make(chan int, 1)
-    
+
     go func() {
         time.Sleep(2 * time.Second)
         result <- 42
     }()
-    
+
     select {
     case <-ctx.Done():
         return ctx.Err()
@@ -269,11 +269,11 @@ func worker(ctx context.Context, id int) {
 
 func main() {
     ctx, cancel := context.WithCancel(context.Background())
-    
+
     for i := 1; i <= 3; i++ {
         go worker(ctx, i)
     }
-    
+
     time.Sleep(2 * time.Second)
     cancel() // 取消所有 worker
     time.Sleep(1 * time.Second)
@@ -339,7 +339,7 @@ func main() {
 func fanIn(ins ...<-chan int) <-chan int {
     out := make(chan int)
     var wg sync.WaitGroup
-    
+
     for _, in := range ins {
         wg.Add(1)
         go func(ch <-chan int) {
@@ -349,12 +349,12 @@ func fanIn(ins ...<-chan int) <-chan int {
             }
         }(in)
     }
-    
+
     go func() {
         wg.Wait()
         close(out)
     }()
-    
+
     return out
 }
 ```
@@ -379,18 +379,18 @@ func worker(id int, jobs <-chan Job, results chan<- string) {
 func main() {
     jobs := make(chan Job, 100)
     results := make(chan string, 100)
-    
+
     // 启动 5 个 worker
     for w := 1; w <= 5; w++ {
         go worker(w, jobs, results)
     }
-    
+
     // 发送任务
     for j := 1; j <= 10; j++ {
         jobs <- Job{ID: j}
     }
     close(jobs)
-    
+
     // 收集结果
     for a := 1; a <= 10; a++ {
         fmt.Println(<-results)
@@ -419,7 +419,7 @@ func processWithTracing(ctx context.Context, data string) {
     tracer := otel.Tracer("my-service")
     ctx, span := tracer.Start(ctx, "process-goroutine")
     defer span.End()
-    
+
     result := doWork(data)
     span.SetAttributes(attribute.String("result", result))
 }
@@ -624,6 +624,6 @@ go func() {
 
 ---
 
-**最后更新**: 2025-10-04  
-**文档版本**: v1.0  
+**最后更新**: 2025-10-04
+**文档版本**: v1.0
 **维护者**: OTLP_go Team

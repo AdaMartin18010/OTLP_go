@@ -76,22 +76,22 @@ type AIOpsEngine struct {
 func (aiops *AIOpsEngine) Run(ctx context.Context) {
     ticker := time.NewTicker(30 * time.Second)
     defer ticker.Stop()
-    
+
     for {
         select {
         case <-ticker.C:
             // 1. 收集数据
             data := aiops.collector.Collect()
-            
+
             // 2. 处理数据
             features := aiops.processor.Process(data)
-            
+
             // 3. AI 分析
             insights := aiops.mlEngine.Analyze(features)
-            
+
             // 4. 决策
             actions := aiops.decide(insights)
-            
+
             // 5. 执行
             for _, action := range actions {
                 if err := aiops.executor.Execute(action); err != nil {
@@ -101,7 +101,7 @@ func (aiops *AIOpsEngine) Run(ctx context.Context) {
                     aiops.knowledge.Update(insights, action)
                 }
             }
-            
+
         case <-ctx.Done():
             return
         }
@@ -119,15 +119,15 @@ type AdaptiveSampler struct {
     baseRate      float64
     minRate       float64
     maxRate       float64
-    
+
     // 动态因子
     loadFactor    float64
     errorFactor   float64
     latencyFactor float64
-    
+
     // 历史统计
     history       *SamplingHistory
-    
+
     // ML 模型
     predictor     *SamplingPredictor
 }
@@ -135,37 +135,37 @@ type AdaptiveSampler struct {
 func (as *AdaptiveSampler) ShouldSample(span Span) bool {
     // 1. 计算基础采样率
     rate := as.baseRate
-    
+
     // 2. 根据系统负载调整
     load := getSystemLoad()
     if load > 0.8 {
         rate *= as.loadFactor  // 高负载降低采样率
     }
-    
+
     // 3. 错误 Span 提高采样率
     if span.Status == "ERROR" {
         rate *= as.errorFactor
     }
-    
+
     // 4. 慢请求提高采样率
     if span.Duration() > getP95Latency() {
         rate *= as.latencyFactor
     }
-    
+
     // 5. 重要服务提高采样率
     if as.isCriticalService(span.ServiceName) {
         rate *= 2.0
     }
-    
+
     // 6. ML 预测调整
     if as.predictor != nil {
         mlRate := as.predictor.PredictSamplingRate(span)
         rate = 0.7*rate + 0.3*mlRate  // 加权平均
     }
-    
+
     // 7. 限制范围
     rate = math.Max(as.minRate, math.Min(as.maxRate, rate))
-    
+
     // 8. 采样决策
     return rand.Float64() < rate
 }
@@ -183,7 +183,7 @@ func (sp *SamplingPredictor) PredictSamplingRate(span Span) float64 {
         sp.timeOfDay(),
         sp.dayOfWeek(),
     }
-    
+
     return sp.model.Predict(features)[0]
 }
 ```
@@ -201,26 +201,26 @@ type SamplingController struct {
 func (sc *SamplingController) AdjustRate() {
     ticker := time.NewTicker(10 * time.Second)
     defer ticker.Stop()
-    
+
     for range ticker.C {
         // 1. 获取当前资源使用率
         cpuUsage := getCPUUsage()
         memUsage := getMemoryUsage()
-        
+
         // 2. PID 控制器计算调整量
         cpuAdjust := sc.pid.Update(cpuUsage)
         memAdjust := sc.pid.Update(memUsage)
-        
+
         // 3. 综合调整
         adjustment := (cpuAdjust + memAdjust) / 2
-        
+
         // 4. 应用新采样率
         currentRate := sc.currentRate.Load().(float64)
         newRate := currentRate + adjustment
         newRate = math.Max(0.01, math.Min(1.0, newRate))
-        
+
         sc.currentRate.Store(newRate)
-        
+
         log.Infof("Adjusted sampling rate: %.2f%% -> %.2f%%",
             currentRate*100, newRate*100)
     }
@@ -243,13 +243,13 @@ type PredictiveAutoscaler struct {
 func (pa *PredictiveAutoscaler) Scale() {
     // 1. 预测未来负载
     futureLoad := pa.predictor.PredictLoad(pa.lookAhead)
-    
+
     // 2. 计算所需副本数
     requiredReplicas := pa.calculateReplicas(futureLoad)
-    
+
     // 3. 获取当前副本数
     currentReplicas := pa.scaler.GetReplicas()
-    
+
     // 4. 决策
     if requiredReplicas > currentReplicas {
         // 提前扩容
@@ -275,7 +275,7 @@ func (lp *LoadPredictor) PredictLoad(horizon time.Duration) float64 {
     // 使用 LSTM 预测未来负载
     steps := int(horizon.Minutes())
     predictions := lp.model.Forecast(lp.history, steps)
-    
+
     // 返回预测的峰值
     return max(predictions...)
 }
@@ -297,7 +297,7 @@ func (mds *MultiDimensionalScaler) Decide() int {
     memReplicas := mds.memoryScaler.CalculateReplicas()
     queueReplicas := mds.queueScaler.CalculateReplicas()
     customReplicas := mds.customScaler.CalculateReplicas()
-    
+
     // 2. 取最大值 (保守策略)
     return max(cpuReplicas, memReplicas, queueReplicas, customReplicas)
 }
@@ -310,12 +310,12 @@ type QueueBasedScaler struct {
 
 func (qbs *QueueBasedScaler) CalculateReplicas() int {
     currentQueueLength := getQueueLength()
-    
+
     // 计算处理完队列所需的副本数
     requiredReplicas := int(math.Ceil(
         float64(currentQueueLength) / (qbs.processingRate * 60),
     ))
-    
+
     return requiredReplicas
 }
 ```
@@ -343,7 +343,7 @@ type Healer interface {
 func (shs *SelfHealingSystem) Run(ctx context.Context) {
     ticker := time.NewTicker(30 * time.Second)
     defer ticker.Stop()
-    
+
     for {
         select {
         case <-ticker.C:
@@ -353,39 +353,39 @@ func (shs *SelfHealingSystem) Run(ctx context.Context) {
                 if err != nil {
                     continue
                 }
-                
+
                 fault := Fault{
                     Type:      faultType,
                     Severity:  severity,
                     DetectedAt: time.Now(),
                 }
-                
+
                 // 2. 查找对应的修复器
                 healer, ok := shs.healers[faultType]
                 if !ok {
                     log.Warnf("No healer for fault type: %v", faultType)
                     continue
                 }
-                
+
                 // 3. 执行修复
                 if err := healer.Heal(fault); err != nil {
                     log.Errorf("Failed to heal fault: %v", err)
                     shs.escalate(fault)
                     continue
                 }
-                
+
                 // 4. 验证修复
                 if !healer.Verify() {
                     log.Warnf("Healing verification failed")
                     shs.escalate(fault)
                     continue
                 }
-                
+
                 // 5. 记录成功修复
                 shs.history.Record(fault, "healed")
                 log.Infof("Successfully healed fault: %v", faultType)
             }
-            
+
         case <-ctx.Done():
             return
         }
@@ -400,14 +400,14 @@ type MemoryLeakDetector struct {
 
 func (mld *MemoryLeakDetector) Detect() (FaultType, Severity, error) {
     memUsage := getMemoryUsageHistory(mld.window)
-    
+
     // 计算内存增长趋势
     trend := calculateTrend(memUsage)
-    
+
     if trend > mld.threshold {
         return MemoryLeak, High, nil
     }
-    
+
     return NoFault, Low, nil
 }
 
@@ -419,7 +419,7 @@ type RestartHealer struct {
 func (rh *RestartHealer) Heal(fault Fault) error {
     podName := fault.Metadata["pod_name"]
     namespace := fault.Metadata["namespace"]
-    
+
     // 删除 Pod (由 Deployment 自动重建)
     return rh.k8sClient.CoreV1().Pods(namespace).Delete(
         context.Background(),
@@ -431,7 +431,7 @@ func (rh *RestartHealer) Heal(fault Fault) error {
 func (rh *RestartHealer) Verify() bool {
     // 等待 Pod 重启
     time.Sleep(30 * time.Second)
-    
+
     // 检查 Pod 状态
     pod := getPod(fault.Metadata["pod_name"])
     return pod.Status.Phase == "Running"
@@ -452,7 +452,7 @@ type IntelligentAlerting struct {
 
 func (ia *IntelligentAlerting) ProcessMetrics(metrics []MetricPoint) []Alert {
     var alerts []Alert
-    
+
     // 1. 异常检测
     for _, metric := range metrics {
         if ia.detector.IsAnomaly(metric) {
@@ -464,16 +464,16 @@ func (ia *IntelligentAlerting) ProcessMetrics(metrics []MetricPoint) []Alert {
             alerts = append(alerts, alert)
         }
     }
-    
+
     // 2. 告警关联
     alerts = ia.correlator.Correlate(alerts)
-    
+
     // 3. 去重
     alerts = ia.deduplicator.Deduplicate(alerts)
-    
+
     // 4. 优先级排序
     alerts = ia.prioritizer.Prioritize(alerts)
-    
+
     return alerts
 }
 
@@ -490,7 +490,7 @@ func (ifd *IsolationForestDetector) IsAnomaly(metric MetricPoint) bool {
         metric.Variance(),
         metric.Trend(),
     }
-    
+
     score := ifd.model.AnomalyScore(features)
     return score > ifd.threshold
 }
@@ -502,20 +502,20 @@ type AlertCorrelator struct {
 
 func (ac *AlertCorrelator) Correlate(alerts []Alert) []Alert {
     var correlated []Alert
-    
+
     // 构建告警图
     alertGraph := ac.buildAlertGraph(alerts)
-    
+
     // 查找根因告警
     rootAlerts := alertGraph.FindRoots()
-    
+
     // 只保留根因告警
     for _, alert := range alerts {
         if contains(rootAlerts, alert) {
             correlated = append(correlated, alert)
         }
     }
-    
+
     return correlated
 }
 ```
@@ -560,13 +560,13 @@ type AlertAggregator struct {
 
 func (aa *AlertAggregator) Aggregate(alerts []Alert) []Alert {
     grouped := make(map[string][]Alert)
-    
+
     // 按服务分组
     for _, alert := range alerts {
         service := alert.Labels["service"]
         grouped[service] = append(grouped[service], alert)
     }
-    
+
     // 聚合同服务的告警
     var aggregated []Alert
     for service, group := range grouped {
@@ -580,7 +580,7 @@ func (aa *AlertAggregator) Aggregate(alerts []Alert) []Alert {
             aggregated = append(aggregated, group...)
         }
     }
-    
+
     return aggregated
 }
 
@@ -609,24 +609,24 @@ type GitOpsController struct {
 func (gc *GitOpsController) Reconcile(ctx context.Context) {
     ticker := time.NewTicker(1 * time.Minute)
     defer ticker.Stop()
-    
+
     for {
         select {
         case <-ticker.C:
             // 1. 拉取最新配置
             latestCommit := gc.gitRepo.GetLatestCommit()
-            
+
             // 2. 对比当前配置
             currentConfig := gc.getCurrentConfig()
             desiredConfig := gc.parseConfig(latestCommit)
-            
+
             // 3. 计算差异
             diff := gc.reconciler.Diff(currentConfig, desiredConfig)
-            
+
             if len(diff) == 0 {
                 continue
             }
-            
+
             // 4. 应用变更
             for _, change := range diff {
                 if err := gc.applyChange(change); err != nil {
@@ -634,12 +634,12 @@ func (gc *GitOpsController) Reconcile(ctx context.Context) {
                     gc.rollback(change)
                 }
             }
-            
+
             // 5. 验证
             if !gc.validate() {
                 gc.rollbackToCommit(currentConfig.Commit)
             }
-            
+
         case <-ctx.Done():
             return
         }
@@ -705,7 +705,7 @@ func (ts *TrafficSplitter) Assign(userID string) string {
     // 一致性哈希确保同一用户总是分配到同一变体
     hash := crc32.ChecksumIEEE([]byte(userID))
     percentage := float64(hash%100) / 100.0
-    
+
     cumulative := 0.0
     for variant, weight := range ts.variants {
         cumulative += weight
@@ -713,7 +713,7 @@ func (ts *TrafficSplitter) Assign(userID string) string {
             return variant
         }
     }
-    
+
     return "default"
 }
 
@@ -745,17 +745,17 @@ type CapacityPlanner struct {
 func (cp *CapacityPlanner) PlanCapacity(horizon time.Duration) CapacityPlan {
     // 1. 预测未来负载
     futureLoad := cp.predictor.Forecast(cp.history.Load, horizon)
-    
+
     // 2. 计算所需资源
     requiredCPU := cp.calculateCPU(futureLoad)
     requiredMemory := cp.calculateMemory(futureLoad)
     requiredStorage := cp.calculateStorage(futureLoad)
-    
+
     // 3. 添加安全余量 (20%)
     requiredCPU *= 1.2
     requiredMemory *= 1.2
     requiredStorage *= 1.2
-    
+
     // 4. 生成容量计划
     return CapacityPlan{
         Horizon:         horizon,
@@ -774,7 +774,7 @@ type SeasonalityAnalyzer struct {
 func (sa *SeasonalityAnalyzer) Analyze(data []float64) SeasonalPattern {
     // 使用 STL (Seasonal and Trend decomposition using Loess)
     trend, seasonal, residual := stlDecompose(data, sa.period)
-    
+
     return SeasonalPattern{
         Trend:    trend,
         Seasonal: seasonal,
@@ -785,7 +785,7 @@ func (sa *SeasonalityAnalyzer) Analyze(data []float64) SeasonalPattern {
 // 容量优化建议
 func (cp *CapacityPlanner) OptimizationRecommendations() []Recommendation {
     var recommendations []Recommendation
-    
+
     // 1. 识别过度配置
     utilization := cp.calculateUtilization()
     if utilization < 0.5 {
@@ -795,7 +795,7 @@ func (cp *CapacityPlanner) OptimizationRecommendations() []Recommendation {
             Impact:      "Cost savings: $X/month",
         })
     }
-    
+
     // 2. 识别瓶颈
     bottlenecks := cp.identifyBottlenecks()
     for _, bottleneck := range bottlenecks {
@@ -805,7 +805,7 @@ func (cp *CapacityPlanner) OptimizationRecommendations() []Recommendation {
             Impact:      "Improved performance",
         })
     }
-    
+
     // 3. 成本优化
     if cp.canUseSpotInstances() {
         recommendations = append(recommendations, Recommendation{
@@ -814,7 +814,7 @@ func (cp *CapacityPlanner) OptimizationRecommendations() []Recommendation {
             Impact:      "Cost savings: 70%",
         })
     }
-    
+
     return recommendations
 }
 ```
@@ -832,12 +832,12 @@ type CostOptimizer struct {
 func (co *CostOptimizer) OptimizeScheduling() {
     // 1. 获取当前工作负载
     workloads := co.getWorkloads()
-    
+
     // 2. 分类工作负载
     critical := []Workload{}
     normal := []Workload{}
     batch := []Workload{}
-    
+
     for _, wl := range workloads {
         switch wl.Priority {
         case "critical":
@@ -848,14 +848,14 @@ func (co *CostOptimizer) OptimizeScheduling() {
             batch = append(batch, wl)
         }
     }
-    
+
     // 3. 优化调度
     // 关键工作负载 -> On-Demand 实例
     co.scheduler.Schedule(critical, "on-demand")
-    
+
     // 普通工作负载 -> Reserved 实例
     co.scheduler.Schedule(normal, "reserved")
-    
+
     // 批处理工作负载 -> Spot 实例
     co.scheduler.Schedule(batch, "spot")
 }
@@ -868,16 +868,16 @@ type CostAnalyzer struct {
 func (ca *CostAnalyzer) Analyze() CostReport {
     // 1. 按服务分组
     byService := ca.groupByService()
-    
+
     // 2. 按资源类型分组
     byResource := ca.groupByResource()
-    
+
     // 3. 识别成本异常
     anomalies := ca.detectAnomalies()
-    
+
     // 4. 生成优化建议
     recommendations := ca.generateRecommendations()
-    
+
     return CostReport{
         TotalCost:       ca.billing.Total,
         ByService:       byService,
@@ -933,12 +933,12 @@ func (dlm *DataLifecycleManager) ApplyPolicies() {
         hotExpired := dlm.findExpiredData(policy.DataType, policy.HotTier)
         warmExpired := dlm.findExpiredData(policy.DataType, policy.WarmTier)
         coldExpired := dlm.findExpiredData(policy.DataType, policy.ColdTier)
-        
+
         // 2. 迁移数据
         dlm.moveToWarm(hotExpired)
         dlm.moveToCold(warmExpired)
         dlm.moveToArchive(coldExpired)
-        
+
         // 3. 删除归档过期数据
         archiveExpired := dlm.findExpiredData(policy.DataType, policy.Archive)
         dlm.delete(archiveExpired)

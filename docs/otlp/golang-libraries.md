@@ -185,7 +185,7 @@ import (
     "log"
     "net/http"
     "time"
-    
+
     "go.opentelemetry.io/otel"
     "go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
     "go.opentelemetry.io/otel/propagation"
@@ -197,7 +197,7 @@ import (
 
 func initTracer(serviceName string) (*sdktrace.TracerProvider, error) {
     ctx := context.Background()
-    
+
     // 创建 OTLP 导出器
     exporter, err := otlptracegrpc.New(ctx,
         otlptracegrpc.WithEndpoint("localhost:4317"),
@@ -206,7 +206,7 @@ func initTracer(serviceName string) (*sdktrace.TracerProvider, error) {
     if err != nil {
         return nil, err
     }
-    
+
     // 创建 Resource
     res, err := resource.New(ctx,
         resource.WithAttributes(
@@ -218,7 +218,7 @@ func initTracer(serviceName string) (*sdktrace.TracerProvider, error) {
     if err != nil {
         return nil, err
     }
-    
+
     // 创建 TracerProvider
     tp := sdktrace.NewTracerProvider(
         sdktrace.WithBatcher(exporter,
@@ -230,13 +230,13 @@ func initTracer(serviceName string) (*sdktrace.TracerProvider, error) {
             sdktrace.TraceIDRatioBased(0.5), // 50% 采样
         )),
     )
-    
+
     otel.SetTracerProvider(tp)
     otel.SetTextMapPropagator(propagation.NewCompositeTextMapPropagator(
         propagation.TraceContext{},
         propagation.Baggage{},
     ))
-    
+
     return tp, nil
 }
 
@@ -246,13 +246,13 @@ func main() {
         log.Fatal(err)
     }
     defer tp.Shutdown(context.Background())
-    
+
     // HTTP 服务器
     mux := http.NewServeMux()
     mux.HandleFunc("/api/users", handleUsers)
-    
+
     handler := otelhttp.NewHandler(mux, "api-gateway")
-    
+
     log.Println("API Gateway listening on :8080")
     http.ListenAndServe(":8080", handler)
 }
@@ -260,19 +260,19 @@ func main() {
 func handleUsers(w http.ResponseWriter, r *http.Request) {
     ctx := r.Context()
     tracer := otel.Tracer("api-gateway")
-    
+
     ctx, span := tracer.Start(ctx, "handle-users")
     defer span.End()
-    
+
     // 添加属性
     span.SetAttributes(
         semconv.HTTPMethod(r.Method),
         semconv.HTTPRoute(r.URL.Path),
     )
-    
+
     // 业务逻辑
     time.Sleep(50 * time.Millisecond)
-    
+
     w.Header().Set("Content-Type", "application/json")
     w.Write([]byte(`[{"id": 1, "name": "Alice"}]`))
 }
@@ -287,7 +287,7 @@ import (
     "context"
     "database/sql"
     "log"
-    
+
     _ "github.com/lib/pq"
     "go.opentelemetry.io/contrib/instrumentation/database/sql/otelsql"
     semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
@@ -303,14 +303,14 @@ func main() {
     if err != nil {
         log.Fatal(err)
     }
-    
+
     // 打开数据库连接
     db, err := sql.Open(driverName, "postgres://user:pass@localhost/db?sslmode=disable")
     if err != nil {
         log.Fatal(err)
     }
     defer db.Close()
-    
+
     // 执行查询（自动追踪）
     ctx := context.Background()
     rows, err := db.QueryContext(ctx, "SELECT id, name FROM users WHERE age > $1", 18)
@@ -318,7 +318,7 @@ func main() {
         log.Fatal(err)
     }
     defer rows.Close()
-    
+
     for rows.Next() {
         var id int
         var name string
@@ -339,7 +339,7 @@ import (
     "context"
     "log"
     "time"
-    
+
     "go.opentelemetry.io/otel"
     "go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc"
     "go.opentelemetry.io/otel/metric"
@@ -350,7 +350,7 @@ import (
 
 func initMetrics() (*sdkmetric.MeterProvider, error) {
     ctx := context.Background()
-    
+
     exporter, err := otlpmetricgrpc.New(ctx,
         otlpmetricgrpc.WithEndpoint("localhost:4317"),
         otlpmetricgrpc.WithInsecure(),
@@ -358,7 +358,7 @@ func initMetrics() (*sdkmetric.MeterProvider, error) {
     if err != nil {
         return nil, err
     }
-    
+
     res, err := resource.New(ctx,
         resource.WithAttributes(
             semconv.ServiceName("my-service"),
@@ -367,14 +367,14 @@ func initMetrics() (*sdkmetric.MeterProvider, error) {
     if err != nil {
         return nil, err
     }
-    
+
     mp := sdkmetric.NewMeterProvider(
         sdkmetric.WithReader(sdkmetric.NewPeriodicReader(exporter,
             sdkmetric.WithInterval(10*time.Second),
         )),
         sdkmetric.WithResource(res),
     )
-    
+
     otel.SetMeterProvider(mp)
     return mp, nil
 }
@@ -385,7 +385,7 @@ func main() {
         log.Fatal(err)
     }
     defer mp.Shutdown(context.Background())
-    
+
     // 创建 Counter
     meter := mp.Meter("my-service")
     counter, err := meter.Int64Counter(
@@ -395,7 +395,7 @@ func main() {
     if err != nil {
         log.Fatal(err)
     }
-    
+
     // 记录指标
     ctx := context.Background()
     counter.Add(ctx, 1,
@@ -466,7 +466,7 @@ tp := sdktrace.NewTracerProvider(
 func badExample() {
     tp := sdktrace.NewTracerProvider(...)
     otel.SetTracerProvider(tp)
-    
+
     tracer := tp.Tracer("my-service")
     _, span := tracer.Start(context.Background(), "operation")
     span.End()
@@ -478,7 +478,7 @@ func goodExample() {
     tp := sdktrace.NewTracerProvider(...)
     otel.SetTracerProvider(tp)
     defer tp.Shutdown(context.Background())
-    
+
     tracer := tp.Tracer("my-service")
     _, span := tracer.Start(context.Background(), "operation")
     span.End()

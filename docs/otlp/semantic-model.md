@@ -233,7 +233,7 @@ func example() {
     // 字符串属性
     strAttrs := NewAttributeContainer[string]()
     strAttrs.Set("service.name", "my-service")
-    
+
     // 整数属性
     intAttrs := NewAttributeContainer[int64]()
     intAttrs.Set("http.status_code", 200)
@@ -268,9 +268,9 @@ func NewBatchProcessor[T any](capacity int, exporter func([]T) error) *BatchProc
 func (p *BatchProcessor[T]) Add(item T) error {
     p.mu.Lock()
     defer p.mu.Unlock()
-    
+
     p.buffer = append(p.buffer, item)
-    
+
     if len(p.buffer) >= p.capacity {
         return p.flush()
     }
@@ -281,10 +281,10 @@ func (p *BatchProcessor[T]) flush() error {
     if len(p.buffer) == 0 {
         return nil
     }
-    
+
     batch := p.buffer
     p.buffer = make([]T, 0, p.capacity)
-    
+
     return p.exporter(batch)
 }
 ```
@@ -305,7 +305,7 @@ type ExportError struct {
 }
 
 func (e *ExportError) Error() string {
-    return fmt.Sprintf("export failed: %s (retryable: %v): %v", 
+    return fmt.Sprintf("export failed: %s (retryable: %v): %v",
         e.Reason, e.Retryable, e.Err)
 }
 
@@ -342,7 +342,7 @@ func exportSpans(spans []Span) error {
 // 错误处理
 func handleExport(spans []Span) {
     err := exportSpans(spans)
-    
+
     var exportErr *ExportError
     if errors.As(err, &exportErr) {
         if exportErr.Retryable {
@@ -371,14 +371,14 @@ type WorkerPool struct {
 
 func NewWorkerPool(workers int) *WorkerPool {
     ctx, cancel := context.WithCancel(context.Background())
-    
+
     pool := &WorkerPool{
         workers:   workers,
         taskQueue: make(chan func(context.Context) error, workers*2),
         ctx:       ctx,
         cancel:    cancel,
     }
-    
+
     pool.start()
     return pool
 }
@@ -392,7 +392,7 @@ func (p *WorkerPool) start() {
 
 func (p *WorkerPool) worker() {
     defer p.wg.Done()
-    
+
     for {
         select {
         case <-p.ctx.Done():
@@ -416,13 +416,13 @@ func (p *WorkerPool) Submit(task func(context.Context) error) error {
 
 func (p *WorkerPool) Shutdown(timeout time.Duration) error {
     p.cancel()
-    
+
     done := make(chan struct{})
     go func() {
         p.wg.Wait()
         close(done)
     }()
-    
+
     select {
     case <-done:
         return nil
@@ -435,7 +435,7 @@ func (p *WorkerPool) Shutdown(timeout time.Duration) error {
 func processSpans(spans []Span) {
     pool := NewWorkerPool(10)
     defer pool.Shutdown(5 * time.Second)
-    
+
     for _, span := range spans {
         span := span // 捕获循环变量
         pool.Submit(func(ctx context.Context) error {
@@ -468,7 +468,7 @@ func ReleaseSpan(span *Span) {
     span.SpanID = trace.SpanID{}
     span.Name = ""
     span.Attributes = span.Attributes[:0]
-    
+
     spanPool.Put(span)
 }
 
@@ -482,10 +482,10 @@ func createSpan(name string) *Span {
 
 func finishSpan(span *Span) {
     span.EndTime = time.Now()
-    
+
     // 导出 Span
     exportSpan(span)
-    
+
     // 归还到池中
     ReleaseSpan(span)
 }
@@ -516,23 +516,23 @@ func NewBatchSerializer() *BatchSerializer {
 func (s *BatchSerializer) SerializeSpans(spans []*tracepb.Span) ([]byte, error) {
     s.buffer.Reset()
     s.encoder.Reset(s.buffer)
-    
+
     // 批量序列化
     for _, span := range spans {
         data, err := proto.Marshal(span)
         if err != nil {
             return nil, err
         }
-        
+
         if _, err := s.encoder.Write(data); err != nil {
             return nil, err
         }
     }
-    
+
     if err := s.encoder.Close(); err != nil {
         return nil, err
     }
-    
+
     return s.buffer.Bytes(), nil
 }
 ```
@@ -561,7 +561,7 @@ import (
     "context"
     "log"
     "time"
-    
+
     "go.opentelemetry.io/otel"
     "go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
     "go.opentelemetry.io/otel/sdk/resource"
@@ -571,7 +571,7 @@ import (
 
 func main() {
     ctx := context.Background()
-    
+
     // 创建 OTLP 导出器
     exporter, err := otlptracegrpc.New(ctx,
         otlptracegrpc.WithEndpoint("localhost:4317"),
@@ -580,7 +580,7 @@ func main() {
     if err != nil {
         log.Fatal(err)
     }
-    
+
     // 创建 Resource
     res, err := resource.New(ctx,
         resource.WithAttributes(
@@ -592,7 +592,7 @@ func main() {
     if err != nil {
         log.Fatal(err)
     }
-    
+
     // 创建 TracerProvider
     tp := sdktrace.NewTracerProvider(
         sdktrace.WithBatcher(exporter,
@@ -604,17 +604,17 @@ func main() {
             sdktrace.TraceIDRatioBased(0.5),
         )),
     )
-    
+
     otel.SetTracerProvider(tp)
-    
+
     // 使用 Tracer
     tracer := tp.Tracer("my-service")
     ctx, span := tracer.Start(ctx, "main-operation")
     defer span.End()
-    
+
     // 业务逻辑
     doWork(ctx)
-    
+
     // 优雅关闭
     if err := tp.Shutdown(ctx); err != nil {
         log.Fatal(err)
@@ -625,7 +625,7 @@ func doWork(ctx context.Context) {
     tracer := otel.Tracer("my-service")
     _, span := tracer.Start(ctx, "do-work")
     defer span.End()
-    
+
     // 模拟工作
     time.Sleep(100 * time.Millisecond)
 }

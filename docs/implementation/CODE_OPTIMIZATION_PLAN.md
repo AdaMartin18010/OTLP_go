@@ -1,7 +1,7 @@
 # Golang 代码全面优化方案
 
-**版本**: v2.1.0  
-**日期**: 2025-10-02  
+**版本**: v2.1.0
+**日期**: 2025-10-02
 **目标**: 结合 Go 1.25.1 特性、设计模式、OS感知机制进行全面优化
 
 ---
@@ -207,7 +207,7 @@ func process(data string) error {
     if data == "" {
         return errors.New("empty data")
     }
-    
+
     // 逻辑在主路径
     return nil
 }
@@ -322,7 +322,7 @@ func (sm *ShutdownManager) Register(fn func(context.Context) error) {
 func (sm *ShutdownManager) Shutdown(ctx context.Context) error {
     sm.mu.Lock()
     defer sm.mu.Unlock()
-    
+
     var errs []error
     for i := len(sm.shutdowns) - 1; i >= 0; i-- {
         if err := sm.shutdowns[i](ctx); err != nil {
@@ -364,7 +364,7 @@ func processData() {
         buf.Reset()
         bufferPool.Put(buf)
     }()
-    
+
     // 使用 buf
 }
 ```
@@ -426,7 +426,7 @@ unix.Sendfile(dst, src, nil, n)
 ```go
 // 统一的信号处理
 sigCh := make(chan os.Signal, 1)
-signal.Notify(sigCh, 
+signal.Notify(sigCh,
     syscall.SIGINT,  // Ctrl+C
     syscall.SIGTERM, // kill
     syscall.SIGHUP,  // reload config
@@ -700,6 +700,6 @@ for _, file := range files {
 
 ---
 
-**文档版本**: v2.1.0  
-**最后更新**: 2025-10-02  
+**文档版本**: v2.1.0
+**最后更新**: 2025-10-02
 **维护者**: OTLP_go 项目组

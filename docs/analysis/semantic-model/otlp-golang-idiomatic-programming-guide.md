@@ -1,7 +1,7 @@
 # OTLP Golang 编程惯用法与规范指南
 
-**版本**: 1.0.0  
-**日期**: 2025-10-06  
+**版本**: 1.0.0
+**日期**: 2025-10-06
 **状态**: ✅ 完整
 
 ---
@@ -112,7 +112,7 @@ package main
 import (
     "context"
     "log"
-    
+
     "go.opentelemetry.io/otel"
     "go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
     "go.opentelemetry.io/otel/sdk/resource"
@@ -123,7 +123,7 @@ import (
 // 初始化函数
 func initTracer() func() {
     ctx := context.Background()
-    
+
     // 1. 创建 Resource
     res, err := resource.New(ctx,
         resource.WithAttributes(
@@ -134,7 +134,7 @@ func initTracer() func() {
     if err != nil {
         log.Fatalf("failed to create resource: %v", err)
     }
-    
+
     // 2. 创建 Exporter
     exporter, err := otlptracegrpc.New(ctx,
         otlptracegrpc.WithEndpoint("localhost:4317"),
@@ -143,16 +143,16 @@ func initTracer() func() {
     if err != nil {
         log.Fatalf("failed to create exporter: %v", err)
     }
-    
+
     // 3. 创建 TracerProvider
     tp := trace.NewTracerProvider(
         trace.WithResource(res),
         trace.WithBatcher(exporter),
     )
-    
+
     // 4. 设置全局 TracerProvider
     otel.SetTracerProvider(tp)
-    
+
     // 5. 返回清理函数
     return func() {
         if err := tp.Shutdown(ctx); err != nil {
@@ -165,13 +165,13 @@ func main() {
     // 初始化并获取清理函数
     cleanup := initTracer()
     defer cleanup()
-    
+
     // 使用全局 Tracer
     tracer := otel.Tracer("my-component")
-    
+
     ctx, span := tracer.Start(context.Background(), "main")
     defer span.End()
-    
+
     // 业务逻辑
 }
 ```
@@ -229,17 +229,17 @@ func initTracerProvider() *trace.TracerProvider {
 func processRequest(ctx context.Context, req *Request) error {
     ctx, span := tracer.Start(ctx, "processRequest")
     defer span.End() // 确保 Span 总是被结束
-    
+
     // 业务逻辑
     if err := validate(req); err != nil {
         return err // Span 会被自动结束
     }
-    
+
     result, err := process(ctx, req)
     if err != nil {
         return err // Span 会被自动结束
     }
-    
+
     return save(ctx, result) // Span 会被自动结束
 }
 ```
@@ -250,18 +250,18 @@ func processRequest(ctx context.Context, req *Request) error {
 // 不推荐: 手动调用 span.End()
 func processRequest(ctx context.Context, req *Request) error {
     ctx, span := tracer.Start(ctx, "processRequest")
-    
+
     if err := validate(req); err != nil {
         span.End() // 容易忘记
         return err
     }
-    
+
     result, err := process(ctx, req)
     if err != nil {
         span.End() // 重复代码
         return err
     }
-    
+
     err = save(ctx, result)
     span.End() // 容易忘记
     return err
@@ -282,7 +282,7 @@ func processRequest(ctx context.Context, req *Request) (err error) {
         }
         span.End()
     }()
-    
+
     // 业务逻辑
     return doWork(ctx, req)
 }
@@ -299,9 +299,9 @@ func processRequest(ctx context.Context, req *Request) (err error) {
 func fetchUser(ctx context.Context, userID string) (*User, error) {
     ctx, span := tracer.Start(ctx, "fetchUser")
     defer span.End()
-    
+
     span.SetAttributes(attribute.String("user.id", userID))
-    
+
     // 查询数据库
     return db.Query(ctx, "SELECT * FROM users WHERE id = ?", userID)
 }
@@ -341,7 +341,7 @@ type UserService struct {
 func (s *UserService) GetUser(ctx context.Context, userID string) (*User, error) {
     ctx, span := s.tracer.Start(ctx, "GetUser")
     defer span.End()
-    
+
     // 使用参数中的 Context
     return s.db.QueryContext(ctx, "SELECT * FROM users WHERE id = ?", userID)
 }
@@ -377,7 +377,7 @@ func processOrder(ctx context.Context, order *Order) (err error) {
             // 记录错误
             span.RecordError(err)
             span.SetStatus(codes.Error, err.Error())
-            
+
             // 添加错误相关属性
             span.SetAttributes(
                 attribute.String("error.type", fmt.Sprintf("%T", err)),
@@ -386,12 +386,12 @@ func processOrder(ctx context.Context, order *Order) (err error) {
         }
         span.End()
     }()
-    
+
     // 业务逻辑
     if err := validateOrder(order); err != nil {
         return fmt.Errorf("validation failed: %w", err)
     }
-    
+
     return saveOrder(ctx, order)
 }
 ```
@@ -404,13 +404,13 @@ func processOrder(ctx context.Context, order *Order) (err error) {
 func handleError(ctx context.Context, err error) {
     ctx, span := tracer.Start(ctx, "handleError")
     defer span.End()
-    
+
     // 使用 errors.Is 检查错误类型
     if errors.Is(err, sql.ErrNoRows) {
         span.SetAttributes(attribute.String("error.kind", "not_found"))
         return
     }
-    
+
     // 使用 errors.As 提取错误
     var netErr *net.OpError
     if errors.As(err, &netErr) {
@@ -420,7 +420,7 @@ func handleError(ctx context.Context, err error) {
         )
         return
     }
-    
+
     span.RecordError(err)
 }
 ```
@@ -440,7 +440,7 @@ import (
 func handleHTTPRequest(ctx context.Context, req *http.Request) {
     ctx, span := tracer.Start(ctx, "handleHTTPRequest")
     defer span.End()
-    
+
     // 使用语义约定常量
     span.SetAttributes(
         semconv.HTTPMethod(req.Method),
@@ -448,7 +448,7 @@ func handleHTTPRequest(ctx context.Context, req *http.Request) {
         semconv.HTTPScheme(req.URL.Scheme),
         semconv.HTTPUserAgent(req.UserAgent()),
     )
-    
+
     // 业务逻辑
 }
 ```
@@ -460,7 +460,7 @@ func handleHTTPRequest(ctx context.Context, req *http.Request) {
 func handleHTTPRequest(ctx context.Context, req *http.Request) {
     ctx, span := tracer.Start(ctx, "handleHTTPRequest")
     defer span.End()
-    
+
     // 硬编码属性名 (容易拼写错误)
     span.SetAttributes(
         attribute.String("http.method", req.Method),
@@ -478,7 +478,7 @@ func handleHTTPRequest(ctx context.Context, req *http.Request) {
 func processUser(ctx context.Context, user *User) {
     ctx, span := tracer.Start(ctx, "processUser")
     defer span.End()
-    
+
     // 批量设置属性 (一次调用)
     span.SetAttributes(
         attribute.String("user.id", user.ID),
@@ -497,7 +497,7 @@ func processUser(ctx context.Context, user *User) {
 func processUser(ctx context.Context, user *User) {
     ctx, span := tracer.Start(ctx, "processUser")
     defer span.End()
-    
+
     // 多次调用 (性能较差)
     span.SetAttributes(attribute.String("user.id", user.ID))
     span.SetAttributes(attribute.String("user.name", user.Name))
@@ -521,13 +521,13 @@ func processUser(ctx context.Context, user *User) {
 func processBatch(ctx context.Context, items []Item) error {
     ctx, span := tracer.Start(ctx, "processBatch")
     defer span.End()
-    
+
     // 收集所有子 Span 的 SpanContext
     var links []trace.Link
-    
+
     for _, item := range items {
         itemCtx, itemSpan := tracer.Start(ctx, "processItem")
-        
+
         // 添加链接
         links = append(links, trace.Link{
             SpanContext: itemSpan.SpanContext(),
@@ -535,22 +535,22 @@ func processBatch(ctx context.Context, items []Item) error {
                 attribute.String("item.id", item.ID),
             },
         })
-        
+
         processItem(itemCtx, item)
         itemSpan.End()
     }
-    
+
     // 创建汇总 Span 并链接所有子 Span
     _, summarySpan := tracer.Start(ctx, "batchSummary",
         trace.WithLinks(links...),
     )
     defer summarySpan.End()
-    
+
     summarySpan.SetAttributes(
         attribute.Int("batch.size", len(items)),
         attribute.Int("batch.links", len(links)),
     )
-    
+
     return nil
 }
 ```
@@ -565,7 +565,7 @@ func processBatch(ctx context.Context, items []Item) error {
 func processPayment(ctx context.Context, payment *Payment) error {
     ctx, span := tracer.Start(ctx, "processPayment")
     defer span.End()
-    
+
     // 记录开始事件
     span.AddEvent("payment.started",
         trace.WithAttributes(
@@ -573,7 +573,7 @@ func processPayment(ctx context.Context, payment *Payment) error {
             attribute.Float64("payment.amount", payment.Amount),
         ),
     )
-    
+
     // 验证支付
     if err := validatePayment(payment); err != nil {
         span.AddEvent("payment.validation_failed",
@@ -583,9 +583,9 @@ func processPayment(ctx context.Context, payment *Payment) error {
         )
         return err
     }
-    
+
     span.AddEvent("payment.validated")
-    
+
     // 处理支付
     if err := chargeCard(ctx, payment); err != nil {
         span.AddEvent("payment.charge_failed",
@@ -595,13 +595,13 @@ func processPayment(ctx context.Context, payment *Payment) error {
         )
         return err
     }
-    
+
     span.AddEvent("payment.completed",
         trace.WithAttributes(
             attribute.String("transaction.id", payment.TransactionID),
         ),
     )
-    
+
     return nil
 }
 ```
@@ -616,39 +616,39 @@ func processPayment(ctx context.Context, payment *Payment) error {
 func processBatchAsync(ctx context.Context, items []Item) error {
     ctx, span := tracer.Start(ctx, "processBatchAsync")
     defer span.End()
-    
+
     // 提取 SpanContext 用于异步操作
     spanCtx := span.SpanContext()
-    
+
     var wg sync.WaitGroup
     errCh := make(chan error, len(items))
-    
+
     for _, item := range items {
         wg.Add(1)
         go func(item Item) {
             defer wg.Done()
-            
+
             // 使用 SpanContext 创建新的 Context
             itemCtx := trace.ContextWithSpanContext(context.Background(), spanCtx)
-            
+
             // 创建子 Span
             itemCtx, itemSpan := tracer.Start(itemCtx, "processItem")
             defer itemSpan.End()
-            
+
             if err := processItem(itemCtx, item); err != nil {
                 errCh <- err
             }
         }(item)
     }
-    
+
     wg.Wait()
     close(errCh)
-    
+
     // 收集错误
     for err := range errCh {
         span.RecordError(err)
     }
-    
+
     return nil
 }
 ```
@@ -673,7 +673,7 @@ func (s *ConditionalSampler) ShouldSample(p trace.SamplingParameters) trace.Samp
             return s.highPriority.ShouldSample(p)
         }
     }
-    
+
     return s.defaultSampler.ShouldSample(p)
 }
 
@@ -687,7 +687,7 @@ func initTracerWithSampler() *trace.TracerProvider {
         defaultSampler: trace.TraceIDRatioBased(0.1), // 10% 采样
         highPriority:   trace.AlwaysSample(),         // 100% 采样
     }
-    
+
     return trace.NewTracerProvider(
         trace.WithSampler(sampler),
     )
@@ -732,7 +732,7 @@ func putSpanData(sd *spanData) {
 func processWithPool(ctx context.Context) {
     sd := getSpanData()
     defer putSpanData(sd)
-    
+
     // 使用 spanData
     sd.attributes = append(sd.attributes,
         attribute.String("key", "value"),
@@ -751,10 +751,10 @@ func processWithPool(ctx context.Context) {
 func processItems(ctx context.Context, items []Item) {
     ctx, span := tracer.Start(ctx, "processItems")
     defer span.End()
-    
+
     // 预分配足够的容量
     results := make([]Result, 0, len(items))
-    
+
     for _, item := range items {
         result := processItem(ctx, item)
         results = append(results, result)
@@ -774,7 +774,7 @@ func formatSpan(span trace.Span) string {
         buf.Reset()
         bufferPool.Put(buf)
     }()
-    
+
     // 使用 buffer
     fmt.Fprintf(buf, "span: %s", span.SpanContext().SpanID())
     return buf.String()
@@ -793,7 +793,7 @@ type BatchProcessor struct {
     batch    []trace.ReadOnlySpan
     batchMu  sync.Mutex
     timer    *time.Timer
-    
+
     maxBatchSize int
     timeout      time.Duration
 }
@@ -801,15 +801,15 @@ type BatchProcessor struct {
 func (p *BatchProcessor) OnEnd(span trace.ReadOnlySpan) {
     p.batchMu.Lock()
     defer p.batchMu.Unlock()
-    
+
     p.batch = append(p.batch, span)
-    
+
     // 达到批次大小,立即导出
     if len(p.batch) >= p.maxBatchSize {
         p.flush()
         return
     }
-    
+
     // 启动定时器
     if p.timer == nil {
         p.timer = time.AfterFunc(p.timeout, func() {
@@ -824,15 +824,15 @@ func (p *BatchProcessor) flush() {
     if len(p.batch) == 0 {
         return
     }
-    
+
     // 导出批次
     if err := p.exporter.ExportSpans(context.Background(), p.batch); err != nil {
         log.Printf("failed to export spans: %v", err)
     }
-    
+
     // 重置批次
     p.batch = p.batch[:0]
-    
+
     // 停止定时器
     if p.timer != nil {
         p.timer.Stop()
@@ -860,14 +860,14 @@ type SafeSpanCollector struct {
 func (c *SafeSpanCollector) Add(span trace.ReadOnlySpan) {
     c.mu.Lock()
     defer c.mu.Unlock()
-    
+
     c.spans = append(c.spans, span)
 }
 
 func (c *SafeSpanCollector) GetAll() []trace.ReadOnlySpan {
     c.mu.RLock()
     defer c.mu.RUnlock()
-    
+
     // 返回副本
     result := make([]trace.ReadOnlySpan, len(c.spans))
     copy(result, c.spans)
@@ -885,7 +885,7 @@ func (c *SafeSpanCollector) GetAll() []trace.ReadOnlySpan {
 func processSpansAsync(ctx context.Context, spans <-chan trace.ReadOnlySpan) {
     ctx, span := tracer.Start(ctx, "processSpansAsync")
     defer span.End()
-    
+
     for {
         select {
         case s, ok := <-spans:
@@ -894,7 +894,7 @@ func processSpansAsync(ctx context.Context, spans <-chan trace.ReadOnlySpan) {
                 return
             }
             processSpan(ctx, s)
-            
+
         case <-ctx.Done():
             // Context 取消
             span.RecordError(ctx.Err())
@@ -906,15 +906,15 @@ func processSpansAsync(ctx context.Context, spans <-chan trace.ReadOnlySpan) {
 // 使用示例
 func main() {
     spanCh := make(chan trace.ReadOnlySpan, 100)
-    
+
     // 启动处理 goroutine
     go processSpansAsync(context.Background(), spanCh)
-    
+
     // 发送 spans
     for _, span := range spans {
         spanCh <- span
     }
-    
+
     // 关闭 channel
     close(spanCh)
 }
@@ -930,39 +930,39 @@ func main() {
 func processParallel(ctx context.Context, items []Item) error {
     ctx, span := tracer.Start(ctx, "processParallel")
     defer span.End()
-    
+
     var wg sync.WaitGroup
     errCh := make(chan error, len(items))
-    
+
     for _, item := range items {
         wg.Add(1)
         go func(item Item) {
             defer wg.Done()
-            
+
             itemCtx, itemSpan := tracer.Start(ctx, "processItem")
             defer itemSpan.End()
-            
+
             if err := processItem(itemCtx, item); err != nil {
                 errCh <- err
             }
         }(item)
     }
-    
+
     // 等待所有 goroutine 完成
     wg.Wait()
     close(errCh)
-    
+
     // 收集错误
     var errs []error
     for err := range errCh {
         errs = append(errs, err)
     }
-    
+
     if len(errs) > 0 {
         span.RecordError(errs[0])
         return errs[0]
     }
-    
+
     return nil
 }
 ```
@@ -981,23 +981,23 @@ func processParallel(ctx context.Context, items []Item) error {
 func TestProcessRequest(t *testing.T) {
     // 创建内存导出器
     exporter := tracetest.NewInMemoryExporter()
-    
+
     // 创建 TracerProvider
     tp := trace.NewTracerProvider(
         trace.WithSyncer(exporter),
     )
-    
+
     // 使用 TracerProvider
     tracer := tp.Tracer("test")
-    
+
     ctx, span := tracer.Start(context.Background(), "test")
     span.SetAttributes(attribute.String("key", "value"))
     span.End()
-    
+
     // 验证导出的 Span
     spans := exporter.GetSpans()
     require.Len(t, spans, 1)
-    
+
     assert.Equal(t, "test", spans[0].Name())
     assert.Equal(t, "value", spans[0].Attributes()[0].Value.AsString())
 }
@@ -1018,25 +1018,25 @@ func TestWithCollector(t *testing.T) {
         ExposedPorts: []string{"4317/tcp"},
         WaitingFor:   wait.ForListeningPort("4317/tcp"),
     }
-    
+
     container, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
         ContainerRequest: req,
         Started:          true,
     })
     require.NoError(t, err)
     defer container.Terminate(ctx)
-    
+
     // 获取端口
     endpoint, err := container.Endpoint(ctx, "")
     require.NoError(t, err)
-    
+
     // 创建 Exporter
     exporter, err := otlptracegrpc.New(ctx,
         otlptracegrpc.WithEndpoint(endpoint),
         otlptracegrpc.WithInsecure(),
     )
     require.NoError(t, err)
-    
+
     // 运行测试
     // ...
 }
@@ -1053,12 +1053,12 @@ func BenchmarkSpanCreation(b *testing.B) {
     // 创建 TracerProvider
     tp := trace.NewTracerProvider()
     tracer := tp.Tracer("benchmark")
-    
+
     ctx := context.Background()
-    
+
     b.ResetTimer()
     b.ReportAllocs()
-    
+
     for i := 0; i < b.N; i++ {
         _, span := tracer.Start(ctx, "operation")
         span.End()
@@ -1068,17 +1068,17 @@ func BenchmarkSpanCreation(b *testing.B) {
 func BenchmarkSpanWithAttributes(b *testing.B) {
     tp := trace.NewTracerProvider()
     tracer := tp.Tracer("benchmark")
-    
+
     ctx := context.Background()
     attrs := []attribute.KeyValue{
         attribute.String("key1", "value1"),
         attribute.String("key2", "value2"),
         attribute.Int("key3", 123),
     }
-    
+
     b.ResetTimer()
     b.ReportAllocs()
-    
+
     for i := 0; i < b.N; i++ {
         _, span := tracer.Start(ctx, "operation")
         span.SetAttributes(attrs...)
@@ -1100,10 +1100,10 @@ func BenchmarkSpanWithAttributes(b *testing.B) {
 ```go
 func badExample(ctx context.Context) {
     ctx, span := tracer.Start(ctx, "operation")
-    
+
     // 业务逻辑
     doWork(ctx)
-    
+
     // 忘记调用 span.End() - 内存泄漏!
 }
 ```
@@ -1114,7 +1114,7 @@ func badExample(ctx context.Context) {
 func goodExample(ctx context.Context) {
     ctx, span := tracer.Start(ctx, "operation")
     defer span.End() // 使用 defer 确保调用
-    
+
     // 业务逻辑
     doWork(ctx)
 }
@@ -1130,11 +1130,11 @@ func badExample(ctx context.Context) {
     ctx, span1 := tracer.Start(ctx, "step1")
     x := 1 + 1
     span1.End()
-    
+
     ctx, span2 := tracer.Start(ctx, "step2")
     y := x * 2
     span2.End()
-    
+
     ctx, span3 := tracer.Start(ctx, "step3")
     z := y + 3
     span3.End()
@@ -1148,11 +1148,11 @@ func goodExample(ctx context.Context) {
     // 为有意义的操作创建 Span
     ctx, span := tracer.Start(ctx, "calculation")
     defer span.End()
-    
+
     x := 1 + 1
     y := x * 2
     z := y + 3
-    
+
     span.SetAttributes(attribute.Int("result", z))
 }
 ```
@@ -1181,9 +1181,9 @@ func goodExample(ctx context.Context, items []Item) {
     // 为整个批次创建一个 Span
     ctx, span := tracer.Start(ctx, "processBatch")
     defer span.End()
-    
+
     span.SetAttributes(attribute.Int("batch.size", len(items)))
-    
+
     for _, item := range items {
         processItem(ctx, item)
     }
@@ -1200,7 +1200,7 @@ func goodExample(ctx context.Context, items []Item) {
 func badExample(ctx context.Context) {
     ctx, span := tracer.Start(ctx, "operation")
     defer span.End()
-    
+
     var wg sync.WaitGroup
     for i := 0; i < 10; i++ {
         wg.Add(1)
@@ -1220,7 +1220,7 @@ func badExample(ctx context.Context) {
 func goodExample(ctx context.Context) {
     ctx, span := tracer.Start(ctx, "operation")
     defer span.End()
-    
+
     var wg sync.WaitGroup
     for i := 0; i < 10; i++ {
         wg.Add(1)
@@ -1229,7 +1229,7 @@ func goodExample(ctx context.Context) {
             // 每个 goroutine 创建自己的 span
             _, childSpan := tracer.Start(ctx, fmt.Sprintf("worker-%d", i))
             defer childSpan.End()
-            
+
             childSpan.AddEvent("event")
         }(i)
     }
@@ -1291,13 +1291,13 @@ tracer.Start(ctx, "GetUserByIDFromDatabaseWithCache")
 func ProcessOrder(ctx context.Context, order *Order) (string, error) {
     ctx, span := tracer.Start(ctx, "ProcessOrder")
     defer span.End()
-    
+
     // Add order attributes for observability
     span.SetAttributes(
         attribute.String("order.id", order.ID),
         attribute.Float64("order.total", order.Total),
     )
-    
+
     // ...
 }
 ```
@@ -1319,16 +1319,16 @@ func processWithErrorHandling(ctx context.Context) (err error) {
         }
         span.End()
     }()
-    
+
     // 业务逻辑
     if err := step1(ctx); err != nil {
         return fmt.Errorf("step1 failed: %w", err)
     }
-    
+
     if err := step2(ctx); err != nil {
         return fmt.Errorf("step2 failed: %w", err)
     }
-    
+
     return nil
 }
 ```
@@ -1355,7 +1355,7 @@ func processWithErrorHandling(ctx context.Context) (err error) {
 
 **文档结束**:
 
-**版本**: 1.0.0  
-**日期**: 2025-10-06  
-**作者**: OTLP 项目团队  
+**版本**: 1.0.0
+**日期**: 2025-10-06
+**作者**: OTLP 项目团队
 **许可**: 遵循项目根目录的 LICENSE 文件

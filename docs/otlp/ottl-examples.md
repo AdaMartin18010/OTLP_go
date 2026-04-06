@@ -162,10 +162,10 @@ processors:
     trace_statements:
       # 添加环境标签
       - set(attributes["env"], "production")
-      
+
       # 添加区域信息
       - set(attributes["region"], resource.attributes["cloud.region"])
-      
+
       # 添加计算属性
       - set(attributes["is_slow"], duration > Duration("1s"))
 ```
@@ -180,9 +180,9 @@ processors:
       - delete_key(attributes, "http.request.header.authorization")
       - delete_key(attributes, "http.request.header.cookie")
       - delete_key(attributes, "http.request.header.x-api-key")
-      
+
       # 删除调试信息
-      - delete_key(attributes, "debug.stack_trace") 
+      - delete_key(attributes, "debug.stack_trace")
         where resource.attributes["env"] == "prod"
 ```
 
@@ -194,12 +194,12 @@ processors:
     trace_statements:
       # 规范化 HTTP 方法
       - set(attributes["http.method"], Uppercase(attributes["http.method"]))
-      
+
       # 截断长字符串
-      - set(attributes["http.target"], 
+      - set(attributes["http.target"],
           Substring(attributes["http.target"], 0, 100))
         where Len(attributes["http.target"]) > 100
-      
+
       # 替换值
       - replace_pattern(attributes["http.target"], "/user/\\d+", "/user/{id}")
 ```
@@ -213,16 +213,16 @@ processors:
   transform:
     trace_statements:
       # 用户 ID 哈希
-      - set(attributes["user.id"], SHA256(attributes["user.id"])) 
+      - set(attributes["user.id"], SHA256(attributes["user.id"]))
         where resource.attributes["env"] == "prod"
-      
+
       # 邮箱脱敏
-      - set(attributes["user.email"], 
+      - set(attributes["user.email"],
           Concat(Substring(attributes["user.email"], 0, 3), "***@***.com"))
         where attributes["user.email"] != nil
-      
+
       # IP 地址脱敏（保留前两段）
-      - replace_pattern(attributes["client.address"], 
+      - replace_pattern(attributes["client.address"],
           "(\\d+\\.\\d+)\\.\\d+\\.\\d+", "$1.*.*)
 ```
 
@@ -234,10 +234,10 @@ processors:
     trace_statements:
       # 移除所有包含 "password" 的属性
       - delete_matching_keys(attributes, ".*password.*")
-      
+
       # 移除所有包含 "secret" 的属性
       - delete_matching_keys(attributes, ".*secret.*")
-      
+
       # 移除所有包含 "token" 的属性
       - delete_matching_keys(attributes, ".*token.*")
 ```
@@ -255,16 +255,16 @@ processors:
         where duration > Duration("30s")
       - set(status.message, "Request timeout exceeded")
         where duration > Duration("30s")
-      
+
       # HTTP 错误状态
       - set(status.code, STATUS_CODE_ERROR)
         where attributes["http.status_code"] >= 500
       - set(status.message, "Server error")
         where attributes["http.status_code"] >= 500
-      
+
       # 数据库错误
       - set(status.code, STATUS_CODE_ERROR)
-        where attributes["db.operation"] == "query" and 
+        where attributes["db.operation"] == "query" and
               attributes["db.error"] != nil
 ```
 
@@ -276,13 +276,13 @@ processors:
     trace_statements:
       # 标记慢查询
       - set(attributes["is_slow_query"], true)
-        where attributes["db.operation"] != nil and 
+        where attributes["db.operation"] != nil and
               duration > Duration("1s")
-      
+
       # 标记重试请求
       - set(attributes["is_retry"], true)
         where attributes["http.retry_count"] > 0
-      
+
       # 标记关键路径
       - set(attributes["is_critical"], true)
         where IsMatch(attributes["http.target"], "^/api/(payment|order)")
@@ -298,13 +298,13 @@ processors:
     trace_statements:
       # 添加时间戳（毫秒）
       - set(attributes["timestamp_ms"], start_time_unix_nano / 1000000)
-      
+
       # 添加小时标签（用于分区）
       - set(attributes["hour"], Hour(start_time_unix_nano))
-      
+
       # 添加日期标签
       - set(attributes["date"], Format(start_time_unix_nano, "2006-01-02"))
-      
+
       # 计算持续时间（毫秒）
       - set(attributes["duration_ms"], duration / 1000000)
 ```
@@ -321,7 +321,7 @@ processors:
     metric_statements:
       # 仅保留核心维度（降低基数）
       - keep_keys(attributes, ["cluster", "namespace", "pod"])
-      
+
       # 移除高基数标签
       - delete_key(attributes, "instance_id")
       - delete_key(attributes, "request_id")
@@ -335,14 +335,14 @@ processors:
   transform:
     metric_statements:
       # 将 pod 名称聚合到 deployment
-      - replace_pattern(attributes["pod"], 
+      - replace_pattern(attributes["pod"],
           "^([a-z-]+)-[a-z0-9]+-[a-z0-9]+$", "$1")
         where IsMatch(attributes["pod"], "^[a-z-]+-[a-z0-9]+-[a-z0-9]+$")
-      
+
       # 将 HTTP 路径聚合到路由模式
-      - replace_pattern(attributes["http.target"], 
+      - replace_pattern(attributes["http.target"],
           "/user/\\d+", "/user/{id}")
-      - replace_pattern(attributes["http.target"], 
+      - replace_pattern(attributes["http.target"],
           "/order/[a-f0-9-]+", "/order/{uuid}")
 ```
 
@@ -359,7 +359,7 @@ processors:
         where name == "http.server.duration" and unit == "ns"
       - set(unit, "ms")
         where name == "http.server.duration" and unit == "ns"
-      
+
       # 秒转毫秒
       - set(value, value * 1000)
         where name == "http.client.duration" and unit == "s"
@@ -378,7 +378,7 @@ processors:
         where name == "process.memory.usage" and unit == "By"
       - set(unit, "MiBy")
         where name == "process.memory.usage" and unit == "By"
-      
+
       # KB 转 MB
       - set(value, value / 1024)
         where name == "disk.usage" and unit == "KiBy"
@@ -395,9 +395,9 @@ processors:
   transform:
     metric_statements:
       # 统一服务名称格式
-      - set(resource.attributes["service.name"], 
+      - set(resource.attributes["service.name"],
           Lowercase(resource.attributes["service.name"]))
-      
+
       # 规范化环境标签
       - set(attributes["env"], "production")
         where attributes["environment"] == "prod"
@@ -417,23 +417,23 @@ processors:
   transform:
     log_statements:
       # 邮箱脱敏
-      - replace_pattern(body, 
-          "[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}", 
+      - replace_pattern(body,
+          "[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}",
           "***@***.***")
-      
+
       # 手机号脱敏
-      - replace_pattern(body, 
-          "\\d{3}-\\d{4}-\\d{4}", 
+      - replace_pattern(body,
+          "\\d{3}-\\d{4}-\\d{4}",
           "***-****-****")
-      
+
       # 信用卡号脱敏
-      - replace_pattern(body, 
-          "\\d{4}-\\d{4}-\\d{4}-\\d{4}", 
+      - replace_pattern(body,
+          "\\d{4}-\\d{4}-\\d{4}-\\d{4}",
           "****-****-****-****")
-      
+
       # IP 地址脱敏
-      - replace_pattern(body, 
-          "\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}", 
+      - replace_pattern(body,
+          "\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}",
           "***.***.***.***")
 ```
 
@@ -446,17 +446,17 @@ processors:
   transform:
     log_statements:
       # 提取 HTTP 状态码
-      - set(attributes["http.status_code"], 
+      - set(attributes["http.status_code"],
           ExtractPattern(body, "status=(\\d+)"))
         where IsMatch(body, "status=\\d+")
-      
+
       # 提取用户 ID
-      - set(attributes["user.id"], 
+      - set(attributes["user.id"],
           ExtractPattern(body, "user_id=([a-zA-Z0-9]+)"))
         where IsMatch(body, "user_id=")
-      
+
       # 提取持续时间
-      - set(attributes["duration_ms"], 
+      - set(attributes["duration_ms"],
           Int(ExtractPattern(body, "duration=(\\d+)ms")))
         where IsMatch(body, "duration=\\d+ms")
 ```
@@ -472,17 +472,17 @@ processors:
       # 映射自定义级别到标准级别
       - set(severity_number, SEVERITY_NUMBER_ERROR)
         where severity_text == "CRITICAL" or severity_text == "FATAL"
-      
+
       - set(severity_number, SEVERITY_NUMBER_WARN)
         where severity_text == "WARNING"
-      
+
       - set(severity_number, SEVERITY_NUMBER_INFO)
         where severity_text == "NOTICE"
-      
+
       # 根据内容推断级别
       - set(severity_number, SEVERITY_NUMBER_ERROR)
         where IsMatch(body, "(?i)(error|exception|failed)")
-      
+
       - set(severity_number, SEVERITY_NUMBER_WARN)
         where IsMatch(body, "(?i)(warn|deprecated)")
 ```
@@ -500,10 +500,10 @@ processors:
       # 为不同租户添加路由标签
       - set(attributes["route.target"], "tenant-a-backend")
         where resource.attributes["tenant"] == "tenant-a"
-      
+
       - set(attributes["route.target"], "tenant-b-backend")
         where resource.attributes["tenant"] == "tenant-b"
-      
+
       # 默认路由
       - set(attributes["route.target"], "default-backend")
         where attributes["route.target"] == nil
@@ -530,15 +530,15 @@ processors:
       # 添加区域信息
       - set(attributes["region"], "us-west")
         where resource.attributes["cloud.availability_zone"] == "us-west-1a"
-      
+
       # 添加租户信息
       - set(attributes["tenant"], "premium")
         where resource.attributes["service.name"] == "premium-api"
-      
+
       # 添加成本中心
       - set(attributes["cost_center"], "engineering")
         where resource.attributes["team"] == "platform"
-      
+
       # 添加 SLA 等级
       - set(attributes["sla_tier"], "gold")
         where attributes["customer_tier"] == "enterprise"
@@ -555,15 +555,15 @@ processors:
       # 标记错误（高优先级采样）
       - set(attributes["sampling.priority"], "high")
         where status.code == STATUS_CODE_ERROR
-      
+
       # 标记慢请求（高优先级采样）
       - set(attributes["sampling.priority"], "high")
         where duration > Duration("5s")
-      
+
       # 标记关键业务（中优先级采样）
       - set(attributes["sampling.priority"], "medium")
         where IsMatch(attributes["http.target"], "^/api/(payment|checkout)")
-      
+
       # 其他请求（低优先级采样）
       - set(attributes["sampling.priority"], "low")
         where attributes["sampling.priority"] == nil
@@ -602,10 +602,10 @@ processors:
       # 1. 先执行过滤（减少后续处理量）
       - drop()
         where attributes["http.target"] == "/health"
-      
+
       # 2. 再执行简单操作
       - set(attributes["env"], "prod")
-      
+
       # 3. 最后执行复杂操作
       - set(attributes["user_hash"], SHA256(attributes["user.id"]))
         where attributes["user.id"] != nil
@@ -622,7 +622,7 @@ processors:
       # 不好的做法（重复计算）
       # - set(attributes["is_slow"], duration > Duration("1s"))
       # - set(attributes["is_very_slow"], duration > Duration("5s"))
-      
+
       # 好的做法（计算一次）
       - set(attributes["duration_ms"], duration / 1000000)
       - set(attributes["is_slow"], attributes["duration_ms"] > 1000)
@@ -638,17 +638,17 @@ processors:
   transform:
     # ignore: 忽略错误，继续处理（推荐生产环境）
     error_mode: ignore
-    
+
     # propagate: 传播错误，停止处理
     # error_mode: propagate
-    
+
     trace_statements:
       # 使用条件避免错误
       - set(attributes["user_hash"], SHA256(attributes["user.id"]))
         where attributes["user.id"] != nil
-      
+
       # 使用默认值
-      - set(attributes["status_code"], 
+      - set(attributes["status_code"],
           Coalesce(attributes["http.status_code"], 0))
 ```
 
@@ -665,11 +665,11 @@ processors:
       # 使用语义约定命名
       - set(attributes["http.request.method"], attributes["method"])
       - delete_key(attributes, "method")
-      
+
       # 使用点分隔的层次结构
       - set(attributes["app.feature.name"], "checkout")
       - set(attributes["app.feature.version"], "v2")
-      
+
       # 避免使用特殊字符
       - replace_pattern(attributes["custom.field"], "[^a-zA-Z0-9._-]", "_")
 ```
@@ -684,15 +684,15 @@ processors:
     trace_statements:
       # 生产环境强制脱敏
       - set(attributes["user.id"], SHA256(attributes["user.id"]))
-        where resource.attributes["env"] == "prod" and 
+        where resource.attributes["env"] == "prod" and
               attributes["user.id"] != nil
-      
+
       # 删除所有敏感字段
       - delete_matching_keys(attributes, ".*password.*")
       - delete_matching_keys(attributes, ".*secret.*")
       - delete_matching_keys(attributes, ".*token.*")
       - delete_matching_keys(attributes, ".*key.*")
-      
+
       # 审计日志
       - set(attributes["pii.processed"], true)
         where attributes["user.id"] != nil
@@ -744,21 +744,21 @@ processors:
         where attributes["user.id"] != nil
       - append(attributes["_pii_fields"], "user.email")
         where attributes["user.email"] != nil
-      
+
       # 2. 生产环境脱敏
       - set(attributes["user.id"], SHA256(attributes["user.id"]))
-        where resource.attributes["env"] == "prod" and 
+        where resource.attributes["env"] == "prod" and
               attributes["user.id"] != nil
-      - set(attributes["user.email"], 
+      - set(attributes["user.email"],
           Concat(Substring(attributes["user.email"], 0, 3), "***@***.com"))
-        where resource.attributes["env"] == "prod" and 
+        where resource.attributes["env"] == "prod" and
               attributes["user.email"] != nil
-      
+
       # 3. 添加审计标记
       - set(attributes["pii.processed"], true)
         where Len(attributes["_pii_fields"]) > 0
       - set(attributes["pii.fields_count"], Len(attributes["_pii_fields"]))
-      
+
       # 4. 清理临时字段
       - delete_key(attributes, "_pii_fields")
 ```
@@ -772,26 +772,26 @@ processors:
   transform:
     trace_statements:
       # 1. 提取租户信息
-      - set(attributes["tenant.id"], 
+      - set(attributes["tenant.id"],
           ExtractPattern(attributes["http.target"], "^/tenant/([^/]+)"))
         where IsMatch(attributes["http.target"], "^/tenant/")
-      
+
       # 2. 验证租户
       - set(attributes["tenant.valid"], true)
-        where attributes["tenant.id"] != nil and 
+        where attributes["tenant.id"] != nil and
               Len(attributes["tenant.id"]) > 0
-      
+
       # 3. 添加租户元数据
       - set(attributes["tenant.tier"], "premium")
         where attributes["tenant.id"] == "tenant-a"
       - set(attributes["tenant.tier"], "standard")
         where attributes["tenant.id"] == "tenant-b"
-      
+
       # 4. 设置路由目标
-      - set(attributes["route.target"], 
+      - set(attributes["route.target"],
           Concat("tenant-", attributes["tenant.id"], "-backend"))
         where attributes["tenant.valid"] == true
-      
+
       # 5. 无效租户处理
       - set(status.code, STATUS_CODE_ERROR)
         where attributes["tenant.valid"] != true
@@ -809,25 +809,25 @@ processors:
     trace_statements:
       # 1. 丢弃健康检查
       - drop()
-        where attributes["http.target"] == "/health" or 
+        where attributes["http.target"] == "/health" or
               attributes["http.target"] == "/ready"
-      
+
       # 2. 丢弃静态资源
       - drop()
         where IsMatch(attributes["http.target"], "\\.(js|css|png|jpg|ico)$")
-      
+
       # 3. 采样非关键路径
       - set(attributes["sampling.drop"], true)
-        where attributes["http.target"] != nil and 
-              not IsMatch(attributes["http.target"], "^/api/") and 
+        where attributes["http.target"] != nil and
+              not IsMatch(attributes["http.target"], "^/api/") and
               Hash(trace_id) % 100 > 10  # 保留 10%
-      
+
       # 4. 降维高基数字段
-      - replace_pattern(attributes["http.target"], 
+      - replace_pattern(attributes["http.target"],
           "/user/\\d+", "/user/{id}")
-      - replace_pattern(attributes["http.target"], 
+      - replace_pattern(attributes["http.target"],
           "/order/[a-f0-9-]+", "/order/{uuid}")
-      
+
       # 5. 删除大字段
       - delete_key(attributes, "http.request.body")
         where Len(attributes["http.request.body"]) > 1024
@@ -856,30 +856,30 @@ processors:
       - set(attributes["order.status"], "delivered")
         where attributes["order_status"] == "3"
       - delete_key(attributes, "order_status")
-      
+
       # 2. 用户信息脱敏
       - set(attributes["user.id"], SHA256(attributes["user.id"]))
         where resource.attributes["env"] == "prod"
-      - set(attributes["user.phone"], 
-          Concat(Substring(attributes["user.phone"], 0, 3), "****", 
+      - set(attributes["user.phone"],
+          Concat(Substring(attributes["user.phone"], 0, 3), "****",
                  Substring(attributes["user.phone"], 7, 4)))
         where attributes["user.phone"] != nil
-      
+
       # 3. 金额格式化（分转元）
       - set(attributes["order.amount"], attributes["order.amount_cents"] / 100.0)
       - delete_key(attributes, "order.amount_cents")
-      
+
       # 4. 地址脱敏（仅保留城市）
-      - set(attributes["shipping.city"], 
+      - set(attributes["shipping.city"],
           ExtractPattern(attributes["shipping.address"], "^([^省]+省)?([^市]+市)"))
       - delete_key(attributes, "shipping.address")
-      
+
       # 5. 标记高价值订单
       - set(attributes["order.high_value"], true)
         where attributes["order.amount"] > 1000
       - set(attributes["sampling.priority"], "high")
         where attributes["order.high_value"] == true
-      
+
       # 6. 支付方式标准化
       - set(attributes["payment.method"], "alipay")
         where IsMatch(attributes["payment_channel"], "(?i)alipay|支付宝")
@@ -905,13 +905,13 @@ processors:
       - delete_matching_keys(attributes, ".*password.*")
       - delete_matching_keys(attributes, ".*ssn.*")
       - delete_matching_keys(attributes, ".*id_card.*")
-      
+
       # 2. 账户信息哈希
       - set(attributes["account.id"], SHA256(attributes["account.id"]))
         where attributes["account.id"] != nil
       - set(attributes["transaction.id"], SHA256(attributes["transaction.id"]))
         where attributes["transaction.id"] != nil
-      
+
       # 3. 金额脱敏（仅保留范围）
       - set(attributes["amount.range"], "0-100")
         where attributes["amount"] <= 100
@@ -922,24 +922,24 @@ processors:
       - set(attributes["amount.range"], "10000+")
         where attributes["amount"] > 10000
       - delete_key(attributes, "amount")
-      
+
       # 4. IP 地址脱敏
-      - replace_pattern(attributes["client.ip"], 
+      - replace_pattern(attributes["client.ip"],
           "(\\d+\\.\\d+)\\.\\d+\\.\\d+", "$1.0.0")
-      
+
       # 5. 审计日志标记
       - set(attributes["audit.logged"], true)
       - set(attributes["audit.timestamp"], UnixNano(Now()))
       - set(attributes["audit.compliance"], "GDPR,PCI-DSS")
-      
+
       # 6. 异常交易标记
       - set(attributes["transaction.suspicious"], true)
-        where attributes["amount"] > 50000 or 
+        where attributes["amount"] > 50000 or
               attributes["transaction.country"] != attributes["account.country"]
-      
+
       # 7. 保留时间标记（合规要求）
       - set(attributes["retention.days"], 2555)  # 7 年
-        where attributes["transaction.type"] == "deposit" or 
+        where attributes["transaction.type"] == "deposit" or
               attributes["transaction.type"] == "withdrawal"
 ```
 
@@ -952,36 +952,36 @@ processors:
   transform:
     trace_statements:
       # 1. 服务名称标准化
-      - set(resource.attributes["service.name"], 
+      - set(resource.attributes["service.name"],
           Lowercase(resource.attributes["service.name"]))
-      - replace_pattern(resource.attributes["service.name"], 
+      - replace_pattern(resource.attributes["service.name"],
           "-[a-f0-9]{8}$", "")  # 移除 Pod hash
-      
+
       # 2. 路径参数化（降低基数）
-      - replace_pattern(attributes["http.target"], 
+      - replace_pattern(attributes["http.target"],
           "/api/v\\d+/users/\\d+", "/api/v{version}/users/{id}")
-      - replace_pattern(attributes["http.target"], 
+      - replace_pattern(attributes["http.target"],
           "/api/v\\d+/orders/[a-f0-9-]{36}", "/api/v{version}/orders/{uuid}")
-      - replace_pattern(attributes["http.target"], 
+      - replace_pattern(attributes["http.target"],
           "/api/v\\d+/products/[a-zA-Z0-9]+", "/api/v{version}/products/{sku}")
-      
+
       # 3. gRPC 方法标准化
-      - set(attributes["rpc.method"], 
+      - set(attributes["rpc.method"],
           ExtractPattern(attributes["rpc.service"], "\\.(\\w+)$"))
         where attributes["rpc.service"] != nil
-      
+
       # 4. 数据库查询优化
-      - replace_pattern(attributes["db.statement"], 
+      - replace_pattern(attributes["db.statement"],
           "IN \\([^)]+\\)", "IN (...)")  # 简化 IN 子句
-      - replace_pattern(attributes["db.statement"], 
+      - replace_pattern(attributes["db.statement"],
           "'[^']*'", "'?'")  # 参数化字符串
-      - set(attributes["db.statement"], 
+      - set(attributes["db.statement"],
           Substring(attributes["db.statement"], 0, 200))
         where Len(attributes["db.statement"]) > 200
-      
+
       # 5. 错误分类
       - set(attributes["error.category"], "client_error")
-        where attributes["http.status_code"] >= 400 and 
+        where attributes["http.status_code"] >= 400 and
               attributes["http.status_code"] < 500
       - set(attributes["error.category"], "server_error")
         where attributes["http.status_code"] >= 500
@@ -989,7 +989,7 @@ processors:
         where duration > Duration("30s")
       - set(attributes["error.category"], "circuit_breaker")
         where IsMatch(attributes["error.message"], "(?i)circuit.*open")
-      
+
       # 6. 性能分级
       - set(attributes["performance.grade"], "excellent")
         where duration < Duration("100ms")
@@ -1001,13 +1001,13 @@ processors:
         where duration >= Duration("1s") and duration < Duration("3s")
       - set(attributes["performance.grade"], "critical")
         where duration >= Duration("3s")
-      
+
       # 7. 采样决策优化
       - set(attributes["sampling.priority"], "critical")
-        where status.code == STATUS_CODE_ERROR or 
+        where status.code == STATUS_CODE_ERROR or
               attributes["performance.grade"] == "critical"
       - set(attributes["sampling.priority"], "high")
-        where attributes["performance.grade"] == "poor" or 
+        where attributes["performance.grade"] == "poor" or
               attributes["order.high_value"] == true
       - set(attributes["sampling.priority"], "normal")
         where attributes["sampling.priority"] == nil
@@ -1022,10 +1022,10 @@ processors:
   transform:
     trace_statements:
       # 1. 从 Pod 名称提取信息
-      - set(resource.attributes["k8s.deployment.name"], 
-          ExtractPattern(resource.attributes["k8s.pod.name"], 
+      - set(resource.attributes["k8s.deployment.name"],
+          ExtractPattern(resource.attributes["k8s.pod.name"],
                         "^([a-z0-9-]+)-[a-z0-9]+-[a-z0-9]+$"))
-      
+
       # 2. 环境判断
       - set(resource.attributes["deployment.environment"], "production")
         where IsMatch(resource.attributes["k8s.namespace.name"], "prod")
@@ -1033,22 +1033,22 @@ processors:
         where IsMatch(resource.attributes["k8s.namespace.name"], "stag")
       - set(resource.attributes["deployment.environment"], "development")
         where IsMatch(resource.attributes["k8s.namespace.name"], "dev")
-      
+
       # 3. 区域信息提取
-      - set(resource.attributes["cloud.region"], 
-          ExtractPattern(resource.attributes["k8s.node.name"], 
+      - set(resource.attributes["cloud.region"],
+          ExtractPattern(resource.attributes["k8s.node.name"],
                         "^[a-z]+-([a-z]+-\\d+)"))
-      
+
       # 4. 添加集群标识
-      - set(resource.attributes["k8s.cluster.id"], 
-          Concat(resource.attributes["cloud.provider"], "-", 
-                 resource.attributes["cloud.region"], "-", 
+      - set(resource.attributes["k8s.cluster.id"],
+          Concat(resource.attributes["cloud.provider"], "-",
+                 resource.attributes["cloud.region"], "-",
                  resource.attributes["k8s.cluster.name"]))
-      
+
       # 5. 容器资源限制标记
       - set(attributes["container.limited"], true)
         where resource.attributes["container.memory.limit"] != nil
-      
+
       # 6. 节点类型标记
       - set(resource.attributes["k8s.node.type"], "spot")
         where IsMatch(resource.attributes["k8s.node.name"], "spot")
@@ -1066,45 +1066,45 @@ processors:
     trace_statements:
       # 1. SLA 违规检测
       - set(attributes["alert.sla_violation"], true)
-        where attributes["http.route"] == "/api/critical" and 
+        where attributes["http.route"] == "/api/critical" and
               duration > Duration("1s")
       - set(attributes["alert.severity"], "critical")
         where attributes["alert.sla_violation"] == true
-      
+
       # 2. 错误率异常
       - set(attributes["alert.high_error_rate"], true)
-        where status.code == STATUS_CODE_ERROR and 
+        where status.code == STATUS_CODE_ERROR and
               resource.attributes["service.name"] == "payment-service"
       - set(attributes["alert.severity"], "high")
         where attributes["alert.high_error_rate"] == true
-      
+
       # 3. 资源耗尽预警
       - set(attributes["alert.memory_pressure"], true)
-        where attributes["process.memory.usage"] > 
+        where attributes["process.memory.usage"] >
               attributes["process.memory.limit"] * 0.9
       - set(attributes["alert.severity"], "warning")
         where attributes["alert.memory_pressure"] == true
-      
+
       # 4. 异常流量检测
       - set(attributes["alert.traffic_spike"], true)
         where attributes["http.requests_per_second"] > 10000
-      
+
       # 5. 数据库慢查询
       - set(attributes["alert.slow_query"], true)
-        where attributes["db.operation"] != nil and 
+        where attributes["db.operation"] != nil and
               duration > Duration("5s")
       - set(attributes["alert.severity"], "warning")
         where attributes["alert.slow_query"] == true
-      
+
       # 6. 第三方服务超时
       - set(attributes["alert.external_timeout"], true)
-        where IsMatch(attributes["http.url"], "https?://external\\.") and 
+        where IsMatch(attributes["http.url"], "https?://external\\.") and
               duration > Duration("10s")
-      
+
       # 7. 告警去重标记
-      - set(attributes["alert.fingerprint"], 
+      - set(attributes["alert.fingerprint"],
           SHA256(Concat(
-            resource.attributes["service.name"], 
+            resource.attributes["service.name"],
             attributes["alert.severity"],
             attributes["http.route"]
           )))
@@ -1121,38 +1121,38 @@ processors:
     trace_statements:
       # 1. 云提供商标准化
       - set(resource.attributes["cloud.provider"], "aws")
-        where resource.attributes["cloud.platform"] == "aws_ec2" or 
+        where resource.attributes["cloud.platform"] == "aws_ec2" or
               resource.attributes["cloud.platform"] == "aws_ecs"
       - set(resource.attributes["cloud.provider"], "gcp")
-        where resource.attributes["cloud.platform"] == "gcp_compute_engine" or 
+        where resource.attributes["cloud.platform"] == "gcp_compute_engine" or
               resource.attributes["cloud.platform"] == "gcp_kubernetes_engine"
       - set(resource.attributes["cloud.provider"], "azure")
-        where resource.attributes["cloud.platform"] == "azure_vm" or 
+        where resource.attributes["cloud.platform"] == "azure_vm" or
               resource.attributes["cloud.platform"] == "azure_aks"
-      
+
       # 2. 区域名称标准化
-      - replace_pattern(resource.attributes["cloud.region"], 
+      - replace_pattern(resource.attributes["cloud.region"],
           "^us-east-", "us-east-")  # AWS
-      - replace_pattern(resource.attributes["cloud.region"], 
+      - replace_pattern(resource.attributes["cloud.region"],
           "^us-central", "us-central")  # GCP
-      - replace_pattern(resource.attributes["cloud.region"], 
+      - replace_pattern(resource.attributes["cloud.region"],
           "^eastus", "us-east")  # Azure
-      
+
       # 3. 实例类型映射
       - set(resource.attributes["host.type"], "compute")
-        where IsMatch(resource.attributes["host.instance.type"], 
+        where IsMatch(resource.attributes["host.instance.type"],
                      "^(t3|e2|Standard_B)")
       - set(resource.attributes["host.type"], "memory")
-        where IsMatch(resource.attributes["host.instance.type"], 
+        where IsMatch(resource.attributes["host.instance.type"],
                      "^(r5|n2-highmem|Standard_E)")
       - set(resource.attributes["host.type"], "compute-optimized")
-        where IsMatch(resource.attributes["host.instance.type"], 
+        where IsMatch(resource.attributes["host.instance.type"],
                      "^(c5|c2|Standard_F)")
-      
+
       # 4. 成本标签
-      - set(resource.attributes["cost.center"], 
+      - set(resource.attributes["cost.center"],
           resource.attributes["cloud.account.id"])
-      - set(resource.attributes["cost.project"], 
+      - set(resource.attributes["cost.project"],
           resource.attributes["service.name"])
 ```
 
@@ -1201,7 +1201,7 @@ func (p *OTTLProcessor) ForceFlush(ctx context.Context) error {
 func (p *OTTLProcessor) transformSpan(s trace.ReadWriteSpan) {
     attrs := s.Attributes()
     newAttrs := make([]attribute.KeyValue, 0, len(attrs))
-    
+
     for _, attr := range attrs {
         // 规则 1: 脱敏用户 ID
         if attr.Key == "user.id" {
@@ -1209,23 +1209,23 @@ func (p *OTTLProcessor) transformSpan(s trace.ReadWriteSpan) {
             newAttrs = append(newAttrs, attribute.String("user.id", hash))
             continue
         }
-        
+
         // 规则 2: 删除敏感字段
         if strings.Contains(string(attr.Key), "password") ||
            strings.Contains(string(attr.Key), "token") {
             continue
         }
-        
+
         // 规则 3: 路径参数化
         if attr.Key == "http.target" {
             path := parameterizePath(attr.Value.AsString())
             newAttrs = append(newAttrs, attribute.String("http.target", path))
             continue
         }
-        
+
         newAttrs = append(newAttrs, attr)
     }
-    
+
     // 设置新属性
     s.SetAttributes(newAttrs...)
 }
@@ -1234,11 +1234,11 @@ func parameterizePath(path string) string {
     // /user/123 -> /user/{id}
     re := regexp.MustCompile(`/user/\d+`)
     path = re.ReplaceAllString(path, "/user/{id}")
-    
+
     // /order/uuid -> /order/{uuid}
     re = regexp.MustCompile(`/order/[a-f0-9-]{36}`)
     path = re.ReplaceAllString(path, "/order/{uuid}")
-    
+
     return path
 }
 

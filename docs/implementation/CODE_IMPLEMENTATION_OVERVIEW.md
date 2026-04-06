@@ -1,7 +1,7 @@
 # 代码实现总览
 
-**文档版本**: 1.0.0  
-**最后更新**: 2025-10-02  
+**文档版本**: 1.0.0
+**最后更新**: 2025-10-02
 **状态**: ✅ 已完成
 
 ---
@@ -543,13 +543,13 @@ import (
 
 func main() {
     ctx := context.Background()
-    
+
     // Fan-Out/Fan-In
     patterns.ExampleFanOutFanIn()
-    
+
     // Pipeline
     patterns.ExampleImageProcessingPipeline()
-    
+
     // Worker Pool
     patterns.ExampleWorkerPool()
 }
@@ -677,7 +677,7 @@ APIGateway.CreateOrder
 func processRequest(ctx context.Context) {
     ctx, span := tracer.Start(ctx, "operation")
     defer span.End()
-    
+
     // 传递给子函数
     subOperation(ctx)
 }
@@ -686,7 +686,7 @@ func processRequest(ctx context.Context) {
 func processRequest(ctx context.Context) {
     _, span := tracer.Start(ctx, "operation")
     defer span.End()
-    
+
     subOperation(context.Background()) // 断开追踪链
 }
 ```
@@ -739,10 +739,10 @@ data[key] = value // 并发访问会 panic
 func TestFanOutFanIn_Process(t *testing.T) {
     ctx := context.Background()
     processor := NewFanOutFanIn(5)
-    
+
     jobs := []Job{{ID: "1"}, {ID: "2"}}
     results, err := processor.Process(ctx, jobs)
-    
+
     assert.NoError(t, err)
     assert.Equal(t, 2, len(results))
 }
@@ -755,11 +755,11 @@ func TestMicroservices_Integration(t *testing.T) {
     // 启动服务
     go startOrderService()
     time.Sleep(1 * time.Second)
-    
+
     // 测试调用
     client := NewOrderServiceClient("http://localhost:8082")
     order, err := client.CreateOrder(ctx, req)
-    
+
     assert.NoError(t, err)
     assert.NotEmpty(t, order.ID)
 }
@@ -772,7 +772,7 @@ func BenchmarkWorkerPool_Submit(b *testing.B) {
     pool := NewWorkerPool("test", 10, 100)
     pool.Start()
     defer pool.Shutdown(context.Background())
-    
+
     b.ResetTimer()
     for i := 0; i < b.N; i++ {
         pool.Submit(context.Background(), &testTask{})
@@ -969,6 +969,6 @@ tenantID := GetBaggage(ctx, "tenant.id")
 
 ---
 
-**最后更新**: 2025-10-02  
-**维护者**: OTLP_go 项目组  
+**最后更新**: 2025-10-02
+**维护者**: OTLP_go 项目组
 **文档状态**: ✅ 完成

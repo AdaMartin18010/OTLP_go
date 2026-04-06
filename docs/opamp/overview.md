@@ -102,7 +102,7 @@ sequenceDiagram
     participant S as OPAMP Server
     participant A as Agent
     participant R as Registry
-    
+
     S->>R: 上传包 + 签名
     S->>A: 通知 package_available
     A->>R: 下载包
@@ -229,10 +229,10 @@ remote_config:
     transform:
       traces:
         # 生产环境脱敏
-        - set(attributes["user.id"], SHA256(attributes["user.id"])) 
+        - set(attributes["user.id"], SHA256(attributes["user.id"]))
           where resource.attributes["env"] == "prod"
         # 超时标记
-        - set(status.message, "timeout") 
+        - set(status.message, "timeout")
           where duration > 3s
 ```
 
@@ -413,25 +413,25 @@ data:
         key_file: /etc/certs/tls.key
         client_ca_file: /etc/certs/ca.crt
         client_auth: require_and_verify
-    
+
     database:
       type: postgresql
       dsn: ${DATABASE_URL}
       max_connections: 100
       max_idle_connections: 10
-    
+
     redis:
       addr: redis:6379
       password: ${REDIS_PASSWORD}
       db: 0
-    
+
     storage:
       type: s3
       s3:
         bucket: opamp-packages
         region: us-west-2
         endpoint: ${S3_ENDPOINT}
-    
+
     config_source:
       type: git
       git:
@@ -473,7 +473,7 @@ spec:
               matchLabels:
                 app: opamp-server
             topologyKey: topology.kubernetes.io/zone
-      
+
       containers:
       - name: opamp-server
         image: opamp-server:v1.0.0
@@ -482,7 +482,7 @@ spec:
           containerPort: 4320
         - name: http
           containerPort: 8080
-        
+
         env:
         - name: DATABASE_URL
           valueFrom:
@@ -496,7 +496,7 @@ spec:
               key: redis-password
         - name: S3_ENDPOINT
           value: "https://s3.us-west-2.amazonaws.com"
-        
+
         volumeMounts:
         - name: config
           mountPath: /etc/opamp
@@ -504,7 +504,7 @@ spec:
           mountPath: /etc/certs
         - name: ssh-key
           mountPath: /etc/ssh
-        
+
         resources:
           requests:
             cpu: 500m
@@ -512,21 +512,21 @@ spec:
           limits:
             cpu: 2000m
             memory: 2Gi
-        
+
         livenessProbe:
           httpGet:
             path: /health
             port: 8080
           initialDelaySeconds: 30
           periodSeconds: 10
-        
+
         readinessProbe:
           httpGet:
             path: /ready
             port: 8080
           initialDelaySeconds: 10
           periodSeconds: 5
-      
+
       volumes:
       - name: config
         configMap:
@@ -607,20 +607,20 @@ data:
           ca_file: /etc/certs/ca.crt
         headers:
           authorization: "Bearer ${OPAMP_TOKEN}"
-      
+
       agent:
         instance_id: "${HOSTNAME}"
         labels:
           env: "${ENV}"
           region: "${REGION}"
           cluster: "${CLUSTER_NAME}"
-      
+
       capabilities:
         accepts_remote_config: true
         reports_health: true
         accepts_packages: true
         accepts_restart_command: true
-      
+
       health:
         report_interval: 30s
 
@@ -659,7 +659,7 @@ spec:
             secretKeyRef:
               name: opamp-agent-token
               key: token
-        
+
         volumeMounts:
         - name: opamp-config
           mountPath: /etc/opamp
@@ -667,7 +667,7 @@ spec:
           mountPath: /etc/certs
         - name: local-config
           mountPath: /etc/otelcol
-        
+
         resources:
           requests:
             cpu: 200m
@@ -675,7 +675,7 @@ spec:
           limits:
             cpu: 500m
             memory: 512Mi
-      
+
       volumes:
       - name: opamp-config
         configMap:
@@ -795,19 +795,19 @@ func applyConfig(config *Config) error {
     if err := writeConfigFile(config); err != nil {
         return err
     }
-    
+
     // 2. 验证配置
     if err := validateConfig(config); err != nil {
         return err
     }
-    
+
     // 3. 重载 Collector
     if err := reloadCollector(); err != nil {
         // 回滚配置
         rollbackConfig()
         return err
     }
-    
+
     return nil
 }
 ```
@@ -886,14 +886,14 @@ rate(opamp_server_config_applied_total[5m]) /
 rate(opamp_server_config_sent_total[5m])
 
 # 平均响应时间
-histogram_quantile(0.95, 
+histogram_quantile(0.95,
   rate(opamp_server_request_duration_seconds_bucket[5m]))
 
 # 错误率
 rate(opamp_server_errors_total[5m])
 
 # 数据库连接池使用率
-opamp_server_db_connections_in_use / 
+opamp_server_db_connections_in_use /
 opamp_server_db_connections_max
 ```
 
@@ -910,7 +910,7 @@ groups:
           severity: critical
         annotations:
           summary: "OPAMP Server is down"
-      
+
       - alert: HighConfigFailureRate
         expr: |
           rate(opamp_server_config_failed_total[5m]) /
@@ -920,7 +920,7 @@ groups:
           severity: warning
         annotations:
           summary: "High config failure rate: {{ $value }}"
-      
+
       - alert: AgentConnectionDrop
         expr: |
           rate(opamp_server_agent_disconnected_total[5m]) > 10
@@ -988,15 +988,15 @@ func validateToken(token string) (*AgentClaims, error) {
     parsedToken, err := jwt.ParseWithClaims(token, &AgentClaims{}, func(token *jwt.Token) (interface{}, error) {
         return jwtSigningKey, nil
     })
-    
+
     if err != nil {
         return nil, err
     }
-    
+
     if claims, ok := parsedToken.Claims.(*AgentClaims); ok && parsedToken.Valid {
         return claims, nil
     }
-    
+
     return nil, errors.New("invalid token")
 }
 ```
@@ -1027,7 +1027,7 @@ func logAuditEvent(event *AuditLog) {
         "action":     event.Action,
         "success":    event.Success,
     }).Info("Audit event")
-    
+
     // 写入审计数据库
     db.Create(event)
 }

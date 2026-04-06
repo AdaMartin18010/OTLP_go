@@ -1,7 +1,7 @@
 # OTLP 形式化验证与类型安全证明
 
-**版本**: 1.0.0  
-**日期**: 2025-10-06  
+**版本**: 1.0.0
+**日期**: 2025-10-06
 **状态**: ✅ 完整
 
 ---
@@ -168,10 +168,10 @@ func typeCheckSpanCreation() {
     var tracer trace.Tracer        // Tracer 类型
     var ctx context.Context        // Context 类型
     var name string                // String 类型
-    
+
     // 类型正确: 返回 (Context, Span)
     newCtx, span := tracer.Start(ctx, name)
-    
+
     // 编译器验证类型
     var _ context.Context = newCtx
     var _ trace.Span = span
@@ -218,14 +218,14 @@ func typeCheckSpanCreation() {
 func typeSafety() {
     tracer := otel.Tracer("test")
     ctx := context.Background()
-    
+
     // 类型正确
     ctx, span := tracer.Start(ctx, "operation")
     defer span.End()
-    
+
     // 编译错误: 类型不匹配
     // var wrongType int = span  // 编译失败
-    
+
     // 编译错误: 参数类型不匹配
     // tracer.Start(123, "operation")  // 编译失败
 }
@@ -314,13 +314,13 @@ type SpanImpl struct {
 func (s *SpanImpl) End() {
     s.mu.Lock()
     defer s.mu.Unlock()
-    
+
     // 状态转换验证
     if s.state == StateEnded {
         // 已结束,忽略
         return
     }
-    
+
     s.state = StateEnded
 }
 ```
@@ -360,18 +360,18 @@ func (s *SpanImpl) End() {
 func (s *SpanImpl) End() {
     s.mu.Lock()
     defer s.mu.Unlock()
-    
+
     if s.state == StateEnded {
         return
     }
-    
+
     s.endTime = time.Now()
-    
+
     // 验证不变式
     if s.endTime.Before(s.startTime) {
         panic("invariant violation: endTime < startTime")
     }
-    
+
     s.state = StateEnded
 }
 ```
@@ -438,13 +438,13 @@ func verifyPropagation(parent context.Context) {
     // 创建 Span
     ctx, span := tracer.Start(parent, "operation")
     defer span.End()
-    
+
     // 提取 SpanContext
     sc, ok := extractSpanContext(ctx)
     if !ok {
         panic("propagation failed")
     }
-    
+
     // 验证 SpanContext 有效
     if !sc.IsValid() {
         panic("invalid span context")
@@ -481,19 +481,19 @@ func verifyPropagation(parent context.Context) {
 ```go
 func verifyParentChild() {
     ctx := context.Background()
-    
+
     // 创建父 Span
     ctx, parent := tracer.Start(ctx, "parent")
     defer parent.End()
-    
+
     parentSC := parent.SpanContext()
-    
+
     // 创建子 Span
     _, child := tracer.Start(ctx, "child")
     defer child.End()
-    
+
     childSC := child.SpanContext()
-    
+
     // 验证父子关系
     // 注意: 实际实现中需要访问内部字段
     // 这里仅作示例
@@ -558,7 +558,7 @@ type SafeSpan struct {
 func (s *SafeSpan) SetAttributes(attrs ...attribute.KeyValue) {
     s.mu.Lock()
     defer s.mu.Unlock()
-    
+
     s.attributes = append(s.attributes, attrs...)
 }
 
@@ -566,7 +566,7 @@ func (s *SafeSpan) SetAttributes(attrs ...attribute.KeyValue) {
 func (s *SafeSpan) GetState() SpanState {
     s.mu.Lock()
     defer s.mu.Unlock()
-    
+
     return s.state
 }
 ```
@@ -607,10 +607,10 @@ type OrderedLocks struct {
 func (l *OrderedLocks) SafeOperation() {
     l.lock1.Lock()
     defer l.lock1.Unlock()
-    
+
     l.lock2.Lock()
     defer l.lock2.Unlock()
-    
+
     // 临界区
 }
 
@@ -624,7 +624,7 @@ func (l *OrderedLocks) UnsafeOperation() {
         l.lock2.Lock()
         defer l.lock2.Unlock()
     }()
-    
+
     // Goroutine 2
     go func() {
         l.lock2.Lock()  // 反序获取
@@ -686,33 +686,33 @@ ResourceOp ::= Allocate() → Resource
 func processWithResource() error {
     // 分配资源
     tp := trace.NewTracerProvider(...)
-    
+
     // 确保释放
     defer func() {
         if err := tp.Shutdown(context.Background()); err != nil {
             log.Printf("shutdown error: %v", err)
         }
     }()
-    
+
     // 使用资源
     tracer := tp.Tracer("component")
     ctx, span := tracer.Start(context.Background(), "operation")
     defer span.End()
-    
+
     return doWork(ctx)
 }
 
 // 错误: 可能泄漏
 func processWithoutDefer() error {
     tp := trace.NewTracerProvider(...)
-    
+
     tracer := tp.Tracer("component")
     ctx, span := tracer.Start(context.Background(), "operation")
-    
+
     if err := doWork(ctx); err != nil {
         return err  // 忘记 span.End() 和 tp.Shutdown()
     }
-    
+
     span.End()
     tp.Shutdown(context.Background())
     return nil
@@ -747,7 +747,7 @@ type ResourceTracker struct {
 func (t *ResourceTracker) Allocate(name string) {
     t.mu.Lock()
     defer t.mu.Unlock()
-    
+
     if t.allocated[name] {
         panic("double allocation")
     }
@@ -757,7 +757,7 @@ func (t *ResourceTracker) Allocate(name string) {
 func (t *ResourceTracker) Release(name string) {
     t.mu.Lock()
     defer t.mu.Unlock()
-    
+
     if !t.allocated[name] {
         panic("release before allocate")
     }
@@ -767,7 +767,7 @@ func (t *ResourceTracker) Release(name string) {
 func (t *ResourceTracker) Check() {
     t.mu.Lock()
     defer t.mu.Unlock()
-    
+
     if len(t.allocated) > 0 {
         panic("resource leak detected")
     }
@@ -838,7 +838,7 @@ type ParentBasedSampler struct {
 func (s *ParentBasedSampler) ShouldSample(p trace.SamplingParameters) trace.SamplingResult {
     // 检查父 SpanContext
     psc := trace.SpanContextFromContext(p.ParentContext)
-    
+
     if psc.IsValid() {
         // 继承父级采样决策
         if psc.IsSampled() {
@@ -851,7 +851,7 @@ func (s *ParentBasedSampler) ShouldSample(p trace.SamplingParameters) trace.Samp
             }
         }
     }
-    
+
     // 根 Span,使用 root 采样器
     return s.root.ShouldSample(p)
 }
@@ -861,25 +861,25 @@ func verifyConsistency() {
     sampler := &ParentBasedSampler{
         root: trace.AlwaysSample(),
     }
-    
+
     tp := trace.NewTracerProvider(
         trace.WithSampler(sampler),
     )
-    
+
     tracer := tp.Tracer("test")
-    
+
     // 创建父 Span
     ctx, parent := tracer.Start(context.Background(), "parent")
     defer parent.End()
-    
+
     parentSampled := parent.SpanContext().IsSampled()
-    
+
     // 创建子 Span
     _, child := tracer.Start(ctx, "child")
     defer child.End()
-    
+
     childSampled := child.SpanContext().IsSampled()
-    
+
     // 验证一致性
     if parentSampled != childSampled {
         panic("sampling inconsistency")
@@ -959,22 +959,22 @@ type ReliableExporter struct {
 
 func (e *ReliableExporter) ExportSpans(ctx context.Context, spans []trace.ReadOnlySpan) error {
     var lastErr error
-    
+
     for attempt := 0; attempt <= e.maxRetries; attempt++ {
         err := e.exporter.ExportSpans(ctx, spans)
         if err == nil {
             return nil
         }
-        
+
         lastErr = err
-        
+
         // 指数退避
         if attempt < e.maxRetries {
             backoff := e.backoff * time.Duration(1<<attempt)
             time.Sleep(backoff)
         }
     }
-    
+
     return fmt.Errorf("export failed after %d attempts: %w", e.maxRetries, lastErr)
 }
 
@@ -985,20 +985,20 @@ func verifyEventualConsistency() {
         maxRetries: 3,
         backoff:    time.Second,
     }
-    
+
     tp := trace.NewTracerProvider(
         trace.WithBatcher(exporter),
     )
-    
+
     tracer := tp.Tracer("test")
-    
+
     // 创建 Span
     ctx, span := tracer.Start(context.Background(), "operation")
     span.End()
-    
+
     // 等待导出
     time.Sleep(10 * time.Second)
-    
+
     // 验证: Span 应该已被导出
 }
 ```
@@ -1043,7 +1043,7 @@ golangci-lint run ./...
 
 func TestConcurrentAccess(t *testing.T) {
     span := &SafeSpan{}
-    
+
     var wg sync.WaitGroup
     for i := 0; i < 100; i++ {
         wg.Add(1)
@@ -1065,7 +1065,7 @@ func main() {
     go func() {
         log.Println(http.ListenAndServe("localhost:6060", nil))
     }()
-    
+
     // 应用逻辑
 }
 
@@ -1089,59 +1089,59 @@ import (
 // 属性: Span.End() 是幂等的
 func TestSpanEndIdempotent(t *testing.T) {
     properties := gopter.NewProperties(nil)
-    
+
     properties.Property("End is idempotent", prop.ForAll(
         func(n int) bool {
             span := createSpan()
-            
+
             // 调用 End() n 次
             for i := 0; i < n; i++ {
                 span.End()
             }
-            
+
             // 验证状态
             return span.state == StateEnded
         },
         gen.IntRange(1, 100),
     ))
-    
+
     properties.TestingRun(t)
 }
 
 // 属性: Context 传播保持 TraceID
 func TestContextPropagation(t *testing.T) {
     properties := gopter.NewProperties(nil)
-    
+
     properties.Property("TraceID is preserved", prop.ForAll(
         func(depth int) bool {
             ctx := context.Background()
             ctx, parent := tracer.Start(ctx, "parent")
             defer parent.End()
-            
+
             parentTraceID := parent.SpanContext().TraceID()
-            
+
             // 创建深度为 depth 的 Span 链
             for i := 0; i < depth; i++ {
                 ctx, child := tracer.Start(ctx, fmt.Sprintf("child-%d", i))
                 defer child.End()
-                
+
                 if child.SpanContext().TraceID() != parentTraceID {
                     return false
                 }
             }
-            
+
             return true
         },
         gen.IntRange(1, 10),
     ))
-    
+
     properties.TestingRun(t)
 }
 
 // 属性: 采样一致性
 func TestSamplingConsistency(t *testing.T) {
     properties := gopter.NewProperties(nil)
-    
+
     properties.Property("Sampling is consistent", prop.ForAll(
         func(sampleRate float64) bool {
             sampler := trace.TraceIDRatioBased(sampleRate)
@@ -1149,28 +1149,28 @@ func TestSamplingConsistency(t *testing.T) {
                 trace.WithSampler(sampler),
             )
             tracer := tp.Tracer("test")
-            
+
             ctx := context.Background()
             ctx, parent := tracer.Start(ctx, "parent")
             defer parent.End()
-            
+
             parentSampled := parent.SpanContext().IsSampled()
-            
+
             // 创建多个子 Span
             for i := 0; i < 10; i++ {
                 _, child := tracer.Start(ctx, fmt.Sprintf("child-%d", i))
                 defer child.End()
-                
+
                 if child.SpanContext().IsSampled() != parentSampled {
                     return false
                 }
             }
-            
+
             return true
         },
         gen.Float64Range(0, 1),
     ))
-    
+
     properties.TestingRun(t)
 }
 ```
@@ -1204,7 +1204,7 @@ func TestSamplingConsistency(t *testing.T) {
 
 **文档结束**:
 
-**版本**: 1.0.0  
-**日期**: 2025-10-06  
-**作者**: OTLP 项目团队  
+**版本**: 1.0.0
+**日期**: 2025-10-06
+**作者**: OTLP 项目团队
 **许可**: 遵循项目根目录的 LICENSE 文件

@@ -14,11 +14,14 @@
     - [2.1 唯一性定理](#21-唯一性定理)
     - [2.2 因果关系定理](#22-因果关系定理)
     - [2.3 时间一致性定理](#23-时间一致性定理)
+    - [2.4 跨信号拼接一致性定理（新增）](#24-跨信号拼接一致性定理新增)
   - [3. 分布式一致性证明](#3-分布式一致性证明)
     - [3.1 最终一致性定理](#31-最终一致性定理)
     - [3.2 因果一致性定理](#32-因果一致性定理)
+    - [3.3 Schema 迁移语义不变式（新增）](#33-schema-迁移语义不变式新增)
   - [4. 性能界限证明](#4-性能界限证明)
     - [4.1 延迟界限定理](#41-延迟界限定理)
+    - [4.3 批处理-背压稳定性（新增）](#43-批处理-背压稳定性新增)
     - [4.2 吞吐量界限定理](#42-吞吐量界限定理)
   - [5. 安全性证明](#5-安全性证明)
     - [5.1 数据完整性定理](#51-数据完整性定理)
@@ -38,7 +41,7 @@ S = (R, T, M, L, Γ)
 其中：
 
 - **R** = Resource 集合
-- **T** = Trace 集合  
+- **T** = Trace 集合
 - **M** = Metric 集合
 - **L** = Log 集合
 - **Γ** = 语义关系集合
@@ -63,7 +66,7 @@ causality ⊆ T × T
 
 ```text
 temporal_consistency ⊆ T × L
-(t, l) ∈ temporal_consistency ⟺ 
+(t, l) ∈ temporal_consistency ⟺
     t.trace_id = l.trace_id ∧
     ∃ s ∈ t.spans: s.start_time ≤ l.timestamp ≤ s.end_time
 ```
@@ -130,7 +133,7 @@ s1 → s2 → s3
 **定理 3（时间一致性）**：
 
 ```text
-∀ t ∈ T, l ∈ L: (t, l) ∈ temporal_consistency ⟹ 
+∀ t ∈ T, l ∈ L: (t, l) ∈ temporal_consistency ⟹
     ∃ s ∈ t.spans: s.start_time ≤ l.timestamp ≤ s.end_time
 ```
 
@@ -246,7 +249,7 @@ L ≤ L_network + L_processing + L_storage
 其中：
 
 - L_network：网络传输延迟
-- L_processing：处理延迟  
+- L_processing：处理延迟
 - L_storage：存储延迟
 
 **证明**：
@@ -314,7 +317,7 @@ T ≤ min(T_1, T_2, ..., T_n)
 对于 OTLP 系统，主要组件包括：
 
 - 网络传输组件：吞吐量 T_network
-- 处理组件：吞吐量 T_processing  
+- 处理组件：吞吐量 T_processing
 - 存储组件：吞吐量 T_storage
 
 因此：

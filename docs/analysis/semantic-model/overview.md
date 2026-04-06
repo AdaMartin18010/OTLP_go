@@ -217,10 +217,10 @@ message Metric {
 const (
     // 未指定
     AggregationTemporalityUnspecified AggregationTemporality = 0
-    
+
     // Delta：增量值（两次采集之间的变化）
     AggregationTemporalityDelta AggregationTemporality = 1
-    
+
     // Cumulative：累计值（从开始到现在的总和）
     AggregationTemporalityCumulative AggregationTemporality = 2
 )

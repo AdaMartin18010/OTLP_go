@@ -178,7 +178,7 @@ processors:
   batch:
     timeout: 10s
     send_batch_size: 1024
-  
+
   memory_limiter:
     check_interval: 1s
     limit_mib: 512
@@ -186,7 +186,7 @@ processors:
 exporters:
   otlp:
     endpoint: backend.example.com:4317
-  
+
   logging:
     loglevel: debug
 
@@ -219,7 +219,7 @@ processors:
   transform:
     error_mode: ignore
     traces:
-      - set(attributes["env"], "prod") 
+      - set(attributes["env"], "prod")
         where resource.attributes["deployment.environment"] == "production"
       - set(attributes["user.id"], SHA256(attributes["user.id"]))
       - delete_key(attributes, "http.request.header.authorization")
@@ -325,7 +325,7 @@ import (
 
 func startOPAMPClient() {
     opampClient := client.NewWebSocket(nil)
-    
+
     opampClient.SetAgentDescription(&protobufs.AgentDescription{
         IdentifyingAttributes: []*protobufs.KeyValue{
             {
@@ -338,7 +338,7 @@ func startOPAMPClient() {
             },
         },
     })
-    
+
     opampClient.Start(context.Background(), client.StartSettings{
         OpAMPServerURL: "wss://opamp.example.com/v1/opamp",
         TLSConfig:      tlsConfig,
@@ -570,16 +570,16 @@ processors:
   batch:
     timeout: 10s
     send_batch_size: 1024
-  
+
   # 内存限制
   memory_limiter:
     limit_mib: 512
-  
+
   # OTTL 转换
   transform:
     traces:
       - set(attributes["env"], "prod")
-  
+
   # 尾部采样
   tail_sampling:
     policies:
@@ -848,7 +848,7 @@ receivers:
 exporters:
   jaeger:
     endpoint: jaeger-collector:14250
-  
+
   otlp:
     endpoint: backend:4317
 
@@ -872,7 +872,7 @@ tp := sdktrace.NewTracerProvider(
         sdktrace.WithMaxExportBatchSize(512),
         sdktrace.WithMaxQueueSize(2048),
     ),
-    
+
     // 资源标识
     sdktrace.WithResource(resource.NewWithAttributes(
         semconv.SchemaURL,
@@ -880,12 +880,12 @@ tp := sdktrace.NewTracerProvider(
         semconv.ServiceVersion(version),
         semconv.DeploymentEnvironment(env),
     )),
-    
+
     // 采样策略
     sdktrace.WithSampler(sdktrace.ParentBased(
         sdktrace.TraceIDRatioBased(0.1), // 10% 采样
     )),
-    
+
     // 资源限制
     sdktrace.WithSpanLimits(sdktrace.SpanLimits{
         AttributeCountLimit:       128,

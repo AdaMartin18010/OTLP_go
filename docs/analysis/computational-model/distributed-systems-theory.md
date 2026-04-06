@@ -397,7 +397,7 @@ func (vc VectorClock) Update(other VectorClock) {
 func (vc VectorClock) HappensBefore(other VectorClock) bool {
     lessThanOrEqual := true
     strictlyLess := false
-    
+
     for nodeID := range vc {
         if vc[nodeID] > other[nodeID] {
             lessThanOrEqual = false
@@ -406,7 +406,7 @@ func (vc VectorClock) HappensBefore(other VectorClock) bool {
             strictlyLess = true
         }
     }
-    
+
     return lessThanOrEqual && strictlyLess
 }
 
@@ -447,11 +447,11 @@ type HybridLogicalClock struct {
 func (hlc *HybridLogicalClock) Now() (int64, uint64) {
     hlc.mu.Lock()
     defer hlc.mu.Unlock()
-    
+
     ptNow := time.Now().UnixNano()
     pt := hlc.physicalTime.Load()
     l := hlc.logical.Load()
-    
+
     if ptNow > pt {
         hlc.physicalTime.Store(ptNow)
         hlc.logical.Store(0)
@@ -465,13 +465,13 @@ func (hlc *HybridLogicalClock) Now() (int64, uint64) {
 func (hlc *HybridLogicalClock) Update(remotePT int64, remoteL uint64) {
     hlc.mu.Lock()
     defer hlc.mu.Unlock()
-    
+
     ptNow := time.Now().UnixNano()
     pt := hlc.physicalTime.Load()
     l := hlc.logical.Load()
-    
+
     maxPT := max(pt, remotePT, ptNow)
-    
+
     if maxPT == pt && maxPT == remotePT {
         hlc.logical.Store(max(l, remoteL) + 1)
     } else if maxPT == pt {
@@ -582,16 +582,16 @@ func (g *GossipProtocol) Gossip() {
     for {
         // 随机选择邻居
         peer := g.peers[rand.Intn(len(g.peers))]
-        
+
         // 交换配置
         remoteConfig, remoteVersion := g.fetchConfig(peer)
-        
+
         // 更新到最新版本
         if remoteVersion > g.version {
             g.config = remoteConfig
             g.version = remoteVersion
         }
-        
+
         time.Sleep(1 * time.Second)
     }
 }
@@ -673,7 +673,7 @@ type NodeStatus struct {
 func (hd *HeartbeatDetector) Monitor() {
     ticker := time.NewTicker(1 * time.Second)
     defer ticker.Stop()
-    
+
     for range ticker.C {
         for nodeID, status := range hd.nodes {
             if time.Since(status.lastHeartbeat) > hd.timeout {
@@ -690,7 +690,7 @@ func (hd *HeartbeatDetector) ReceiveHeartbeat(nodeID string) {
     if status, ok := hd.nodes[nodeID]; ok {
         status.lastHeartbeat = time.Now()
         status.alive = true
-        
+
         if hd.suspected[nodeID] {
             delete(hd.suspected, nodeID)
             hd.onRecovered(nodeID)
@@ -711,14 +711,14 @@ func (pad *PhiAccrualDetector) Phi(now time.Time) float64 {
     if len(pad.history) == 0 {
         return 0
     }
-    
+
     // 计算平均间隔和标准差
     mean, stddev := pad.statistics()
-    
+
     // 计算当前间隔
     lastHeartbeat := time.Now().Add(-pad.history[len(pad.history)-1])
     interval := now.Sub(lastHeartbeat)
-    
+
     // 计算 Phi 值
     phi := -math.Log10(1 - cdf(interval, mean, stddev))
     return phi
@@ -750,7 +750,7 @@ func (rm *RecoveryManager) SaveCheckpoint(state SystemState) {
         state:     state,
     }
     rm.checkpoints = append(rm.checkpoints, checkpoint)
-    
+
     // 保留最近 10 个检查点
     if len(rm.checkpoints) > 10 {
         rm.checkpoints = rm.checkpoints[1:]
@@ -761,7 +761,7 @@ func (rm *RecoveryManager) Recover() SystemState {
     if len(rm.checkpoints) == 0 {
         return SystemState{}
     }
-    
+
     // 恢复到最近的检查点
     latest := rm.checkpoints[len(rm.checkpoints)-1]
     return latest.state
@@ -787,7 +787,7 @@ func (wal *WAL) Append(entry LogEntry) error {
     if err := wal.write(entry); err != nil {
         return err
     }
-    
+
     // 再应用操作
     return wal.apply(entry)
 }
@@ -797,13 +797,13 @@ func (wal *WAL) Replay() error {
     if err != nil {
         return err
     }
-    
+
     for _, entry := range entries {
         if err := wal.apply(entry); err != nil {
             return err
         }
     }
-    
+
     return nil
 }
 ```
@@ -836,20 +836,20 @@ type SelfHealingSystem struct {
 func (shs *SelfHealingSystem) Run(ctx context.Context) {
     ticker := time.NewTicker(10 * time.Second)
     defer ticker.Stop()
-    
+
     for {
         select {
         case <-ticker.C:
             // 1. Monitor
             metrics := shs.monitor.Collect()
-            
+
             // 2. Analyze
             anomalies := shs.analyzer.Detect(metrics)
-            
+
             if len(anomalies) > 0 {
                 // 3. Plan
                 plan := shs.planner.Generate(anomalies, shs.knowledge)
-                
+
                 // 4. Execute
                 if err := shs.executor.Execute(plan); err != nil {
                     log.Errorf("Failed to execute plan: %v", err)
@@ -858,7 +858,7 @@ func (shs *SelfHealingSystem) Run(ctx context.Context) {
                     shs.knowledge.Update(anomalies, plan)
                 }
             }
-            
+
         case <-ctx.Done():
             return
         }
@@ -935,18 +935,18 @@ func (ch *ConsistentHash) Get(key string) string {
     if len(ch.ring) == 0 {
         return ""
     }
-    
+
     hash := ch.hash(key)
-    
+
     // 二分查找
     idx := sort.Search(len(ch.sortedKeys), func(i int) bool {
         return ch.sortedKeys[i] >= hash
     })
-    
+
     if idx == len(ch.sortedKeys) {
         idx = 0
     }
-    
+
     return ch.ring[ch.sortedKeys[idx]]
 }
 
@@ -989,14 +989,14 @@ type LeastConnectionsStrategy struct{}
 func (lcs *LeastConnectionsStrategy) Select(backends []Backend) Backend {
     minConnections := int(^uint(0) >> 1)  // Max int
     var selected Backend
-    
+
     for _, backend := range backends {
         if backend.ActiveConnections < minConnections {
             minConnections = backend.ActiveConnections
             selected = backend
         }
     }
-    
+
     return selected
 }
 
@@ -1131,14 +1131,14 @@ type NodeInfo struct {
 
 func (pd *PartitionDetector) Detect() []string {
     var partitioned []string
-    
+
     for nodeID, info := range pd.nodes {
         if time.Since(info.lastGossip) > time.Duration(pd.threshold)*time.Second {
             info.reachable = false
             partitioned = append(partitioned, nodeID)
         }
     }
-    
+
     return partitioned
 }
 ```
@@ -1158,13 +1158,13 @@ func (pr *PartitionRecovery) Recover() {
     if pr.detector.IsPartitionHealed() {
         // 2. 同步数据
         pr.syncData()
-        
+
         // 3. 解决冲突
         conflicts := pr.detectConflicts()
         for _, conflict := range conflicts {
             pr.resolver.Resolve(conflict)
         }
-        
+
         // 4. 重新选举 (如果需要)
         pr.triggerElection()
     }
@@ -1212,7 +1212,7 @@ func ValidateCausality(trace Trace) error {
     if hasCycle(trace) {
         return errors.New("trace has cycle")
     }
-    
+
     // 2. 检查时间一致性
     for _, span := range trace.Spans {
         if span.ParentSpanID != "" {
@@ -1225,7 +1225,7 @@ func ValidateCausality(trace Trace) error {
             }
         }
     }
-    
+
     return nil
 }
 ```
@@ -1261,7 +1261,7 @@ func ConcurrentWith(e1, e2 Event) bool {
 // 构建 Happens-Before 图
 func BuildHappensBeforeGraph(events []Event) *Graph {
     graph := NewGraph()
-    
+
     for i, e1 := range events {
         for j, e2 := range events {
             if i != j && HappensBefore(e1, e2) {
@@ -1269,7 +1269,7 @@ func BuildHappensBeforeGraph(events []Event) *Graph {
             }
         }
     }
-    
+
     return graph
 }
 ```
@@ -1301,15 +1301,15 @@ type Snapshot struct {
 func (s *Snapshot) Capture(collectors []Collector) {
     // 1. 发起快照
     marker := Marker{ID: uuid.New(), Timestamp: time.Now()}
-    
+
     for _, collector := range collectors {
         // 2. 保存本地状态
         s.states[collector.ID] = collector.SaveState()
-        
+
         // 3. 发送 Marker
         collector.SendMarker(marker)
     }
-    
+
     // 4. 收集通道消息
     for _, collector := range collectors {
         messages := collector.CollectMessages(marker)
@@ -1346,13 +1346,13 @@ type GlobalState struct {
 func (gsd *GlobalStateDetector) Detect() bool {
     // 1. 捕获全局快照
     snapshot := gsd.captureSnapshot()
-    
+
     // 2. 构建全局状态
     globalState := GlobalState{
         collectorStates: snapshot.states,
         channelStates:   snapshot.channels,
     }
-    
+
     // 3. 检测谓词
     return gsd.predicate(globalState)
 }

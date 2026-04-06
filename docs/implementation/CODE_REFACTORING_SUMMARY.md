@@ -1,7 +1,7 @@
 # 代码优化与重构总结
 
-**版本**: v2.1.0  
-**日期**: 2025-10-02  
+**版本**: v2.1.0
+**日期**: 2025-10-02
 **优化范围**: 全面代码重构，结合 Go 1.25.1 特性和最佳实践
 
 ---
@@ -151,7 +151,7 @@ func Apply[T any](target *T, opts ...Option[T]) {
 
 // 使用示例
 cfg := DefaultServerConfig()
-Apply(cfg, 
+Apply(cfg,
     WithAddr(":9090"),
     WithReadTimeout(10*time.Second),
     WithTLS("/path/to/cert", "/path/to/key"),
@@ -304,7 +304,7 @@ shutdownMgr.RegisterStage("telemetry", shutdownOTLP)   // 最后关闭遥测
 #### 5. 结构化日志
 
 ```go
-logger.Info("📨 Handling request", 
+logger.Info("📨 Handling request",
     "method", r.Method,
     "path", r.URL.Path,
     "request_id", pkgctx.GetRequestID(ctx),
@@ -385,7 +385,7 @@ func process(data string) error {
     if data == "" {
         return errors.New("empty")
     }
-    
+
     // 主逻辑在浅层
     return nil
 }
@@ -495,11 +495,11 @@ return fmt.Errorf("failed to initialize tracer: %w", err)
 
 ---
 
-**优化完成度**: 🟢 **Phase 1 完成 (60%)**  
+**优化完成度**: 🟢 **Phase 1 完成 (60%)**
 **下一阶段**: 🟡 **Phase 2 进行中 (并发优化)**
 
 ---
 
-**文档版本**: v2.1.0  
-**最后更新**: 2025-10-02  
+**文档版本**: v2.1.0
+**最后更新**: 2025-10-02
 **维护者**: OTLP_go 项目组

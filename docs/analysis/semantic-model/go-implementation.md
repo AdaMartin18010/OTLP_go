@@ -102,7 +102,7 @@ type ReadOnlySpan interface {
 // ReadWriteSpan 提供读写访问
 type ReadWriteSpan interface {
     ReadOnlySpan
-    
+
     SetName(string)
     SetStatus(codes.Code, string)
     SetAttributes(...attribute.KeyValue)
@@ -147,13 +147,13 @@ func (sc SpanContext) IsSampled() bool {
 // recordingSpan 是 Span 的具体实现
 type recordingSpan struct {
     mu sync.Mutex
-    
+
     // 不可变字段
     spanContext SpanContext
     parent      SpanContext
     spanKind    SpanKind
     startTime   time.Time
-    
+
     // 可变字段（需要锁保护）
     name          string
     attributes    []attribute.KeyValue
@@ -162,7 +162,7 @@ type recordingSpan struct {
     status        Status
     endTime       time.Time
     ended         bool
-    
+
     // 元数据
     instrumentationScope instrumentation.Scope
     resource            *resource.Resource
@@ -171,28 +171,28 @@ type recordingSpan struct {
 func (s *recordingSpan) SetAttributes(attrs ...attribute.KeyValue) {
     s.mu.Lock()
     defer s.mu.Unlock()
-    
+
     if s.ended {
         return
     }
-    
+
     s.attributes = append(s.attributes, attrs...)
 }
 
 func (s *recordingSpan) End(options ...SpanEndOption) {
     s.mu.Lock()
     defer s.mu.Unlock()
-    
+
     if s.ended {
         return
     }
-    
+
     config := NewSpanEndConfig(options...)
     s.endTime = config.Timestamp()
     if s.endTime.IsZero() {
         s.endTime = time.Now()
     }
-    
+
     s.ended = true
 }
 ```
@@ -209,15 +209,15 @@ type Meter interface {
     // Counter 创建单调递增计数器
     Int64Counter(name string, options ...InstrumentOption) (Int64Counter, error)
     Float64Counter(name string, options ...InstrumentOption) (Float64Counter, error)
-    
+
     // UpDownCounter 创建可增可减计数器
     Int64UpDownCounter(name string, options ...InstrumentOption) (Int64UpDownCounter, error)
     Float64UpDownCounter(name string, options ...InstrumentOption) (Float64UpDownCounter, error)
-    
+
     // Histogram 创建直方图
     Int64Histogram(name string, options ...InstrumentOption) (Int64Histogram, error)
     Float64Histogram(name string, options ...InstrumentOption) (Float64Histogram, error)
-    
+
     // Gauge 创建瞬时值
     Int64ObservableGauge(name string, options ...InstrumentOption) (Int64ObservableGauge, error)
     Float64ObservableGauge(name string, options ...InstrumentOption) (Float64ObservableGauge, error)
@@ -242,10 +242,10 @@ func (c *int64Counter) Add(ctx context.Context, incr int64, options ...AddOption
         // Counter 必须单调递增
         return
     }
-    
+
     config := NewAddConfig(options...)
     attrs := config.Attributes()
-    
+
     c.aggregator.Aggregate(ctx, incr, attrs)
 }
 ```
@@ -266,14 +266,14 @@ type float64Histogram struct {
 func (h *float64Histogram) Record(ctx context.Context, value float64, options ...RecordOption) {
     config := NewRecordConfig(options...)
     attrs := config.Attributes()
-    
+
     h.aggregator.RecordValue(ctx, value, attrs)
 }
 
 // HistogramAggregator 聚合直方图数据
 type HistogramAggregator struct {
     mu sync.Mutex
-    
+
     bounds []float64
     counts []uint64
     sum    float64
@@ -285,18 +285,18 @@ type HistogramAggregator struct {
 func (a *HistogramAggregator) RecordValue(ctx context.Context, value float64, attrs attribute.Set) {
     a.mu.Lock()
     defer a.mu.Unlock()
-    
+
     // 更新统计信息
     a.count++
     a.sum += value
-    
+
     if a.count == 1 || value < a.min {
         a.min = value
     }
     if a.count == 1 || value > a.max {
         a.max = value
     }
-    
+
     // 找到对应的桶
     bucket := sort.SearchFloat64s(a.bounds, value)
     a.counts[bucket]++
@@ -397,20 +397,20 @@ func (h *OTELHandler) Handle(ctx context.Context, r slog.Record) error {
         severityText: r.Level.String(),
         body:         log.StringValue(r.Message),
     }
-    
+
     // 添加属性
     r.Attrs(func(a slog.Attr) bool {
-        record.attributes = append(record.attributes, 
+        record.attributes = append(record.attributes,
             log.String(a.Key, a.Value.String()))
         return true
     })
-    
+
     // 添加 Trace 上下文
     if span := trace.SpanFromContext(ctx); span.SpanContext().IsValid() {
         record.traceID = span.SpanContext().TraceID()
         record.spanID = span.SpanContext().SpanID()
     }
-    
+
     h.logger.Emit(ctx, record)
     return nil
 }
@@ -443,7 +443,7 @@ func releaseSpan(s *recordingSpan) {
     s.events = s.events[:0]
     s.links = s.links[:0]
     s.ended = false
-    
+
     spanPool.Put(s)
 }
 ```
@@ -455,17 +455,17 @@ func releaseSpan(s *recordingSpan) {
 func (s *recordingSpan) MarshalTo(buf []byte) (int, error) {
     // 直接写入预分配的缓冲区
     n := 0
-    
+
     // TraceID
     copy(buf[n:], s.spanContext.traceID[:])
     n += 16
-    
+
     // SpanID
     copy(buf[n:], s.spanContext.spanID[:])
     n += 8
-    
+
     // ... 其他字段
-    
+
     return n, nil
 }
 ```
@@ -495,11 +495,11 @@ func (bsp *BatchSpanProcessor) processQueue() {
         select {
         case span := <-bsp.queue:
             bsp.batch = append(bsp.batch, span)
-            
+
             if len(bsp.batch) >= bsp.maxSize {
                 bsp.flush()
             }
-            
+
         case <-bsp.timer.C:
             if len(bsp.batch) > 0 {
                 bsp.flush()
