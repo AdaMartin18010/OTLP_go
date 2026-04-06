@@ -1,0 +1,97 @@
+# OpenTelemetry SDK Version Check
+# Automatically checks for new OTel Go SDK releases and creates issues
+
+name: OTel SDK Version Check
+
+on:
+  schedule:
+    # Run weekly on Monday at 9:00 AM
+    - cron: '0 9 * * 1'
+  workflow_dispatch:  # Manual trigger
+
+jobs:
+  check-version:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.26.1'
+
+      - name: Check current version
+        id: current
+        run: |
+          CURRENT_VERSION=$(grep -o 'go.opentelemetry.io/otel v[^ ]*' go.mod | head -1 | cut -d' ' -f2)
+          echo "current=$CURRENT_VERSION" >> $GITHUB_OUTPUT
+          echo "Current version: $CURRENT_VERSION"
+
+      - name: Check latest release
+        id: latest
+        run: |
+          LATEST_VERSION=$(curl -s https://api.github.com/repos/open-telemetry/opentelemetry-go/releases/latest | jq -r '.tag_name')
+          echo "latest=$LATEST_VERSION" >> $GITHUB_OUTPUT
+          echo "Latest version: $LATEST_VERSION"
+
+      - name: Compare versions
+        id: compare
+        run: |
+          CURRENT="${{ steps.current.outputs.current }}"
+          LATEST="${{ steps.latest.outputs.latest }}"
+          
+          if [ "$CURRENT" != "$LATEST" ]; then
+            echo "update_needed=true" >> $GITHUB_OUTPUT
+            echo "New version available: $CURRENT -> $LATEST"
+          else
+            echo "update_needed=false" >> $GITHUB_OUTPUT
+            echo "Already up to date"
+          fi
+
+      - name: Create update issue
+        if: steps.compare.outputs.update_needed == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const current = '${{ steps.current.outputs.current }}';
+            const latest = '${{ steps.latest.outputs.latest }}';
+            
+            const title = `[SDK Update] OTel Go ${latest} Available (Current: ${current})`;
+            
+            const body = `## OpenTelemetry Go SDK Update Available
+            
+            **Current Version:** ${current}
+            **Latest Version:** ${latest}
+            
+            ### Checklist
+            - [ ] Review [release notes](https://github.com/open-telemetry/opentelemetry-go/releases/tag/${latest})
+            - [ ] Check breaking changes
+            - [ ] Update go.mod dependencies
+            - [ ] Run tests
+            - [ ] Update documentation if needed
+            - [ ] Update RESEARCH_TRACKING.md
+            
+            ### Release Notes Summary
+            <!-- Will be filled manually -->
+            
+            ### Affected Documents
+            - docs/research/otel-sdk/*.md
+            - pkg/propagation/*.go
+            - examples/*
+            
+            ### Estimated Effort
+            <!-- TBD based on changelog -->`;
+            
+            github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: title,
+              body: body,
+              labels: ['dependencies', 'otel-sdk', 'documentation']
+            });
+
+      - name: Send notification
+        if: steps.compare.outputs.update_needed == 'true'
+        run: |
+          echo "::notice title=OTel SDK Update::New version ${{ steps.latest.outputs.latest }} available"

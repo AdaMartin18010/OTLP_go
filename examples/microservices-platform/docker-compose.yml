@@ -1,0 +1,214 @@
+# Microservices Observability Platform
+# Complete demonstration of OTLP Go stack with eBPF, Traces, Metrics, Logs, and Profiles
+
+version: "3.8"
+
+services:
+  # === OTLP Collector ===
+  collector:
+    image: otel/opentelemetry-collector-contrib:0.96.0
+    container_name: otel-collector
+    command: ["--config=/etc/otel-collector-config.yaml"]
+    volumes:
+      - ../configs/otel-collector-platform.yaml:/etc/otel-collector-config.yaml
+    ports:
+      - "4317:4317"   # OTLP gRPC
+      - "4318:4318"   # OTLP HTTP
+      - "55679:55679" # zpages
+    depends_on:
+      - jaeger
+      - prometheus
+      - loki
+    networks:
+      - observability
+
+  # === Jaeger (Traces) ===
+  jaeger:
+    image: jaegertracing/all-in-one:1.54
+    container_name: jaeger
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
+    ports:
+      - "16686:16686" # UI
+      - "14250:14250" # gRPC
+    networks:
+      - observability
+
+  # === Prometheus (Metrics) ===
+  prometheus:
+    image: prom/prometheus:v2.50.0
+    container_name: prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus-data:/prometheus
+    ports:
+      - "9090:9090"
+    networks:
+      - observability
+
+  # === Loki (Logs) ===
+  loki:
+    image: grafana/loki:2.9.0
+    container_name: loki
+    command: -config.file=/etc/loki/local-config.yaml
+    ports:
+      - "3100:3100"
+    networks:
+      - observability
+
+  # === Pyroscope (Profiles) ===
+  pyroscope:
+    image: grafana/pyroscope:latest
+    container_name: pyroscope
+    ports:
+      - "4040:4040"
+    networks:
+      - observability
+
+  # === Grafana (Visualization) ===
+  grafana:
+    image: grafana/grafana:10.3.0
+    container_name: grafana
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_INSTALL_PLUGINS=grafana-pyroscope-app
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning
+      - grafana-data:/var/lib/grafana
+    ports:
+      - "3000:3000"
+    depends_on:
+      - prometheus
+      - jaeger
+      - loki
+      - pyroscope
+    networks:
+      - observability
+
+  # === Microservices ===
+  
+  # API Gateway
+  api-gateway:
+    build:
+      context: ./services/api-gateway
+      dockerfile: Dockerfile
+    container_name: api-gateway
+    environment:
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://collector:4317
+      - OTEL_SERVICE_NAME=api-gateway
+      - PYROSCOPE_SERVER_ADDRESS=http://pyroscope:4040
+    ports:
+      - "8080:8080"
+    depends_on:
+      - collector
+      - order-service
+      - payment-service
+      - user-service
+    networks:
+      - observability
+    cap_add:
+      - SYS_ADMIN  # Required for eBPF
+      - SYS_PTRACE
+    security_opt:
+      - seccomp:unconfined
+
+  # Order Service
+  order-service:
+    build:
+      context: ./services/order-service
+      dockerfile: Dockerfile
+    container_name: order-service
+    environment:
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://collector:4317
+      - OTEL_SERVICE_NAME=order-service
+      - PYROSCOPE_SERVER_ADDRESS=http://pyroscope:4040
+      - DB_HOST=order-db
+    depends_on:
+      - collector
+      - order-db
+    networks:
+      - observability
+
+  # Payment Service
+  payment-service:
+    build:
+      context: ./services/payment-service
+      dockerfile: Dockerfile
+    container_name: payment-service
+    environment:
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://collector:4317
+      - OTEL_SERVICE_NAME=payment-service
+      - PYROSCOPE_SERVER_ADDRESS=http://pyroscope:4040
+    depends_on:
+      - collector
+    networks:
+      - observability
+
+  # User Service
+  user-service:
+    build:
+      context: ./services/user-service
+      dockerfile: Dockerfile
+    container_name: user-service
+    environment:
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://collector:4317
+      - OTEL_SERVICE_NAME=user-service
+      - PYROSCOPE_SERVER_ADDRESS=http://pyroscope:4040
+      - DB_HOST=user-db
+    depends_on:
+      - collector
+      - user-db
+    networks:
+      - observability
+
+  # === Databases ===
+  order-db:
+    image: postgres:16-alpine
+    container_name: order-db
+    environment:
+      - POSTGRES_DB=orders
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+    volumes:
+      - order-db-data:/var/lib/postgresql/data
+    networks:
+      - observability
+
+  user-db:
+    image: postgres:16-alpine
+    container_name: user-db
+    environment:
+      - POSTGRES_DB=users
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+    volumes:
+      - user-db-data:/var/lib/postgresql/data
+    networks:
+      - observability
+
+  # === Load Generator ===
+  k6:
+    image: grafana/k6:latest
+    container_name: k6-load-generator
+    volumes:
+      - ./k6/load-test.js:/load-test.js
+    command: run --vus 10 --duration 5m /load-test.js
+    depends_on:
+      - api-gateway
+    networks:
+      - observability
+    profiles:
+      - load-test
+
+networks:
+  observability:
+    driver: bridge
+
+volumes:
+  prometheus-data:
+  grafana-data:
+  order-db-data:
+  user-db-data:
