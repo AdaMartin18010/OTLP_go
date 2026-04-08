@@ -87,7 +87,7 @@ jobs:
           echo '```' >> $GITHUB_STEP_SUMMARY
 
       - name: Upload benchmark results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: benchmark-results
           path: benchmark_output.txt
@@ -209,7 +209,7 @@ jobs:
           cp benchmark_output.txt "benchmark-data/latest.txt"
 
       - name: Upload to artifacts for GitHub Pages
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: benchmark-history
           path: benchmark-data/
