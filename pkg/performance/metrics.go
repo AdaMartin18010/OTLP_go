@@ -1,5 +1,8 @@
 // Package performance provides performance optimization utilities
 // for the OTLP Go SDK.
+//
+// Stability: Beta
+// Compliance: OpenTelemetry Specification v1.42.0
 package performance
 
 import (

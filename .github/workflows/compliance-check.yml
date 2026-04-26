@@ -1,0 +1,59 @@
+name: Standards Compliance Check
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  compliance-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.26'
+
+      - name: RFC 2119 keyword format check
+        run: |
+          echo "Checking docs/ for RFC 2119 keywords..."
+          # Simple heuristic: flag standalone lowercase must/should/may in markdown files.
+          # This is a lint-like check; warnings do not fail the build.
+          matches=$(find docs -type f -name '*.md' -exec grep -inE '(^|[[:space:][:punct:]])(must|should|may|must not|should not)([[:space:][:punct:]]|$)' {} + || true)
+          if [ -n "$matches" ]; then
+            echo "::warning::Possible lowercase RFC 2119 keywords found in docs. Please use uppercase MUST/SHOULD/MAY for BCP 14 compliance."
+            echo "$matches" | head -n 20
+          fi
+
+      - name: Stability annotation completeness check
+        run: |
+          echo "Checking pkg/ for stability annotations..."
+          exit_code=0
+          while IFS= read -r -d '' dir; do
+            entry=$(find "$dir" -maxdepth 1 -name '*.go' -not -name '*_test.go' -print0 | sort -z | head -z -n 1 | tr -d '\0')
+            if [ -z "$entry" ]; then
+              echo "Missing .go files (and stability annotation) in $dir"
+              exit_code=1
+            elif ! grep -q "Stability:" "$entry"; then
+              echo "Missing stability annotation in $entry"
+              exit_code=1
+            fi
+          done < <(find pkg -type d -print0)
+          exit $exit_code
+
+      - name: Semantic Conventions constant check
+        run: |
+          echo "Checking for hardcoded semantic convention strings..."
+          bad_lines=$(grep -rEn '"http\.method"|"db\.system"|"service\.name"|"telemetry\.sdk\.language"' pkg/ --include='*.go' | grep -v '_test.go' | grep -v 'semconv' | grep -v 'doc.go' || true)
+          if [ -n "$bad_lines" ]; then
+            echo "::error::Hardcoded semantic convention strings detected. Use pkg/semconv/ constants instead."
+            echo "$bad_lines" | head -n 20
+            exit 1
+          fi
+
+      - name: Build check
+        run: go build ./...

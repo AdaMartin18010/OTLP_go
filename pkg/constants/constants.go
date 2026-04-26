@@ -10,6 +10,9 @@
 //
 //	ctx, cancel := context.WithTimeout(ctx, constants.DefaultTimeout)
 //	defer cancel()
+//
+// Stability: Stable
+// Compliance: OpenTelemetry Specification v1.42.0
 package constants
 
 import "time"

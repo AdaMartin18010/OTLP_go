@@ -1,4 +1,7 @@
 // Package runtime provides runtime introspection utilities for the OTLP Go SDK.
+//
+// Stability: Beta
+// Compliance: OpenTelemetry Specification v1.42.0
 package runtime
 
 import (

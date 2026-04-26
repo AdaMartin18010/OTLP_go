@@ -137,7 +137,7 @@ func handlePayments(w http.ResponseWriter, r *http.Request) {
 }
 
 func handlePaymentDetail(w http.ResponseWriter, r *http.Request) {
-	ctx, span := tracer.Start(r.Context(), "handlePaymentDetail")
+	_, span := tracer.Start(r.Context(), "handlePaymentDetail")
 	defer span.End()
 	
 	paymentID := r.URL.Path[len("/payments/"):]

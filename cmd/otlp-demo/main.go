@@ -321,7 +321,7 @@ func simulateWork(workerID, taskID int) error {
 }
 
 // collectMetrics 定期收集和报告指标
-func collectMetrics(ctx context.Context, ticker *time.Ticker, sdk *otel.SDK, logger *logs.Logger) {
+func collectMetrics(ctx context.Context, ticker *time.Ticker, sdk *otel.SDK, logger *logs.StructuredLogger) {
 	meter := sdk.Meter("demo-metrics")
 
 	// 创建运行时指标
@@ -348,7 +348,7 @@ func collectMetrics(ctx context.Context, ticker *time.Ticker, sdk *otel.SDK, log
 }
 
 // detectResources 检测并显示资源信息
-func detectResources(ctx context.Context, logger *logs.Logger) {
+func detectResources(ctx context.Context, logger *logs.StructuredLogger) {
 	detectors := []resource.Detector{
 		&resource.HostDetector{},
 		&resource.EnvironmentDetector{},
@@ -379,7 +379,7 @@ func detectResources(ctx context.Context, logger *logs.Logger) {
 }
 
 // runPerformanceAnalysis 运行性能分析
-func runPerformanceAnalysis(logger *logs.Logger) {
+func runPerformanceAnalysis(logger *logs.StructuredLogger) {
 	// 创建性能分析器
 	profiler := performance.NewProfiler(performance.ProfilerConfig{
 		Enabled:     true,
@@ -421,7 +421,7 @@ func runPerformanceAnalysis(logger *logs.Logger) {
 }
 
 // setupShutdownHandler 设置优雅关闭处理器
-func setupShutdownHandler(sdk *otel.SDK, logger *logs.Logger) *shutdown.Orchestrator {
+func setupShutdownHandler(sdk *otel.SDK, logger *logs.StructuredLogger) *shutdown.Orchestrator {
 	orchestrator := shutdown.NewOrchestrator(
 		shutdown.WithTimeout(30*time.Second),
 		shutdown.WithErrorHandler(func(stage shutdown.Stage, hook string, err error) {

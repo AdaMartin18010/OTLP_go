@@ -3,6 +3,9 @@
 //
 // This file contains continuous profiling capabilities for
 // long-running production services.
+//
+// Stability: Alpha
+// Compliance: OpenTelemetry Specification v1.42.0
 package profiling
 
 import (
@@ -58,7 +61,7 @@ func DefaultContinuousProfilerConfig() *ContinuousProfilerConfig {
 		Interval:     60 * time.Second,
 		Duration:     10 * time.Second,
 		OutputDir:    "./profiles/continuous",
-		MaxAge:       7 * 24 * time.Hour, // 7 天
+		MaxAge:       7 * 24 * time.Hour,     // 7 天
 		MaxSize:      1 * 1024 * 1024 * 1024, // 1GB
 		Compress:     true,
 	}
@@ -66,12 +69,12 @@ func DefaultContinuousProfilerConfig() *ContinuousProfilerConfig {
 
 // ContinuousProfiler 持续剖析器
 type ContinuousProfiler struct {
-	config      *ContinuousProfilerConfig
-	pprofMgr    *PProfManager
-	mu          sync.RWMutex
-	running     bool
-	stopCh      chan struct{}
-	wg          sync.WaitGroup
+	config       *ContinuousProfilerConfig
+	pprofMgr     *PProfManager
+	mu           sync.RWMutex
+	running      bool
+	stopCh       chan struct{}
+	wg           sync.WaitGroup
 	profileTimes map[ContinuousProfileType]time.Time
 }
 
@@ -490,14 +493,14 @@ func (cp *ContinuousProfiler) GetStats() (map[string]interface{}, error) {
 	cp.mu.RUnlock()
 
 	return map[string]interface{}{
-		"running":           cp.IsRunning(),
-		"output_dir":        cp.config.OutputDir,
-		"interval":          cp.config.Interval.String(),
-		"duration":          cp.config.Duration.String(),
-		"file_count":        fileCount,
-		"total_size":        totalSize,
-		"max_age":           cp.config.MaxAge.String(),
-		"max_size":          cp.config.MaxSize,
+		"running":            cp.IsRunning(),
+		"output_dir":         cp.config.OutputDir,
+		"interval":           cp.config.Interval.String(),
+		"duration":           cp.config.Duration.String(),
+		"file_count":         fileCount,
+		"total_size":         totalSize,
+		"max_age":            cp.config.MaxAge.String(),
+		"max_size":           cp.config.MaxSize,
 		"last_profile_times": lastTimes,
 	}, nil
 }

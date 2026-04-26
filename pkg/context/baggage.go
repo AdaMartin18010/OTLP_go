@@ -1,4 +1,7 @@
 // Package context provides context propagation utilities for the OTLP Go SDK.
+//
+// Stability: Beta
+// Compliance: OpenTelemetry Specification v1.42.0
 package context
 
 import (
@@ -212,7 +215,7 @@ func (b Baggage) SetWithMetadata(key, value string, metadata BaggageItemMetadata
 
 	// Create new baggage (immutable)
 	newBaggage := NewBaggage()
-	
+
 	// Copy existing entries
 	for k, v := range b.entries {
 		newBaggage.entries[k] = v
@@ -319,9 +322,9 @@ func (b Baggage) String() string {
 func encodeBaggageItem(key string, item BaggageItem) string {
 	// Encode value (URL encoding for special chars)
 	value := percentEncode(item.Value)
-	
+
 	result := fmt.Sprintf("%s=%s", key, value)
-	
+
 	// Add metadata properties if any
 	if len(item.Metadata.Properties) > 0 {
 		var props []string
@@ -331,7 +334,7 @@ func encodeBaggageItem(key string, item BaggageItem) string {
 		sort.Strings(props)
 		result += ";" + strings.Join(props, ";")
 	}
-	
+
 	return result
 }
 
@@ -368,7 +371,7 @@ func splitBaggageEntries(s string) []string {
 	var result []string
 	var current strings.Builder
 	inQuotes := false
-	
+
 	for i, r := range s {
 		switch r {
 		case '"':
@@ -386,11 +389,11 @@ func splitBaggageEntries(s string) []string {
 		}
 		_ = i
 	}
-	
+
 	if current.Len() > 0 {
 		result = append(result, current.String())
 	}
-	
+
 	return result
 }
 
@@ -398,45 +401,45 @@ func splitBaggageEntries(s string) []string {
 func parseBaggageEntry(entry string) (string, BaggageItem, error) {
 	// Split key=value from properties
 	parts := strings.SplitN(entry, ";", 2)
-	
+
 	// Parse key=value
 	kv := strings.TrimSpace(parts[0])
 	kvParts := strings.SplitN(kv, "=", 2)
 	if len(kvParts) != 2 {
 		return "", BaggageItem{}, ErrInvalidValue
 	}
-	
+
 	key := strings.TrimSpace(kvParts[0])
 	value := percentDecode(strings.TrimSpace(kvParts[1]))
-	
+
 	item := BaggageItem{
 		Value:    value,
 		Metadata: BaggageItemMetadata{},
 	}
-	
+
 	// Parse properties if present
 	if len(parts) > 1 {
 		item.Metadata.Properties = parseBaggageProperties(parts[1])
 	}
-	
+
 	return key, item, nil
 }
 
 // parseBaggageProperties parses baggage property metadata.
 func parseBaggageProperties(props string) map[string]string {
 	result := make(map[string]string)
-	
+
 	parts := strings.Split(props, ";")
 	for _, part := range parts {
 		part = strings.TrimSpace(part)
 		if part == "" {
 			continue
 		}
-		
+
 		// Property can be just a flag (no value) or key=value
 		kv := strings.SplitN(part, "=", 2)
 		key := strings.TrimSpace(kv[0])
-		
+
 		if len(kv) == 2 {
 			result[key] = percentDecode(strings.TrimSpace(kv[1]))
 		} else {
@@ -444,7 +447,7 @@ func parseBaggageProperties(props string) map[string]string {
 			result[key] = ""
 		}
 	}
-	
+
 	return result
 }
 

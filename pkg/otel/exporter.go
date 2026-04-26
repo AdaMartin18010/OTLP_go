@@ -1,5 +1,8 @@
 // Package otel provides OpenTelemetry SDK initialization and management
 // for the OTLP Go SDK.
+//
+// Stability: Beta
+// Compliance: OpenTelemetry Specification v1.42.0
 package otel
 
 import (

@@ -114,7 +114,7 @@ func handleOrders(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleOrderDetail(w http.ResponseWriter, r *http.Request) {
-	ctx, span := tracer.Start(r.Context(), "handleOrderDetail")
+	_, span := tracer.Start(r.Context(), "handleOrderDetail")
 	defer span.End()
 	
 	orderID := r.URL.Path[len("/orders/"):]

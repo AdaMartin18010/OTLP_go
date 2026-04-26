@@ -1,6 +1,10 @@
 // Copyright The OpenTelemetry Authors
 // SPDX-License-Identifier: Apache-2.0
 
+// Package security provides security auditing and sanitization utilities for the OTLP Go SDK.
+//
+// Stability: Beta
+// Compliance: OpenTelemetry Specification v1.42.0
 package security
 
 import (

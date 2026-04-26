@@ -3,6 +3,9 @@
 // This file implements auto-configuration based on system metrics and learned patterns.
 // It uses the MAPE-K loop to continuously adjust configuration parameters for optimal
 // performance and resource utilization.
+//
+// Stability: Alpha
+// Compliance: OpenTelemetry Specification v1.42.0
 package automation
 
 import (

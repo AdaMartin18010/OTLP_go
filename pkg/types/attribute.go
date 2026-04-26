@@ -1,4 +1,7 @@
 // Package types provides attribute types and utilities for OpenTelemetry compatible telemetry data.
+//
+// Stability: Stable
+// Compliance: OpenTelemetry Specification v1.42.0
 package types
 
 import (

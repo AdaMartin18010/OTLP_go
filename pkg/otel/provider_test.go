@@ -7,6 +7,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/sdk/resource"
 	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
 )
@@ -478,8 +479,8 @@ func TestSetup_WithHTTPProtocol(t *testing.T) {
 
 type mockPropagator struct{}
 
-func (m *mockPropagator) Inject(ctx context.Context, carrier interface{}) {}
-func (m *mockPropagator) Extract(ctx context.Context, carrier interface{}) context.Context {
+func (m *mockPropagator) Inject(ctx context.Context, carrier propagation.TextMapCarrier) {}
+func (m *mockPropagator) Extract(ctx context.Context, carrier propagation.TextMapCarrier) context.Context {
 	return ctx
 }
 func (m *mockPropagator) Fields() []string { return nil }

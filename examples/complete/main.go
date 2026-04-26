@@ -140,7 +140,7 @@ func main() {
 }
 
 // demonstrateResourceDetection 演示资源检测功能
-func demonstrateResourceDetection(ctx context.Context, logger *logs.Logger) {
+func demonstrateResourceDetection(ctx context.Context, logger *logs.StructuredLogger) {
 	logger.Info("=== Resource Detection Demo ===")
 
 	// 创建主机资源检测器
@@ -160,7 +160,7 @@ func demonstrateResourceDetection(ctx context.Context, logger *logs.Logger) {
 }
 
 // demonstrateTracing 演示分布式追踪功能
-func demonstrateTracing(ctx context.Context, sdk *otel.SDK, logger *logs.Logger) {
+func demonstrateTracing(ctx context.Context, sdk *otel.SDK, logger *logs.StructuredLogger) {
 	logger.Info("=== Tracing Demo ===")
 
 	tracer := sdk.Tracer("complete-demo")
@@ -230,7 +230,7 @@ func simulateCacheOperation(ctx context.Context, tracer *otel.Tracer) {
 }
 
 // demonstrateMetrics 演示指标收集功能
-func demonstrateMetrics(ctx context.Context, sdk *otel.SDK, logger *logs.Logger) {
+func demonstrateMetrics(ctx context.Context, sdk *otel.SDK, logger *logs.StructuredLogger) {
 	logger.Info("=== Metrics Demo ===")
 
 	meter := sdk.Meter("complete-demo")
@@ -268,7 +268,7 @@ func demonstrateMetrics(ctx context.Context, sdk *otel.SDK, logger *logs.Logger)
 }
 
 // demonstrateErrorHandling 演示错误处理功能
-func demonstrateErrorHandling(ctx context.Context, sdk *otel.SDK, logger *logs.Logger) {
+func demonstrateErrorHandling(ctx context.Context, sdk *otel.SDK, logger *logs.StructuredLogger) {
 	logger.Info("=== Error Handling Demo ===")
 
 	// 创建结构化错误
@@ -310,7 +310,7 @@ func demonstrateErrorHandling(ctx context.Context, sdk *otel.SDK, logger *logs.L
 }
 
 // demonstratePerformanceOptimizations 演示性能优化功能
-func demonstratePerformanceOptimizations(ctx context.Context, sdk *otel.SDK, logger *logs.Logger) {
+func demonstratePerformanceOptimizations(ctx context.Context, sdk *otel.SDK, logger *logs.StructuredLogger) {
 	logger.Info("=== Performance Optimizations Demo ===")
 
 	// 使用性能分析器
@@ -349,7 +349,7 @@ func demonstratePerformanceOptimizations(ctx context.Context, sdk *otel.SDK, log
 }
 
 // demonstrateConcurrency 演示并发处理
-func demonstrateConcurrency(ctx context.Context, sdk *otel.SDK, logger *logs.Logger) {
+func demonstrateConcurrency(ctx context.Context, sdk *otel.SDK, logger *logs.StructuredLogger) {
 	logger.Info("=== Concurrency Demo ===")
 
 	tracer := sdk.Tracer("complete-demo")
@@ -390,7 +390,7 @@ func demonstrateConcurrency(ctx context.Context, sdk *otel.SDK, logger *logs.Log
 }
 
 // setupGracefulShutdown 设置优雅关闭
-func setupGracefulShutdown(sdk *otel.SDK, logger *logs.Logger) *shutdown.Orchestrator {
+func setupGracefulShutdown(sdk *otel.SDK, logger *logs.StructuredLogger) *shutdown.Orchestrator {
 	orchestrator := shutdown.NewOrchestrator(
 		shutdown.WithTimeout(30*time.Second),
 		shutdown.WithErrorHandler(func(stage shutdown.Stage, hook string, err error) {
@@ -422,7 +422,7 @@ func setupGracefulShutdown(sdk *otel.SDK, logger *logs.Logger) *shutdown.Orchest
 }
 
 // waitForSignal 等待系统信号
-func waitForSignal(logger *logs.Logger) {
+func waitForSignal(logger *logs.StructuredLogger) {
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
 

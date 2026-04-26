@@ -2,6 +2,9 @@
 //
 // This file contains graceful shutdown strategies and policies for
 // managing the shutdown process with different degradation modes.
+//
+// Stability: Stable
+// Compliance: OpenTelemetry Specification v1.42.0
 package shutdown
 
 import (

@@ -14,34 +14,36 @@ import (
 
 // MeterWrapper 是对 OpenTelemetry Meter 的包装，提供更便捷的 API
 type MeterWrapper struct {
-	meter               metric.Meter
-	name                string
-	mu                  sync.RWMutex
-	counters            map[string]metric.Int64Counter
-	upDownCounters      map[string]metric.Int64UpDownCounter
-	histograms          map[string]metric.Int64Histogram
-	floatCounters       map[string]metric.Float64Counter
-	floatUpDownCounters map[string]metric.Float64UpDownCounter
-	floatHistograms     map[string]metric.Float64Histogram
-	gauges              map[string]metric.Int64Gauge
-	floatGauges         map[string]metric.Float64Gauge
-	observables         map[string]metric.Registration
+	meter                metric.Meter
+	name                 string
+	mu                   sync.RWMutex
+	counters             map[string]metric.Int64Counter
+	upDownCounters       map[string]metric.Int64UpDownCounter
+	histograms           map[string]metric.Int64Histogram
+	exponentialHistograms map[string]metric.Int64Histogram
+	floatCounters        map[string]metric.Float64Counter
+	floatUpDownCounters  map[string]metric.Float64UpDownCounter
+	floatHistograms      map[string]metric.Float64Histogram
+	gauges               map[string]metric.Int64Gauge
+	floatGauges          map[string]metric.Float64Gauge
+	observables          map[string]metric.Registration
 }
 
 // NewMeterWrapper 创建一个新的 MeterWrapper
 func NewMeterWrapper(mp metric.MeterProvider, name string, opts ...metric.MeterOption) *MeterWrapper {
 	return &MeterWrapper{
-		meter:               mp.Meter(name, opts...),
-		name:                name,
-		counters:            make(map[string]metric.Int64Counter),
-		upDownCounters:      make(map[string]metric.Int64UpDownCounter),
-		histograms:          make(map[string]metric.Int64Histogram),
-		floatCounters:       make(map[string]metric.Float64Counter),
-		floatUpDownCounters: make(map[string]metric.Float64UpDownCounter),
-		floatHistograms:     make(map[string]metric.Float64Histogram),
-		gauges:              make(map[string]metric.Int64Gauge),
-		floatGauges:         make(map[string]metric.Float64Gauge),
-		observables:         make(map[string]metric.Registration),
+		meter:                 mp.Meter(name, opts...),
+		name:                  name,
+		counters:              make(map[string]metric.Int64Counter),
+		upDownCounters:        make(map[string]metric.Int64UpDownCounter),
+		histograms:            make(map[string]metric.Int64Histogram),
+		exponentialHistograms: make(map[string]metric.Int64Histogram),
+		floatCounters:         make(map[string]metric.Float64Counter),
+		floatUpDownCounters:   make(map[string]metric.Float64UpDownCounter),
+		floatHistograms:       make(map[string]metric.Float64Histogram),
+		gauges:                make(map[string]metric.Int64Gauge),
+		floatGauges:           make(map[string]metric.Float64Gauge),
+		observables:           make(map[string]metric.Registration),
 	}
 }
 
@@ -118,6 +120,32 @@ func (mw *MeterWrapper) Histogram(name string, opts ...metric.Int64HistogramOpti
 	}
 
 	mw.histograms[name] = histogram
+	return histogram, nil
+}
+
+// ExponentialHistogram 获取或创建 Int64Histogram (配置为指数直方图聚合)
+// 注意：实际的指数直方图行为取决于 MeterProvider 的 View 配置
+func (mw *MeterWrapper) ExponentialHistogram(name string, opts ...metric.Int64HistogramOption) (metric.Int64Histogram, error) {
+	mw.mu.RLock()
+	if h, ok := mw.exponentialHistograms[name]; ok {
+		mw.mu.RUnlock()
+		return h, nil
+	}
+	mw.mu.RUnlock()
+
+	mw.mu.Lock()
+	defer mw.mu.Unlock()
+
+	if h, ok := mw.exponentialHistograms[name]; ok {
+		return h, nil
+	}
+
+	histogram, err := mw.meter.Int64Histogram(name, opts...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create exponential histogram %s: %w", name, err)
+	}
+
+	mw.exponentialHistograms[name] = histogram
 	return histogram, nil
 }
 

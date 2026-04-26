@@ -15,6 +15,9 @@
 //
 //	endpoint := cfg.GetString("otel.endpoint")
 //	timeout := cfg.GetDuration("otel.timeout")
+//
+// Stability: Stable
+// Compliance: OpenTelemetry Specification v1.42.0
 package config
 
 import (

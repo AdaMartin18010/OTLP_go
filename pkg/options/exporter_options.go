@@ -1,5 +1,8 @@
 // Package options provides functional options pattern implementations
 // for configuring OTLP Go SDK components.
+//
+// Stability: Stable
+// Compliance: OpenTelemetry Specification v1.42.0
 package options
 
 import (

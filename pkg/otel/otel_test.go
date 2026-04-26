@@ -291,7 +291,7 @@ func TestLoadConfig(t *testing.T) {
 	ctx := context.Background()
 
 	// Create a minimal config
-	cfg := config.Config{}
+	var cfg config.Config
 
 	// This test would require more setup to work properly
 	// For now, we just test that the function exists and can be called

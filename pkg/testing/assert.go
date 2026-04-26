@@ -1,3 +1,7 @@
+// Package testing provides testing utilities for the OTLP Go SDK.
+//
+// Stability: Stable
+// Compliance: OpenTelemetry Specification v1.42.0
 package testing
 
 import (

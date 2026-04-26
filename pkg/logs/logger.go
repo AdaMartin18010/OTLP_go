@@ -36,7 +36,7 @@ import (
 )
 
 // SeverityNumber represents log severity levels.
-type SeverityNumber int
+type SeverityNumber int32
 
 const (
 	// SeverityTrace is the most detailed level.
@@ -51,6 +51,26 @@ const (
 	SeverityError SeverityNumber = 17
 	// SeverityFatal is for fatal error messages.
 	SeverityFatal SeverityNumber = 21
+
+	// Fine-grained severity levels (OTel 1-24)
+	SeverityTrace2 = SeverityNumber(2)
+	SeverityTrace3 = SeverityNumber(3)
+	SeverityTrace4 = SeverityNumber(4)
+	SeverityDebug2 = SeverityNumber(6)
+	SeverityDebug3 = SeverityNumber(7)
+	SeverityDebug4 = SeverityNumber(8)
+	SeverityInfo2  = SeverityNumber(10)
+	SeverityInfo3  = SeverityNumber(11)
+	SeverityInfo4  = SeverityNumber(12)
+	SeverityWarn2  = SeverityNumber(14)
+	SeverityWarn3  = SeverityNumber(15)
+	SeverityWarn4  = SeverityNumber(16)
+	SeverityError2 = SeverityNumber(18)
+	SeverityError3 = SeverityNumber(19)
+	SeverityError4 = SeverityNumber(20)
+	SeverityFatal2 = SeverityNumber(22)
+	SeverityFatal3 = SeverityNumber(23)
+	SeverityFatal4 = SeverityNumber(24)
 )
 
 // String returns the string representation of severity.
@@ -68,6 +88,42 @@ func (s SeverityNumber) String() string {
 		return "ERROR"
 	case SeverityFatal:
 		return "FATAL"
+	case SeverityTrace2:
+		return "TRACE2"
+	case SeverityTrace3:
+		return "TRACE3"
+	case SeverityTrace4:
+		return "TRACE4"
+	case SeverityDebug2:
+		return "DEBUG2"
+	case SeverityDebug3:
+		return "DEBUG3"
+	case SeverityDebug4:
+		return "DEBUG4"
+	case SeverityInfo2:
+		return "INFO2"
+	case SeverityInfo3:
+		return "INFO3"
+	case SeverityInfo4:
+		return "INFO4"
+	case SeverityWarn2:
+		return "WARN2"
+	case SeverityWarn3:
+		return "WARN3"
+	case SeverityWarn4:
+		return "WARN4"
+	case SeverityError2:
+		return "ERROR2"
+	case SeverityError3:
+		return "ERROR3"
+	case SeverityError4:
+		return "ERROR4"
+	case SeverityFatal2:
+		return "FATAL2"
+	case SeverityFatal3:
+		return "FATAL3"
+	case SeverityFatal4:
+		return "FATAL4"
 	default:
 		return "UNKNOWN"
 	}
@@ -75,33 +131,22 @@ func (s SeverityNumber) String() string {
 
 // ToLevel converts SeverityNumber to Level.
 func (s SeverityNumber) ToLevel() Level {
-	switch s {
-	case SeverityTrace:
+	switch {
+	case s >= SeverityTrace && s <= SeverityTrace4:
 		return LevelTrace
-	case SeverityDebug:
+	case s >= SeverityDebug && s <= SeverityDebug4:
 		return LevelDebug
-	case SeverityInfo:
+	case s >= SeverityInfo && s <= SeverityInfo4:
 		return LevelInfo
-	case SeverityWarn:
+	case s >= SeverityWarn && s <= SeverityWarn4:
 		return LevelWarn
-	case SeverityError:
+	case s >= SeverityError && s <= SeverityError4:
 		return LevelError
-	case SeverityFatal:
+	case s >= SeverityFatal && s <= SeverityFatal4:
 		return LevelFatal
 	default:
 		return LevelInfo
 	}
-}
-
-// LogRecord represents a log record.
-type LogRecord struct {
-	Timestamp  time.Time
-	Severity   SeverityNumber
-	Body       string
-	Attributes []attribute.KeyValue
-	TraceID    trace.TraceID
-	SpanID     trace.SpanID
-	TraceFlags trace.TraceFlags
 }
 
 // LogProcessor processes log records.
@@ -117,26 +162,26 @@ type LogExporter interface {
 	Shutdown(ctx context.Context) error
 }
 
-// LoggerProvider provides loggers.
-type LoggerProvider struct {
-	loggers    map[string]*Logger
+// Provider provides loggers.
+type Provider struct {
+	loggers    map[string]*StructuredLogger
 	processors []LogProcessor
 	resource   interface{}
 	mu         sync.RWMutex
 	stopped    bool
 }
 
-// NewLoggerProvider creates a new LoggerProvider.
-func NewLoggerProvider(resource interface{}, processors ...LogProcessor) *LoggerProvider {
-	return &LoggerProvider{
-		loggers:    make(map[string]*Logger),
+// NewProvider creates a new Provider.
+func NewProvider(resource interface{}, processors ...LogProcessor) *Provider {
+	return &Provider{
+		loggers:    make(map[string]*StructuredLogger),
 		processors: processors,
 		resource:   resource,
 	}
 }
 
-// GetLogger gets or creates a logger.
-func (p *LoggerProvider) GetLogger(name string) *Logger {
+// Logger gets or creates a logger.
+func (p *Provider) Logger(name string) *StructuredLogger {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
@@ -144,7 +189,7 @@ func (p *LoggerProvider) GetLogger(name string) *Logger {
 		return logger
 	}
 
-	logger := &Logger{
+	logger := &StructuredLogger{
 		provider: p,
 		name:     name,
 	}
@@ -153,7 +198,7 @@ func (p *LoggerProvider) GetLogger(name string) *Logger {
 }
 
 // Shutdown shuts down the provider.
-func (p *LoggerProvider) Shutdown(ctx context.Context) error {
+func (p *Provider) Shutdown(ctx context.Context) error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
@@ -235,7 +280,14 @@ func (rl *RateLimiter) ShouldSample(record *LogRecord) bool {
 func getRecordHash(record *LogRecord) uint64 {
 	// Simple hash based on timestamp and body
 	h := uint64(record.Timestamp.UnixNano())
-	for _, c := range record.Body {
+	bodyStr := ""
+	switch v := record.Body.(type) {
+	case string:
+		bodyStr = v
+	default:
+		bodyStr = fmt.Sprintf("%v", v)
+	}
+	for _, c := range bodyStr {
 		h = h*31 + uint64(c)
 	}
 	return h
@@ -277,10 +329,15 @@ func (e *LogJSONEncoder) Encode(record *LogRecord, fields Fields) ([]byte, error
 	e.enc.EncodeTime("timestamp", record.Timestamp)
 
 	// Level
-	e.enc.EncodeString("level", record.Severity.String())
+	e.enc.EncodeString("level", record.SeverityNumber.String())
 
 	// Message
-	e.enc.EncodeString("message", record.Body)
+	e.enc.EncodeAny("message", record.Body)
+
+	// EventName
+	if record.EventName != "" {
+		e.enc.EncodeString("event_name", record.EventName)
+	}
 
 	// Logger name (if any)
 	// (Would be added via fields)
@@ -323,9 +380,9 @@ func (e *LogJSONEncoder) encodeAttribute(enc *JSONEncoder, attr attribute.KeyVal
 	}
 }
 
-// Logger is a high-performance structured logger.
-type Logger struct {
-	provider *LoggerProvider
+// StructuredLogger is a high-performance structured logger.
+type StructuredLogger struct {
+	provider *Provider
 	name     string
 	version  string
 	config   Config
@@ -337,8 +394,8 @@ type Logger struct {
 	mu       sync.RWMutex
 }
 
-// NewLogger creates a new Logger with the given configuration.
-func NewLogger(config Config) *Logger {
+// NewLogger creates a new StructuredLogger with the given configuration.
+func NewLogger(config Config) *StructuredLogger {
 	if config.Output == nil {
 		config.Output = os.Stdout
 	}
@@ -352,7 +409,7 @@ func NewLogger(config Config) *Logger {
 		config.CallerSkip = 1
 	}
 
-	return &Logger{
+	return &StructuredLogger{
 		config:  config,
 		level:   NewLevelManager(config.Level),
 		sampler: config.Sampler,
@@ -362,8 +419,8 @@ func NewLogger(config Config) *Logger {
 	}
 }
 
-// New creates a new Logger with the given name.
-func New(name string, opts ...LoggerOption) *Logger {
+// New creates a new StructuredLogger with the given name.
+func New(name string, opts ...LoggerOption) *StructuredLogger {
 	config := Config{
 		Level:  LevelInfo,
 		Output: os.Stdout,
@@ -425,7 +482,7 @@ func WithFields(fields ...Field) LoggerOption {
 }
 
 // Named creates a new logger with the given name.
-func (l *Logger) Named(name string) *Logger {
+func (l *StructuredLogger) Named(name string) *StructuredLogger {
 	newName := name
 	if l.name != "" {
 		newName = l.name + "." + name
@@ -434,7 +491,7 @@ func (l *Logger) Named(name string) *Logger {
 	l.mu.RLock()
 	defer l.mu.RUnlock()
 
-	return &Logger{
+	return &StructuredLogger{
 		name:    newName,
 		version: l.version,
 		config:  l.config,
@@ -447,7 +504,7 @@ func (l *Logger) Named(name string) *Logger {
 }
 
 // With creates a new logger with the given fields.
-func (l *Logger) With(fields ...Field) *Logger {
+func (l *StructuredLogger) With(fields ...Field) *StructuredLogger {
 	l.mu.RLock()
 	defer l.mu.RUnlock()
 
@@ -455,7 +512,7 @@ func (l *Logger) With(fields ...Field) *Logger {
 	copy(newFields, l.fields)
 	copy(newFields[len(l.fields):], fields)
 
-	return &Logger{
+	return &StructuredLogger{
 		name:    l.name,
 		version: l.version,
 		config:  l.config,
@@ -468,31 +525,59 @@ func (l *Logger) With(fields ...Field) *Logger {
 }
 
 // SetLevel sets the logger level dynamically.
-func (l *Logger) SetLevel(level Level) {
+func (l *StructuredLogger) SetLevel(level Level) {
 	l.level.Set(level)
 }
 
 // GetLevel returns the current logger level.
-func (l *Logger) GetLevel() Level {
+func (l *StructuredLogger) GetLevel() Level {
 	return l.level.Get()
 }
 
-// Enabled returns true if the given level is enabled.
-func (l *Logger) Enabled(level Level) bool {
+// IsEnabled returns true if the given level is enabled.
+func (l *StructuredLogger) IsEnabled(level Level) bool {
 	return l.level.Enabled(level)
 }
 
+// Enabled implements the Logger interface.
+func (l *StructuredLogger) Enabled(ctx context.Context, severity SeverityNumber) bool {
+	return l.IsEnabled(severity.ToLevel())
+}
+
+// Emit implements the Logger interface.
+func (l *StructuredLogger) Emit(record LogRecord) {
+	ctx := context.Background()
+	fields := make(Fields, len(record.Attributes))
+	for i, attr := range record.Attributes {
+		fields[i] = Field{
+			Key:   string(attr.Key),
+			Type:  AnyType,
+			Value: attr.Value,
+		}
+	}
+	bodyStr := ""
+	switch v := record.Body.(type) {
+	case string:
+		bodyStr = v
+	default:
+		bodyStr = fmt.Sprintf("%v", v)
+	}
+	l.log(ctx, record.SeverityNumber, bodyStr, fields...)
+}
+
 // log is the internal logging method.
-func (l *Logger) log(ctx context.Context, severity SeverityNumber, msg string, fields ...Field) {
+func (l *StructuredLogger) log(ctx context.Context, severity SeverityNumber, msg string, fields ...Field) {
 	level := severity.ToLevel()
 	if !l.level.Enabled(level) {
 		return
 	}
 
 	record := &LogRecord{
-		Timestamp: time.Now(),
-		Severity:  severity,
-		Body:      msg,
+		Timestamp:         time.Now(),
+		ObservedTimestamp: time.Now(),
+		SeverityNumber:    severity,
+		SeverityText:      severity.String(),
+		Body:              msg,
 	}
 
 	// Extract trace context from context
@@ -539,67 +624,67 @@ func (l *Logger) log(ctx context.Context, severity SeverityNumber, msg string, f
 }
 
 // Debug logs a debug message.
-func (l *Logger) Debug(msg string, fields ...Field) {
+func (l *StructuredLogger) Debug(msg string, fields ...Field) {
 	l.log(context.Background(), SeverityDebug, msg, fields...)
 }
 
 // DebugContext logs a debug message with context.
-func (l *Logger) DebugContext(ctx context.Context, msg string, fields ...Field) {
+func (l *StructuredLogger) DebugContext(ctx context.Context, msg string, fields ...Field) {
 	l.log(ctx, SeverityDebug, msg, fields...)
 }
 
 // Info logs an info message.
-func (l *Logger) Info(msg string, fields ...Field) {
+func (l *StructuredLogger) Info(msg string, fields ...Field) {
 	l.log(context.Background(), SeverityInfo, msg, fields...)
 }
 
 // InfoContext logs an info message with context.
-func (l *Logger) InfoContext(ctx context.Context, msg string, fields ...Field) {
+func (l *StructuredLogger) InfoContext(ctx context.Context, msg string, fields ...Field) {
 	l.log(ctx, SeverityInfo, msg, fields...)
 }
 
 // Warn logs a warning message.
-func (l *Logger) Warn(msg string, fields ...Field) {
+func (l *StructuredLogger) Warn(msg string, fields ...Field) {
 	l.log(context.Background(), SeverityWarn, msg, fields...)
 }
 
 // WarnContext logs a warning message with context.
-func (l *Logger) WarnContext(ctx context.Context, msg string, fields ...Field) {
+func (l *StructuredLogger) WarnContext(ctx context.Context, msg string, fields ...Field) {
 	l.log(ctx, SeverityWarn, msg, fields...)
 }
 
 // Error logs an error message.
-func (l *Logger) Error(msg string, fields ...Field) {
+func (l *StructuredLogger) Error(msg string, fields ...Field) {
 	l.log(context.Background(), SeverityError, msg, fields...)
 }
 
 // ErrorContext logs an error message with context.
-func (l *Logger) ErrorContext(ctx context.Context, msg string, fields ...Field) {
+func (l *StructuredLogger) ErrorContext(ctx context.Context, msg string, fields ...Field) {
 	l.log(ctx, SeverityError, msg, fields...)
 }
 
 // Fatal logs a fatal message.
-func (l *Logger) Fatal(msg string, fields ...Field) {
+func (l *StructuredLogger) Fatal(msg string, fields ...Field) {
 	l.log(context.Background(), SeverityFatal, msg, fields...)
 }
 
 // FatalContext logs a fatal message with context.
-func (l *Logger) FatalContext(ctx context.Context, msg string, fields ...Field) {
+func (l *StructuredLogger) FatalContext(ctx context.Context, msg string, fields ...Field) {
 	l.log(ctx, SeverityFatal, msg, fields...)
 }
 
 // Trace logs a trace message.
-func (l *Logger) Trace(msg string, fields ...Field) {
+func (l *StructuredLogger) Trace(msg string, fields ...Field) {
 	l.log(context.Background(), SeverityTrace, msg, fields...)
 }
 
 // TraceContext logs a trace message with context.
-func (l *Logger) TraceContext(ctx context.Context, msg string, fields ...Field) {
+func (l *StructuredLogger) TraceContext(ctx context.Context, msg string, fields ...Field) {
 	l.log(ctx, SeverityTrace, msg, fields...)
 }
 
-// Emit emits a log record (legacy method for compatibility).
-func (l *Logger) Emit(ctx context.Context, severity SeverityNumber, body string, attrs ...attribute.KeyValue) {
+// EmitContext emits a log record with context (legacy method for compatibility).
+func (l *StructuredLogger) EmitContext(ctx context.Context, severity SeverityNumber, body string, attrs ...attribute.KeyValue) {
 	fields := make(Fields, len(attrs))
 	for i, attr := range attrs {
 		fields[i] = Field{
@@ -612,7 +697,7 @@ func (l *Logger) Emit(ctx context.Context, severity SeverityNumber, body string,
 }
 
 // Sync flushes any buffered log entries.
-func (l *Logger) Sync() error {
+func (l *StructuredLogger) Sync() error {
 	if syncer, ok := l.output.(interface{ Sync() error }); ok {
 		return syncer.Sync()
 	}
@@ -620,18 +705,18 @@ func (l *Logger) Sync() error {
 }
 
 // Shutdown shuts down the logger.
-func (l *Logger) Shutdown() error {
+func (l *StructuredLogger) Shutdown() error {
 	return l.Sync()
 }
 
 // StdLogger returns a standard library logger that writes to this logger.
-func (l *Logger) StdLogger() *StdLogger {
+func (l *StructuredLogger) StdLogger() *StdLogger {
 	return &StdLogger{logger: l}
 }
 
-// StdLogger adapts Logger to standard library logger interface.
+// StdLogger adapts StructuredLogger to standard library logger interface.
 type StdLogger struct {
-	logger *Logger
+	logger *StructuredLogger
 }
 
 // Print logs a message.
@@ -687,19 +772,19 @@ func (s *StdLogger) Panicln(v ...interface{}) {
 
 // ConsoleLogger is a simple console logger for development.
 type ConsoleLogger struct {
-	*Logger
+	*StructuredLogger
 }
 
 // NewConsoleLogger creates a new console logger.
 func NewConsoleLogger(level Level) *ConsoleLogger {
 	return &ConsoleLogger{
-		Logger: New("console", WithLevel(level), WithDevelopment(true)),
+		StructuredLogger: New("console", WithLevel(level), WithDevelopment(true)),
 	}
 }
 
 // NopLogger returns a no-op logger.
-func NopLogger() *Logger {
-	return &Logger{
+func NopLogger() *StructuredLogger {
+	return &StructuredLogger{
 		level: NewLevelManager(LevelNone),
 	}
 }
@@ -709,31 +794,31 @@ var globalLogger = NewLogger(Config{Level: LevelInfo})
 var globalLoggerMu sync.RWMutex
 
 // SetGlobalLogger sets the global logger.
-func SetGlobalLogger(logger *Logger) {
+func SetGlobalLogger(logger *StructuredLogger) {
 	globalLoggerMu.Lock()
 	defer globalLoggerMu.Unlock()
 	globalLogger = logger
 }
 
 // GetGlobalLogger returns the global logger.
-func GetGlobalLogger() *Logger {
+func GetGlobalLogger() *StructuredLogger {
 	globalLoggerMu.RLock()
 	defer globalLoggerMu.RUnlock()
 	return globalLogger
 }
 
 // L returns the global logger.
-func L() *Logger {
+func L() *StructuredLogger {
 	return GetGlobalLogger()
 }
 
 // Sugar provides a simplified logging API.
 type Sugar struct {
-	logger *Logger
+	logger *StructuredLogger
 }
 
 // Sugar returns a sugared logger.
-func (l *Logger) Sugar() *Sugar {
+func (l *StructuredLogger) Sugar() *Sugar {
 	return &Sugar{logger: l}
 }
 

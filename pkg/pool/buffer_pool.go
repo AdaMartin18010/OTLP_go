@@ -1,4 +1,7 @@
 // Package pool provides object pool implementations for the OTLP Go SDK.
+//
+// Stability: Stable
+// Compliance: OpenTelemetry Specification v1.42.0
 package pool
 
 import (

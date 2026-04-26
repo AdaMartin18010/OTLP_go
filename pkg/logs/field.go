@@ -1,6 +1,9 @@
 // Package logs provides OpenTelemetry Logs API implementation for the OTLP Go SDK.
 //
 // This file contains log field types for structured logging.
+//
+// Stability: Beta
+// Compliance: OpenTelemetry Specification v1.42.0
 package logs
 
 import (

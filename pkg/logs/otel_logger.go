@@ -18,7 +18,7 @@ import (
 
 // OTelLogger is a logger that integrates with OpenTelemetry.
 type OTelLogger struct {
-	*Logger
+	*StructuredLogger
 	tracerProvider trace.TracerProvider
 	tracer         trace.Tracer
 	resource       *resource.Resource
@@ -75,10 +75,10 @@ func NewOTelLogger(config OTelLoggerConfig) *OTelLogger {
 	logger := NewLogger(config.Config)
 
 	o := &OTelLogger{
-		Logger:         logger,
-		tracerProvider: config.TracerProvider,
-		resource:       config.Resource,
-		propagator:     config.Propagator,
+		StructuredLogger: logger,
+		tracerProvider:   config.TracerProvider,
+		resource:         config.Resource,
+		propagator:       config.Propagator,
 	}
 
 	if config.TracerProvider != nil {
@@ -93,7 +93,7 @@ func (o *OTelLogger) WithTrace(span trace.Span) *OTelLogger {
 	newLogger := *o
 	if span != nil {
 		spanCtx := span.SpanContext()
-		newLogger.Logger = o.Logger.With(
+		newLogger.StructuredLogger = o.StructuredLogger.With(
 			String("trace_id", spanCtx.TraceID().String()),
 			String("span_id", spanCtx.SpanID().String()),
 		)
@@ -105,7 +105,7 @@ func (o *OTelLogger) WithTrace(span trace.Span) *OTelLogger {
 func (o *OTelLogger) WithSpanContext(spanCtx trace.SpanContext) *OTelLogger {
 	newLogger := *o
 	if spanCtx.IsValid() {
-		newLogger.Logger = o.Logger.With(
+		newLogger.StructuredLogger = o.StructuredLogger.With(
 			String("trace_id", spanCtx.TraceID().String()),
 			String("span_id", spanCtx.SpanID().String()),
 		)
@@ -160,12 +160,12 @@ func (o *OTelLogger) LogError(ctx context.Context, err error, fields ...Field) {
 
 // TraceLogger wraps a logger with trace correlation capabilities.
 type TraceLogger struct {
-	logger     *Logger
+	logger     *StructuredLogger
 	propagator TraceContextPropagator
 }
 
 // NewTraceLogger creates a new trace-aware logger.
-func NewTraceLogger(logger *Logger, propagator TraceContextPropagator) *TraceLogger {
+func NewTraceLogger(logger *StructuredLogger, propagator TraceContextPropagator) *TraceLogger {
 	if propagator == nil {
 		propagator = &DefaultTracePropagator{}
 	}
@@ -177,7 +177,7 @@ func NewTraceLogger(logger *Logger, propagator TraceContextPropagator) *TraceLog
 
 // Log logs a message with trace context.
 func (t *TraceLogger) Log(ctx context.Context, level Level, msg string, fields ...Field) {
-	if !t.logger.Enabled(level) {
+	if !t.logger.IsEnabled(level) {
 		return
 	}
 
@@ -291,12 +291,12 @@ func (lc *LogCorrelator) ClearAll() {
 
 // SpanEventLogger logs events to both a span and as log records.
 type SpanEventLogger struct {
-	logger *Logger
+	logger *StructuredLogger
 	span   trace.Span
 }
 
 // NewSpanEventLogger creates a new span event logger.
-func NewSpanEventLogger(logger *Logger, span trace.Span) *SpanEventLogger {
+func NewSpanEventLogger(logger *StructuredLogger, span trace.Span) *SpanEventLogger {
 	return &SpanEventLogger{
 		logger: logger,
 		span:   span,
@@ -323,7 +323,7 @@ func (s *SpanEventLogger) Event(name string, attrs ...attribute.KeyValue) {
 	if s.span != nil {
 		ctx = trace.ContextWithSpan(ctx, s.span)
 	}
-	s.logger.InfoContext(ctx, "span event", fields...)
+	s.logger.InfoContext(ctx, name, fields...)
 }
 
 // Error records an error on the span and logs it.
@@ -393,7 +393,7 @@ func (s *SpanEventLogger) IsRecording() bool {
 	return false
 }
 
-// TracedLogger wraps a logger with automatic trace injection.
+// TracedLogger wraps a StructuredLogger with automatic trace injection.
 type TracedLogger struct {
 	logger *OTelLogger
 	ctx    context.Context
@@ -436,13 +436,13 @@ func (t *TracedLogger) Fatal(msg string, fields ...Field) {
 func (t *TracedLogger) Trace(name string, opts ...trace.SpanStartOption) *SpanEventLogger {
 	ctx, span := t.logger.StartSpan(t.ctx, name, opts...)
 	t.ctx = ctx
-	return NewSpanEventLogger(t.logger.Logger, span)
+	return NewSpanEventLogger(t.logger.StructuredLogger, span)
 }
 
 // Span returns a SpanEventLogger for the current span in context.
 func (t *TracedLogger) Span() *SpanEventLogger {
 	span := trace.SpanFromContext(t.ctx)
-	return NewSpanEventLogger(t.logger.Logger, span)
+	return NewSpanEventLogger(t.logger.StructuredLogger, span)
 }
 
 // Context returns the current context.
@@ -494,7 +494,7 @@ type BaggageItem struct {
 }
 
 // LogBaggage logs baggage items as fields.
-func LogBaggage(logger *Logger, items ...BaggageItem) {
+func LogBaggage(logger *StructuredLogger, items ...BaggageItem) {
 	fields := make(Fields, len(items))
 	for i, item := range items {
 		fields[i] = String("baggage."+item.Key, item.Value)
@@ -576,7 +576,7 @@ func NewLevelSampler(minLevel Level) *LevelSampler {
 
 // ShouldSample implements Sampler.
 func (l *LevelSampler) ShouldSample(record *LogRecord) bool {
-	return record.Severity.ToLevel() >= l.minLevel
+	return record.SeverityNumber.ToLevel() >= l.minLevel
 }
 
 // ConfigurableOTelLogger is an OTelLogger with dynamic configuration.
@@ -677,10 +677,10 @@ type TraceSpanEvent struct {
 // ToLogRecord converts the event to a log record.
 func (e *TraceSpanEvent) ToLogRecord() *LogRecord {
 	return &LogRecord{
-		Timestamp:  e.Timestamp,
-		Severity:   levelToSeverity(e.Level),
-		Body:       e.Name,
-		Attributes: e.Attributes,
+		Timestamp:      e.Timestamp,
+		SeverityNumber: levelToSeverity(e.Level),
+		Body:           e.Name,
+		Attributes:     e.Attributes,
 	}
 }
 

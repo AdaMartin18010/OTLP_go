@@ -573,7 +573,7 @@ func ExampleSpanBuilder() {
 	provider := noop.NewTracerProvider()
 	tracer := NewTracerWrapper(provider, "example-service")
 
-	ctx, span := tracer.NewSpanBuilder("process-request").
+	_, span := tracer.NewSpanBuilder("process-request").
 		WithKind(trace.SpanKindServer).
 		WithAttribute("http.method", "GET").
 		WithAttribute("http.route", "/api/users").

@@ -4,6 +4,7 @@ go 1.26
 
 require (
 	github.com/OTLP_go/pkg/config v0.0.0
+	OTLP_go/pkg/propagation v0.0.0
 	github.com/stretchr/testify v1.11.1
 	go.opentelemetry.io/otel v1.42.0
 	go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploggrpc v0.11.0
@@ -43,3 +44,7 @@ require (
 )
 
 replace github.com/OTLP_go/pkg/config => ../config
+
+replace OTLP_go/pkg/propagation => ../propagation
+
+replace google.golang.org/genproto/googleapis/api v1.42.0-20260209200024-4cfbd4190f57 => google.golang.org/genproto/googleapis/api v0.0.0-20260401024825-9d38bb4040a9

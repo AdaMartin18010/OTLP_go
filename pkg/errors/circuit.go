@@ -1,6 +1,8 @@
 // Package errors provides error handling utilities for the OTLP Go SDK.
 // Circuit breaker implementation for fault tolerance.
-
+//
+// Stability: Stable
+// Compliance: OpenTelemetry Specification v1.42.0
 package errors
 
 import (

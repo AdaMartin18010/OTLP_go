@@ -84,8 +84,8 @@ func TestNewOTelLogger(t *testing.T) {
 	if logger == nil {
 		t.Fatal("NewOTelLogger() returned nil")
 	}
-	if logger.Logger == nil {
-		t.Error("OTelLogger.Logger is nil")
+	if logger.StructuredLogger == nil {
+		t.Error("OTelLogger.StructuredLogger is nil")
 	}
 }
 
@@ -700,7 +700,7 @@ func TestNewLevelSampler(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.severity.String(), func(t *testing.T) {
-			record := &LogRecord{Severity: tt.severity}
+			record := &LogRecord{SeverityNumber: tt.severity}
 			if got := sampler.ShouldSample(record); got != tt.expected {
 				t.Errorf("ShouldSample(%v) = %v, want %v", tt.severity, got, tt.expected)
 			}
@@ -794,8 +794,8 @@ func TestTraceSpanEvent_ToLogRecord(t *testing.T) {
 	if record.Body != "test-event" {
 		t.Errorf("Body = %v, want 'test-event'", record.Body)
 	}
-	if record.Severity != SeverityInfo {
-		t.Errorf("Severity = %v, want SeverityInfo", record.Severity)
+	if record.SeverityNumber != SeverityInfo {
+		t.Errorf("SeverityNumber = %v, want SeverityInfo", record.SeverityNumber)
 	}
 }
 

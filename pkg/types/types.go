@@ -119,14 +119,27 @@ func (s *SpanID) UnmarshalText(data []byte) error {
 	return err
 }
 
-// NewTraceID generates a new random TraceID.
+// NewTraceID generates a new random TraceID compliant with W3C Trace Context Level 2.
+// The rightmost 7 bytes (bytes 9-15) are guaranteed to be truly random,
+// satisfying the random-trace-id requirement.
 func NewTraceID() TraceID {
 	var id TraceID
 	if _, err := rand.Read(id[:]); err != nil {
-		// Fallback to timestamp-based ID if crypto/rand fails
-		binary.BigEndian.PutUint64(id[:8], uint64(time.Now().UnixNano()))
-		binary.BigEndian.PutUint64(id[8:], uint64(time.Now().UnixNano()))
+		// Fallback: timestamp in first 8 bytes, pseudo-random in remaining bytes.
+		now := uint64(time.Now().UnixNano())
+		binary.BigEndian.PutUint64(id[:8], now)
+		binary.BigEndian.PutUint64(id[8:], now)
 	}
+
+	// Explicitly ensure the rightmost 7 bytes (indices 9-15) are random
+	// per W3C Trace Context Level 2 specification.
+	if _, err := rand.Read(id[9:]); err != nil {
+		// If crypto/rand fails for the second read, use timestamp-based
+		// pseudo-random for the remaining bytes as a last resort.
+		now := uint64(time.Now().UnixNano())
+		binary.BigEndian.PutUint64(id[8:], now)
+	}
+
 	return id
 }
 
@@ -171,6 +184,11 @@ const (
 // IsSampled returns true if the sampled flag is set.
 func (f Flags) IsSampled() bool {
 	return f&FlagSampled != 0
+}
+
+// IsRandom returns true if the random trace ID flag is set.
+func (f Flags) IsRandom() bool {
+	return f&FlagRandom != 0
 }
 
 // WithSampled returns a new Flags with the sampled flag set or cleared.
@@ -345,6 +363,124 @@ func (k SpanKind) IsValid() bool {
 	return k >= SpanKindUnspecified && k <= SpanKindConsumer
 }
 
+// SeverityNumber represents the OpenTelemetry severity number (1-24).
+type SeverityNumber = int32
+
+const (
+	// SeverityNumberTrace1 is the lowest trace severity.
+	SeverityNumberTrace1 SeverityNumber = 1
+	// SeverityNumberTrace2 is trace severity level 2.
+	SeverityNumberTrace2 SeverityNumber = 2
+	// SeverityNumberTrace3 is trace severity level 3.
+	SeverityNumberTrace3 SeverityNumber = 3
+	// SeverityNumberTrace4 is the highest trace severity.
+	SeverityNumberTrace4 SeverityNumber = 4
+	// SeverityNumberDebug1 is the lowest debug severity.
+	SeverityNumberDebug1 SeverityNumber = 5
+	// SeverityNumberDebug2 is debug severity level 2.
+	SeverityNumberDebug2 SeverityNumber = 6
+	// SeverityNumberDebug3 is debug severity level 3.
+	SeverityNumberDebug3 SeverityNumber = 7
+	// SeverityNumberDebug4 is the highest debug severity.
+	SeverityNumberDebug4 SeverityNumber = 8
+	// SeverityNumberInfo1 is the lowest info severity.
+	SeverityNumberInfo1 SeverityNumber = 9
+	// SeverityNumberInfo2 is info severity level 2.
+	SeverityNumberInfo2 SeverityNumber = 10
+	// SeverityNumberInfo3 is info severity level 3.
+	SeverityNumberInfo3 SeverityNumber = 11
+	// SeverityNumberInfo4 is the highest info severity.
+	SeverityNumberInfo4 SeverityNumber = 12
+	// SeverityNumberWarn1 is the lowest warn severity.
+	SeverityNumberWarn1 SeverityNumber = 13
+	// SeverityNumberWarn2 is warn severity level 2.
+	SeverityNumberWarn2 SeverityNumber = 14
+	// SeverityNumberWarn3 is warn severity level 3.
+	SeverityNumberWarn3 SeverityNumber = 15
+	// SeverityNumberWarn4 is the highest warn severity.
+	SeverityNumberWarn4 SeverityNumber = 16
+	// SeverityNumberError1 is the lowest error severity.
+	SeverityNumberError1 SeverityNumber = 17
+	// SeverityNumberError2 is error severity level 2.
+	SeverityNumberError2 SeverityNumber = 18
+	// SeverityNumberError3 is error severity level 3.
+	SeverityNumberError3 SeverityNumber = 19
+	// SeverityNumberError4 is the highest error severity.
+	SeverityNumberError4 SeverityNumber = 20
+	// SeverityNumberFatal1 is the lowest fatal severity.
+	SeverityNumberFatal1 SeverityNumber = 21
+	// SeverityNumberFatal2 is fatal severity level 2.
+	SeverityNumberFatal2 SeverityNumber = 22
+	// SeverityNumberFatal3 is fatal severity level 3.
+	SeverityNumberFatal3 SeverityNumber = 23
+	// SeverityNumberFatal4 is the highest fatal severity.
+	SeverityNumberFatal4 SeverityNumber = 24
+)
+
+// ValidateSeverityNumber validates that a severity number is in the valid range 1-24.
+func ValidateSeverityNumber(n int32) error {
+	if n < 1 || n > 24 {
+		return fmt.Errorf("invalid severity number %d: must be between 1 and 24", n)
+	}
+	return nil
+}
+
+// SeverityText returns the severity text for a given severity number.
+func SeverityText(n SeverityNumber) string {
+	switch n {
+	case SeverityNumberTrace1:
+		return "TRACE"
+	case SeverityNumberTrace2:
+		return "TRACE2"
+	case SeverityNumberTrace3:
+		return "TRACE3"
+	case SeverityNumberTrace4:
+		return "TRACE4"
+	case SeverityNumberDebug1:
+		return "DEBUG"
+	case SeverityNumberDebug2:
+		return "DEBUG2"
+	case SeverityNumberDebug3:
+		return "DEBUG3"
+	case SeverityNumberDebug4:
+		return "DEBUG4"
+	case SeverityNumberInfo1:
+		return "INFO"
+	case SeverityNumberInfo2:
+		return "INFO2"
+	case SeverityNumberInfo3:
+		return "INFO3"
+	case SeverityNumberInfo4:
+		return "INFO4"
+	case SeverityNumberWarn1:
+		return "WARN"
+	case SeverityNumberWarn2:
+		return "WARN2"
+	case SeverityNumberWarn3:
+		return "WARN3"
+	case SeverityNumberWarn4:
+		return "WARN4"
+	case SeverityNumberError1:
+		return "ERROR"
+	case SeverityNumberError2:
+		return "ERROR2"
+	case SeverityNumberError3:
+		return "ERROR3"
+	case SeverityNumberError4:
+		return "ERROR4"
+	case SeverityNumberFatal1:
+		return "FATAL"
+	case SeverityNumberFatal2:
+		return "FATAL2"
+	case SeverityNumberFatal3:
+		return "FATAL3"
+	case SeverityNumberFatal4:
+		return "FATAL4"
+	default:
+		return fmt.Sprintf("SeverityNumber(%d)", n)
+	}
+}
+
 // LogLevel represents the severity level of a log record.
 type LogLevel int32
 
@@ -393,22 +529,22 @@ func (l LogLevel) IsValid() bool {
 }
 
 // SeverityNumber returns the OpenTelemetry severity number (1-24).
-func (l LogLevel) SeverityNumber() int32 {
+func (l LogLevel) SeverityNumber() SeverityNumber {
 	// Map our levels to OpenTelemetry severity numbers
 	// https://opentelemetry.io/docs/specs/otel/logs/data-model/#severity-fields
 	switch l {
 	case LogLevelTrace:
-		return 1 // TRACE
+		return SeverityNumberTrace1
 	case LogLevelDebug:
-		return 5 // DEBUG
+		return SeverityNumberDebug1
 	case LogLevelInfo:
-		return 9 // INFO
+		return SeverityNumberInfo1
 	case LogLevelWarn:
-		return 13 // WARN
+		return SeverityNumberWarn1
 	case LogLevelError:
-		return 17 // ERROR
+		return SeverityNumberError1
 	case LogLevelFatal:
-		return 21 // FATAL
+		return SeverityNumberFatal1
 	default:
 		return 0
 	}

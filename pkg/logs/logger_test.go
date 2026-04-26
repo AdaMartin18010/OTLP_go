@@ -94,10 +94,10 @@ func TestLogger_SetLevel(t *testing.T) {
 func TestLogger_Enabled(t *testing.T) {
 	logger := NewLogger(Config{Level: LevelWarn})
 
-	if logger.Enabled(LevelDebug) {
-		t.Error("Enabled(Debug) should be false when level is Warn")
+	if logger.IsEnabled(LevelDebug) {
+		t.Error("IsEnabled(Debug) should be false when level is Warn")
 	}
-	if !logger.Enabled(LevelError) {
+	if !logger.IsEnabled(LevelError) {
 		t.Error("Enabled(Error) should be true when level is Warn")
 	}
 }
@@ -231,7 +231,7 @@ func TestLogger_Emit(t *testing.T) {
 	})
 
 	ctx := context.Background()
-	logger.Emit(ctx, SeverityInfo, "emit message", attribute.String("key", "value"))
+	logger.EmitContext(ctx, SeverityInfo, "emit message", attribute.String("key", "value"))
 
 	if !strings.Contains(buf.String(), "emit message") {
 		t.Errorf("Emit did not log message: %s", buf.String())
@@ -240,11 +240,11 @@ func TestLogger_Emit(t *testing.T) {
 
 func TestSamplerFunc(t *testing.T) {
 	sampler := SamplerFunc(func(record *LogRecord) bool {
-		return record.Severity == SeverityError
+		return record.SeverityNumber == SeverityError
 	})
 
-	errorRecord := &LogRecord{Severity: SeverityError}
-	infoRecord := &LogRecord{Severity: SeverityInfo}
+	errorRecord := &LogRecord{SeverityNumber: SeverityError}
+	infoRecord := &LogRecord{SeverityNumber: SeverityInfo}
 
 	if !sampler.ShouldSample(errorRecord) {
 		t.Error("ShouldSample should return true for error")
@@ -255,14 +255,14 @@ func TestSamplerFunc(t *testing.T) {
 }
 
 func TestAlwaysSample(t *testing.T) {
-	record := &LogRecord{Severity: SeverityInfo}
+	record := &LogRecord{SeverityNumber: SeverityInfo}
 	if !AlwaysSample.ShouldSample(record) {
 		t.Error("AlwaysSample should always return true")
 	}
 }
 
 func TestNeverSample(t *testing.T) {
-	record := &LogRecord{Severity: SeverityFatal}
+	record := &LogRecord{SeverityNumber: SeverityFatal}
 	if NeverSample.ShouldSample(record) {
 		t.Error("NeverSample should always return false")
 	}
@@ -271,7 +271,7 @@ func TestNeverSample(t *testing.T) {
 func TestProbabilitySampler(t *testing.T) {
 	t.Run("Zero", func(t *testing.T) {
 		sampler := ProbabilitySampler(0)
-		record := &LogRecord{Severity: SeverityInfo}
+		record := &LogRecord{SeverityNumber: SeverityInfo}
 		if sampler.ShouldSample(record) {
 			t.Error("ProbabilitySampler(0) should never sample")
 		}
@@ -279,7 +279,7 @@ func TestProbabilitySampler(t *testing.T) {
 
 	t.Run("One", func(t *testing.T) {
 		sampler := ProbabilitySampler(1)
-		record := &LogRecord{Severity: SeverityInfo}
+		record := &LogRecord{SeverityNumber: SeverityInfo}
 		if !sampler.ShouldSample(record) {
 			t.Error("ProbabilitySampler(1) should always sample")
 		}
@@ -299,7 +299,7 @@ func TestProbabilitySampler(t *testing.T) {
 func TestRateLimiter(t *testing.T) {
 	limiter := NewRateLimiter(100 * time.Millisecond)
 
-	record := &LogRecord{Severity: SeverityInfo}
+	record := &LogRecord{SeverityNumber: SeverityInfo}
 
 	// First call should succeed
 	if !limiter.ShouldSample(record) {
@@ -321,7 +321,7 @@ func TestRateLimiter_Concurrent(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			record := &LogRecord{Severity: SeverityInfo}
+			record := &LogRecord{SeverityNumber: SeverityInfo}
 			if limiter.ShouldSample(record) {
 				count++
 			}
@@ -346,7 +346,7 @@ func TestJSONEncoder_Encode(t *testing.T) {
 	encoder := NewJSONLogEncoder()
 	record := &LogRecord{
 		Timestamp: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
-		Severity:  SeverityInfo,
+		SeverityNumber: SeverityInfo,
 		Body:      "test message",
 	}
 	fields := Fields{String("key", "value")}
@@ -441,7 +441,7 @@ func TestNopLogger(t *testing.T) {
 	if logger == nil {
 		t.Fatal("NopLogger() returned nil")
 	}
-	if logger.Enabled(LevelFatal) {
+	if logger.IsEnabled(LevelFatal) {
 		t.Error("NopLogger should not enable any level")
 	}
 }
@@ -539,14 +539,14 @@ func TestLogEntry_Parse(t *testing.T) {
 }
 
 func TestLoggerProvider(t *testing.T) {
-	provider := NewLoggerProvider(nil)
+	provider := NewProvider(nil)
 	if provider == nil {
 		t.Fatal("NewLoggerProvider() returned nil")
 	}
 
 	// Get logger
-	logger1 := provider.GetLogger("test")
-	logger2 := provider.GetLogger("test")
+	logger1 := provider.Logger("test")
+	logger2 := provider.Logger("test")
 
 	// Should return same logger
 	if logger1 != logger2 {
@@ -554,7 +554,7 @@ func TestLoggerProvider(t *testing.T) {
 	}
 
 	// Get different logger
-	logger3 := provider.GetLogger("other")
+	logger3 := provider.Logger("other")
 	if logger1 == logger3 {
 		t.Error("GetLogger should return different loggers for different names")
 	}
